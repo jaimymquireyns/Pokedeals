@@ -62,21 +62,16 @@ export const rest = {
   rpc: (fn, args) => request("POST", `/rest/v1/rpc/${fn}`, { body: args }),
 };
 
-// ---- inloggen met een code die per e-mail komt ----
-export async function sendCode(email) {
-  await request("POST", "/auth/v1/otp", { body: { email, create_user: true } });
+// ---- account: e-mailadres en wachtwoord ----
+/** Maakt een account. Geeft true als je meteen bent ingelogd (dat gebeurt als e-mailbevestiging bij Supabase uit staat). */
+export async function signUp(email, password) {
+  const s = await request("POST", "/auth/v1/signup", { body: { email, password }, retry: false });
+  if (s?.access_token) { setSession(s); return true; }
+  return false;
 }
 
-export async function verifyCode(email, token) {
-  let lastErr;
-  for (const type of ["email", "magiclink"]) {
-    try {
-      const s = await request("POST", "/auth/v1/verify", { body: { type, email, token: token.trim() }, retry: false });
-      setSession(s);
-      return s;
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr;
+export async function signIn(email, password) {
+  setSession(await request("POST", "/auth/v1/token?grant_type=password", { body: { email, password }, retry: false }));
 }
 
 export async function signOut() {
