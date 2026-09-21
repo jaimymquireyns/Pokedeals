@@ -186,18 +186,37 @@ class PPT:
         self.s = session or requests.Session()
         self.s.headers.update({"Authorization": f"Bearer {key}", "User-Agent": "pokedeals/2.0"})
         self.credits = 0
+        self.remaining = None      # credits die vandaag nog over zijn volgens PokemonPriceTracker
+        self.blocked = False       # True zodra de API definitief weigert (credits op, geen toegang)
         self.budget = budget or config.PPT_DAILY_BUDGET
         self.log = log
 
     def over_budget(self):
-        return self.credits >= self.budget
+        """Stopt ruim voordat het dagtegoed op is, zodat ook het gratis plan (100 credits) veilig blijft."""
+        return self.blocked or self.credits >= self.budget or (self.remaining is not None and self.remaining <= 5)
 
     def _get(self, path, params=None):
-        for _ in range(4):
+        for _ in range(3):
             r = self.s.get(config.PPT_BASE + path, params=params, timeout=90)
+            rem = r.headers.get("X-RateLimit-Daily-Remaining")
+            if rem is not None:
+                try:
+                    self.remaining = int(float(rem))
+                except ValueError:
+                    pass
             if r.status_code == 429:
-                time.sleep(min(int(r.headers.get("Retry-After", 20) or 20), 90))
+                if "credit" in (r.text or "").lower() or "daily" in (r.text or "").lower() or (self.remaining is not None and self.remaining <= 0):
+                    self.blocked = True
+                    raise RuntimeError("PokemonPriceTracker: het dagtegoed aan credits is op (gratis plan: 100 per dag)")
+                try:
+                    wait = int(r.headers.get("Retry-After", 20))
+                except ValueError:
+                    wait = 20
+                time.sleep(min(wait, 90))
                 continue
+            if r.status_code in (401, 403):
+                self.blocked = True
+                raise RuntimeError(f"PokemonPriceTracker: geen toegang ({r.status_code}). Controleer de API key en of je plan dit toestaat.")
             if r.status_code == 404:
                 return None
             r.raise_for_status()
@@ -209,7 +228,8 @@ class PPT:
                     used = 0
             self.credits += int(float(used or 0))
             return r.json()
-        raise RuntimeError("PokemonPriceTracker: blijft 429 geven (limiet bereikt)")
+        self.blocked = True
+        raise RuntimeError("PokemonPriceTracker: blijft 429 geven (te veel verzoeken)")
 
     def sets(self):
         out = []
@@ -247,16 +267,46 @@ class PPT:
         return items[0] if items else None
 
     def probe(self):
-        """Toont de ruwe structuur van een paar antwoorden en wat de parsers eruit halen."""
-        sets = self._get("/sets", {"sortBy": "releaseDate", "sortOrder": "desc", "limit": 3})
-        print("SETS ruw:", str(sets)[:600])
-        found = self.sets()
-        print("SETS herkend:", found[:3])
-        if not found:
-            return
-        raw = self._get("/sealed-products", {"set": found[0]["set_id"], "includeHistory": "true", "days": 30, "limit": 1})
-        print("SEALED ruw:", str(raw)[:900])
-        items = [parse_item(d, "sealed") for d in _items(raw)]
-        for it in items[:1]:
-            print("SEALED herkend:", {k: (v if k != "history" else f"{len(v)} punten") for k, v in it.items()})
-        print("credits verbruikt:", self.credits)
+        """Kleine test (ca. 6 credits): toont de ruwe antwoorden en wat de parsers eruit halen."""
+        def short(d, n=900):
+            return str(d)[:n]
+
+        def summary(it):
+            return {k: (v if k not in ("history", "graded") else (f"{len(v)} punten" if k == "history" else v)) for k, v in it.items()}
+
+        print("=== 1. Sets (1 credit) ===")
+        found = []
+        try:
+            print("ruw:", short(self._get("/sets", {"sortBy": "releaseDate", "sortOrder": "desc", "limit": 3}), 500))
+            found = self.sets()
+            print("herkend:", len(found), "sets; nieuwste:", found[:2])
+        except Exception as e:
+            print("FOUT:", e)
+
+        print("\n=== 2. Sealed producten (max. 2 credits + historie) ===")
+        try:
+            items = []
+            if found:
+                raw = self._get("/sealed-products", {"set": found[0]["set_id"], "includeHistory": "true", "days": 3, "limit": 2})
+                print("ruw:", short(raw))
+                items = [parse_item(d, "sealed") for d in _items(raw)]
+            if not items:
+                print("(geen resultaat met de set-id; nu zoeken op naam)")
+                raw = self._get("/sealed-products", {"search": "booster box", "includeHistory": "true", "days": 3, "limit": 2})
+                print("ruw:", short(raw))
+                items = [parse_item(d, "sealed") for d in _items(raw)]
+            for it in items[:2]:
+                print("herkend:", summary(it))
+        except Exception as e:
+            print("FOUT:", e)
+
+        print("\n=== 3. Kaart met historie en gegradeerde prijzen (max. 3 credits) ===")
+        try:
+            raw = self._get("/cards", {"search": "charizard ex", "limit": 1, "includeHistory": "true", "includeEbay": "true", "days": 3})
+            print("ruw:", short(raw, 1400))
+            for it in [parse_item(d) for d in _items(raw)][:1]:
+                print("herkend:", summary(it))
+        except Exception as e:
+            print("FOUT:", e)
+
+        print(f"\ncredits verbruikt: {self.credits}; nog over vandaag: {self.remaining}")
