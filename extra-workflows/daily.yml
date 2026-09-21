@@ -1,0 +1,36 @@
+name: Dagelijkse update
+
+on:
+  schedule:
+    - cron: "0 6 * * *"        # elke dag 06:00 UTC (ongeveer 07:00-08:00 Nederlandse tijd)
+  workflow_dispatch:           # handmatig starten via het tabblad Actions
+    inputs:
+      recent:
+        description: "Aantal sets om te verversen (klein = snelle test, 500 = alles)"
+        default: "500"
+
+concurrency:
+  group: pokedeals-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: collector/requirements.txt
+      - run: pip install -r collector/requirements.txt
+      - name: Prijzen ophalen, kansen berekenen, meldingen sturen
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: python run.py --recent ${{ github.event.inputs.recent || '500' }}

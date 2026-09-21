@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Meldingssleutels maken</title>
+<style>
+  body{font:16px/1.45 system-ui,sans-serif;margin:0;padding:20px;max-width:640px;margin-inline:auto;background:#E9EDF3;color:#141B26}
+  h1{font-size:26px;margin:0 0 8px} h2{font-size:17px;margin:22px 0 6px}
+  textarea{width:100%;min-height:96px;font:13px/1.35 ui-monospace,Menlo,monospace;padding:10px;border:1px solid #D5DBE6;border-radius:10px;box-sizing:border-box;background:#fff;color:inherit}
+  button{margin-top:8px;padding:12px 16px;border-radius:12px;border:0;background:#141B26;color:#fff;font-weight:700;font-size:16px;cursor:pointer}
+  .warn{background:#fff;border:1px solid #D5DBE6;border-radius:10px;padding:10px 12px;font-size:14px}
+</style>
+</head>
+<body>
+<h1>Meldingssleutels</h1>
+<p>Deze pagina maakt in je eigen browser een sleutelpaar voor meldingen. Er wordt niets verstuurd of bewaard.</p>
+<button id="go">Maak sleutels</button>
+<div id="out" hidden>
+  <h2>1. Publieke sleutel</h2>
+  <p>Plak in <code>docs/config.js</code> bij <code>VAPID_PUBLIC_KEY</code>.</p>
+  <textarea id="pub" readonly></textarea>
+  <button data-copy="pub">Kopieer</button>
+  <h2>2. Geheime sleutel</h2>
+  <p>Plak als GitHub-secret <code>VAPID_PRIVATE_KEY</code>. Kopieer alles, ook de regels met streepjes.</p>
+  <textarea id="priv" readonly></textarea>
+  <button data-copy="priv">Kopieer</button>
+  <p class="warn">De geheime sleutel deel je met niemand en zet je nergens anders neer. Sluit deze pagina als je klaar bent; maak je later opnieuw sleutels, dan werken de oude meldingen niet meer.</p>
+</div>
+<script>
+const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+document.getElementById("go").onclick = async () => {
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pub = b64url(await crypto.subtle.exportKey("raw", pair.publicKey));
+  const der = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey))));
+  const pem = "-----BEGIN PRIVATE KEY-----\n" + der.match(/.{1,64}/g).join("\n") + "\n-----END PRIVATE KEY-----\n";
+  document.getElementById("pub").value = pub;
+  document.getElementById("priv").value = pem;
+  document.getElementById("out").hidden = false;
+  document.getElementById("go").hidden = true;
+};
+document.querySelectorAll("[data-copy]").forEach((b) => b.onclick = async () => {
+  const t = document.getElementById(b.dataset.copy);
+  try { await navigator.clipboard.writeText(t.value); b.textContent = "Gekopieerd"; } catch { t.select(); b.textContent = "Selecteer en kopieer zelf"; }
+});
+</script>
+</body>
+</html>

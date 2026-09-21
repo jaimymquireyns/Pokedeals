@@ -1,0 +1,262 @@
+"""PokemonPriceTracker (betaald API-plan): sealed, graded en prijshistorie.
+
+Let op: de exacte vorm van de antwoorden kon ik niet live testen. De parsers hieronder zoeken daarom op meerdere
+plekken naar velden en negeren wat ze niet snappen. Met `python run.py --probe-ppt` zie je de echte structuur en
+of de velden gevonden worden.
+"""
+import re
+import time
+from datetime import date, datetime, timezone
+
+import requests
+
+import config
+
+
+# ---------- kleine hulpjes ----------
+def _dig(d, path):
+    cur = d
+    for k in path.split("."):
+        if isinstance(cur, dict) and k in cur:
+            cur = cur[k]
+        else:
+            return None
+    return cur
+
+
+def _first(d, *paths):
+    for p in paths:
+        v = _dig(d, p)
+        if v is not None and v != "":
+            return v
+    return None
+
+
+def _num(x):
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def _items(data):
+    if isinstance(data, dict):
+        data = data.get("data", data)
+    if isinstance(data, dict):
+        return [data]
+    return [x for x in (data or []) if isinstance(x, dict)]
+
+
+def norm(s):
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def norm_number(n):
+    if n is None:
+        return None
+    return (str(n).split("/")[0].strip().lstrip("0") or "0").lower()
+
+
+DATE_KEYS = ("date", "day", "timestamp", "t", "d")
+PRICE_KEYS = ("market", "marketPrice", "price", "avg", "average", "p", "close")
+
+
+def _to_date(v):
+    if isinstance(v, str):
+        m = re.match(r"^(\d{4}-\d{2}-\d{2})", v)
+        return m.group(1) if m else None
+    if isinstance(v, (int, float)) and v > 1e9:
+        secs = v / 1000 if v > 1e11 else v
+        return datetime.fromtimestamp(secs, tz=timezone.utc).date().isoformat()
+    return None
+
+
+def extract_history(obj):
+    """Zoekt de langste reeks (datum, prijs) ergens in het antwoord."""
+    best = []
+
+    def point(it):
+        dt = next((_to_date(it[k]) for k in DATE_KEYS if k in it and _to_date(it[k])), None)
+        pr = next((_num(it[k]) for k in PRICE_KEYS if k in it and _num(it[k])), None)
+        return (dt, pr) if dt and pr else None
+
+    def walk(x):
+        nonlocal best
+        if isinstance(x, list):
+            pts = [p for p in (point(it) for it in x if isinstance(it, dict)) if p]
+            if len(pts) > len(best):
+                best = pts
+            for it in x:
+                walk(it)
+        elif isinstance(x, dict):
+            pts = []
+            for k, v in x.items():
+                dt = _to_date(k)
+                if not dt:
+                    continue
+                if isinstance(v, dict):
+                    pr = next((_num(v[kk]) for kk in PRICE_KEYS if kk in v and _num(v[kk])), None)
+                else:
+                    pr = _num(v)
+                if pr:
+                    pts.append((dt, pr))
+            if len(pts) > len(best):
+                best = pts
+            for v in x.values():
+                walk(v)
+
+    walk(obj)
+    return sorted({d: p for d, p in best}.items())
+
+
+GRADER_RE = re.compile(r"^\s*(psa|bgs|cgc|sgc)[\s_\-]*(\d{1,2})(?:[._](\d))?\s*$", re.I)
+GRADE_PRICE_KEYS = ("smartMarketPrice", "avg", "average", "averagePrice", "medianPrice", "marketPrice7Day", "price", "market")
+
+
+def norm_grade(label):
+    m = GRADER_RE.match(str(label))
+    if not m:
+        return None
+    co, whole, frac = m.group(1).upper(), m.group(2), m.group(3)
+    return f"{co}-{whole}" + (f".{frac}" if frac else "")
+
+
+def _grade_price(v):
+    if isinstance(v, dict):
+        return next((_num(v[k]) for k in GRADE_PRICE_KEYS if k in v and _num(v[k])), None)
+    return _num(v)
+
+
+def extract_graded(ebay):
+    out = {}
+    if isinstance(ebay, dict):
+        for k, v in ebay.items():
+            if str(k).lower() in ("psa", "bgs", "cgc", "sgc") and isinstance(v, dict):
+                for gk, gv in v.items():
+                    g, p = norm_grade(f"{k}{gk}"), _grade_price(gv)
+                    if g and p:
+                        out[g] = p
+                continue
+            g, p = norm_grade(k), _grade_price(v)
+            if g and p:
+                out[g] = p
+    elif isinstance(ebay, list):
+        for row in ebay:
+            if not isinstance(row, dict):
+                continue
+            label = row.get("grade") or row.get("gradeLabel") or ""
+            if row.get("grader") and not GRADER_RE.match(str(label)):
+                label = f"{row['grader']}{label}"
+            g, p = norm_grade(label), _grade_price(row)
+            if g and p:
+                out[g] = p
+    return out
+
+
+def parse_item(d, kind="card"):
+    """Genormaliseerd antwoord voor één kaart of sealed product."""
+    price = _num(_first(d, "prices.market", "prices.marketPrice", "marketPrice", "market", "price"))
+    if price is None and isinstance(d.get("variants"), dict):
+        for v in d["variants"].values():
+            price = _num(_first(v, "marketPrice", "prices.market", "market")) if isinstance(v, dict) else None
+            if price:
+                break
+    tid = _first(d, "tcgPlayerId", "id")
+    return {
+        "ppt_id": str(tid) if tid is not None else None,
+        "name": _first(d, "name", "productName"),
+        "set_name": _first(d, "setName", "set.name"),
+        "set_id": _first(d, "setId", "set.id"),
+        "number": _first(d, "cardNumber", "number"),
+        "rarity": _first(d, "rarity"),
+        "product_type": _first(d, "productType"),
+        "image": _first(d, "imageUrl", "image", "images.small"),
+        "price_usd": price,
+        "low_usd": _num(_first(d, "prices.low", "lowPrice", "prices.lowPrice")),
+        "history": extract_history(d.get("priceHistory") or d.get("history") or {}),
+        "graded": extract_graded(d.get("ebay") or d.get("graded")),
+    }
+
+
+class PPT:
+    name = "ppt"
+
+    def __init__(self, key, session=None, budget=None, log=print):
+        self.s = session or requests.Session()
+        self.s.headers.update({"Authorization": f"Bearer {key}", "User-Agent": "pokedeals/2.0"})
+        self.credits = 0
+        self.budget = budget or config.PPT_DAILY_BUDGET
+        self.log = log
+
+    def over_budget(self):
+        return self.credits >= self.budget
+
+    def _get(self, path, params=None):
+        for _ in range(4):
+            r = self.s.get(config.PPT_BASE + path, params=params, timeout=90)
+            if r.status_code == 429:
+                time.sleep(min(int(r.headers.get("Retry-After", 20) or 20), 90))
+                continue
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            used = r.headers.get("X-API-Calls-Consumed") or r.headers.get("X-RateLimit-Cost")
+            if used is None:
+                try:
+                    used = r.json()["metadata"]["apiCallsConsumed"]["total"]
+                except Exception:
+                    used = 0
+            self.credits += int(float(used or 0))
+            return r.json()
+        raise RuntimeError("PokemonPriceTracker: blijft 429 geven (limiet bereikt)")
+
+    def sets(self):
+        out = []
+        for d in _items(self._get("/sets", {"sortBy": "releaseDate", "sortOrder": "desc"})):
+            sid = _first(d, "setId", "id", "slug", "code")
+            if sid:
+                out.append({"set_id": str(sid), "name": _first(d, "name", "setName"),
+                            "release_date": _to_date(_first(d, "releaseDate", "release_date"))})
+        return out
+
+    def _params(self, base, history_days=None, ebay=False):
+        p = dict(base)
+        if history_days:
+            p.update({"includeHistory": "true", "days": history_days})
+        if ebay:
+            p["includeEbay"] = "true"
+        return p
+
+    def sealed_for_set(self, set_id, history_days=None):
+        data = self._get("/sealed-products", self._params({"set": set_id}, history_days))
+        return [parse_item(d, "sealed") for d in _items(data)]
+
+    def sealed(self, ppt_id, history_days=None):
+        data = self._get("/sealed-products", self._params({"tcgPlayerId": ppt_id}, history_days))
+        items = [parse_item(d, "sealed") for d in _items(data)]
+        return items[0] if items else None
+
+    def cards_in_set(self, set_id, history_days=None):
+        data = self._get("/cards", self._params({"set": set_id, "fetchAllInSet": "true"}, history_days))
+        return [parse_item(d) for d in _items(data)]
+
+    def card(self, ppt_id, history_days=None, ebay=False):
+        data = self._get("/cards", self._params({"tcgPlayerId": ppt_id}, history_days, ebay))
+        items = [parse_item(d) for d in _items(data)]
+        return items[0] if items else None
+
+    def probe(self):
+        """Toont de ruwe structuur van een paar antwoorden en wat de parsers eruit halen."""
+        sets = self._get("/sets", {"sortBy": "releaseDate", "sortOrder": "desc", "limit": 3})
+        print("SETS ruw:", str(sets)[:600])
+        found = self.sets()
+        print("SETS herkend:", found[:3])
+        if not found:
+            return
+        raw = self._get("/sealed-products", {"set": found[0]["set_id"], "includeHistory": "true", "days": 30, "limit": 1})
+        print("SEALED ruw:", str(raw)[:900])
+        items = [parse_item(d, "sealed") for d in _items(raw)]
+        for it in items[:1]:
+            print("SEALED herkend:", {k: (v if k != "history" else f"{len(v)} punten") for k, v in it.items()})
+        print("credits verbruikt:", self.credits)

@@ -1,0 +1,284 @@
+"""Dagelijkse taak: prijzen ophalen, kansen berekenen, trackrecord bijwerken, meldingen sturen.
+
+Lokaal proberen:
+    export SUPABASE_URL=https://xxxx.supabase.co
+    export SUPABASE_SECRET_KEY=...          # de GEHEIME sleutel
+    export PPT_API_KEY=...                  # optioneel: sealed, graded en historie
+    python run.py --list-sets
+    python run.py --recent 3
+    python run.py --probe-ppt               # test wat PokemonPriceTracker teruggeeft
+"""
+import argparse
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, timedelta
+from itertools import groupby
+
+import analysis
+import config
+from providers import TCGdex
+from store import SupabaseStore
+
+
+# ---------------------------------------------------------------------------
+# Kaarten (TCGdex)
+# ---------------------------------------------------------------------------
+def _should_skip(last, today, min_track, force):
+    if not last:
+        return False
+    if last["date"] == today and not force:
+        return True
+    if last["price"] is not None and float(last["price"]) < min_track:
+        age = (date.fromisoformat(today) - date.fromisoformat(last["date"])).days
+        return age < config.RECHECK_CHEAP_DAYS
+    return False
+
+
+def collect_cards(provider, store, set_ids, today, min_track=None, workers=None, force=False, log=print):
+    min_track = config.MIN_TRACK_PRICE if min_track is None else min_track
+    workers = workers or config.WORKERS
+    last = store.latest_prices()
+    stats = {"cards": 0, "prices": 0, "skipped": 0, "errors": 0}
+
+    def flush(products, prices):
+        if products:
+            store.upsert_products(products)
+        if prices:
+            store.upsert_prices(prices)
+        products.clear()
+        prices.clear()
+
+    for set_id in set_ids:
+        s = provider.get_set(set_id)
+        if not s:
+            log(f"! set {set_id} niet gevonden")
+            continue
+        store.upsert_sets([{"set_id": s["set_id"], "name": s["name"], "release_date": s.get("release_date"),
+                            "card_total": s.get("card_total")}])
+        todo = [c for c in s["cards"] if not _should_skip(last.get(c["card_id"]), today, min_track, force)]
+        stats["skipped"] += len(s["cards"]) - len(todo)
+        log(f"{s['name']} ({set_id}): {len(todo)} ophalen, {len(s['cards']) - len(todo)} overgeslagen")
+
+        products, prices = [], []
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futures = {ex.submit(provider.get_card, c["card_id"]): c for c in todo}
+            for i, fut in enumerate(as_completed(futures), 1):
+                try:
+                    res = fut.result()
+                except Exception as e:
+                    stats["errors"] += 1
+                    log(f"  fout bij {futures[fut]['card_id']}: {e}")
+                    continue
+                if not res:
+                    continue
+                products.append(res["product"])
+                stats["cards"] += 1
+                if res["price"]:
+                    prices.append({"product_id": res["product"]["product_id"], "date": today, "source": "tcgdex",
+                                   "grade_key": "raw", **res["price"]})
+                    stats["prices"] += 1
+                if i % 100 == 0:
+                    flush(products, prices)
+                    log(f"  {i}/{len(todo)}")
+        flush(products, prices)
+    log(f"Kaarten klaar: {stats}")
+    return stats
+
+
+def newest_sets(provider, store, n, workers=None, log=print):
+    known = store.known_sets()
+    missing = [s["set_id"] for s in provider.list_sets() if s["set_id"] not in known]
+    if missing:
+        log(f"Releasedatums ophalen voor {len(missing)} sets (eenmalig)...")
+        with ThreadPoolExecutor(max_workers=workers or config.WORKERS) as ex:
+            rows = [s for s in ex.map(provider.get_set, missing) if s]
+        store.upsert_sets([{"set_id": s["set_id"], "name": s["name"], "release_date": s.get("release_date"),
+                            "card_total": s.get("card_total")} for s in rows])
+    rows = [r for r in store.known_sets().values() if r.get("release_date")]
+    rows.sort(key=lambda r: r["release_date"], reverse=True)
+    return [r["set_id"] for r in rows[:n]]
+
+
+# ---------------------------------------------------------------------------
+# Sealed (PokemonPriceTracker)
+# ---------------------------------------------------------------------------
+def sealed_rows(items, set_name_by_id, today, fx, set_id_fallback=None):
+    """Zet PPT-items om naar (products, prices)."""
+    products, prices = [], []
+    for it in items:
+        if not it["ppt_id"] or not it["name"] or not it["price_usd"]:
+            continue
+        pid = f"ppt:{it['ppt_id']}"
+        sid = it["set_id"] or set_id_fallback
+        products.append({"product_id": pid, "kind": "sealed", "name": it["name"], "set_id": sid,
+                         "set_name": it["set_name"] or set_name_by_id.get(sid), "product_type": it["product_type"],
+                         "image": it["image"], "ppt_id": it["ppt_id"]})
+        prices.append({"product_id": pid, "date": today, "source": "ppt", "grade_key": "raw",
+                       "price": round(it["price_usd"] * fx, 4), "native": it["price_usd"], "currency": "USD",
+                       "low": round(it["low_usd"] * fx, 4) if it["low_usd"] else None})
+    return products, prices
+
+
+def scan_sealed(ppt, store, today, fx, max_sets=None, log=print):
+    sets = ppt.sets()
+    if max_sets:
+        sets = sets[:max_sets]
+    names = {s["set_id"]: s["name"] for s in sets}
+    total = 0
+    for s in sets:
+        if ppt.over_budget():
+            log(f"PPT-budget bereikt ({ppt.credits} credits); sealed-scan gestopt")
+            break
+        try:
+            items = ppt.sealed_for_set(s["set_id"])
+        except Exception as e:
+            log(f"  sealed {s['set_id']}: {e}")
+            continue
+        products, prices = sealed_rows(items, names, today, fx, s["set_id"])
+        if products:
+            store.upsert_products(products)
+            store.upsert_prices(prices)
+            total += len(products)
+    log(f"Sealed klaar: {total} producten, {ppt.credits} credits gebruikt")
+    return total
+
+
+# ---------------------------------------------------------------------------
+# Kansen
+# ---------------------------------------------------------------------------
+def choose_stats(rows):
+    """Kalibratiegegevens: live-uitkomsten als er genoeg zijn, anders de backtest."""
+    by = {"live": {}, "backtest": {}}
+    for r in rows:
+        if r["source"] in by:
+            by[r["source"]][r["bucket"]] = r
+    out = {}
+    for _, _, b in analysis.BUCKETS:
+        live, back = by["live"].get(b), by["backtest"].get(b)
+        pick = live if live and live["n"] >= config.CALIBRATE_MIN_N else back
+        if pick:
+            out[b] = {"n": pick["n"], "hits": pick["hits"]}
+    return out
+
+
+def build_forecasts(store, today, log=print):
+    since = (date.fromisoformat(today) - timedelta(days=config.HISTORY_DAYS)).isoformat()
+    stats = choose_stats(store.select("trackrecord_stats", {"select": "*"}))
+    rows = store.price_rows(since)
+    out, history = [], []
+    for pid, grp in groupby(rows, key=lambda r: r["product_id"]):
+        by_source = {}
+        for r in grp:
+            by_source.setdefault(r["source"], []).append(
+                {**r, **{k: (float(r[k]) if r.get(k) is not None else None) for k in ("price", "avg1", "avg7", "avg30", "low")}})
+        series = analysis.series_for(pid, by_source)
+        for horizon, pct in config.GRID:
+            f = analysis.forecast(series, horizon, pct / 100)
+            if not f or f["price"] < config.MIN_PRICE:
+                continue
+            p_raw = f["p_up"]
+            p_up, p_down = f["p_up"], f["p_down"]
+            if (horizon, pct) == config.STANDARD:
+                p_up = analysis.calibrate(p_up, stats)
+                history.append({"product_id": pid, "date": today, "p_up": round(p_raw, 4),
+                                "price": f["price"], "signal": analysis._signal(p_raw, p_down)})
+            out.append({
+                "product_id": pid, "horizon_days": horizon, "threshold_pct": pct,
+                "price": f["price"], "avg7": f["avg7"], "avg30": f["avg30"], "mom30": f["mom30"],
+                "p_up": round(p_up, 4), "p_down": round(p_down, 4), "exp_change": round(f["exp_change"], 4),
+                "score": round(p_up - p_down, 4), "sigma": round(f["sigma"], 5),
+                "signal": analysis._signal(p_up, p_down), "mode": f["mode"], "confidence": f["confidence"],
+                "n": f["n"], "updated": f["updated"], "computed_on": today,
+            })
+    if out:
+        store.upsert("forecasts", out, "product_id,horizon_days,threshold_pct")
+        store.delete("forecasts", {"computed_on": f"lt.{today}"})
+    if history:
+        store.upsert("forecast_history", history, "product_id,date")
+    log(f"Kansen berekend: {len(out)} rijen voor {len({r['product_id'] for r in out})} producten"
+        f"{' (gekalibreerd)' if stats else ''}")
+    return out
+
+
+def prune(store, today, log=print):
+    cutoff = (date.fromisoformat(today) - timedelta(days=config.PRUNE_CHEAP_DAYS)).isoformat()
+    store.delete("prices", {"price": f"lt.{config.MIN_PRICE}", "date": f"lt.{cutoff}"})
+    log("Oude prijzen van goedkope kaarten opgeruimd")
+
+
+# ---------------------------------------------------------------------------
+# Hoofdprogramma
+# ---------------------------------------------------------------------------
+def daily(store, tcg, ppt, sender, today, set_ids, log=print):
+    import alerts
+    import features
+    import fx as fxmod
+    import trackrecord
+
+    rate, src = fxmod.usd_to_eur(tcg.session)
+    log(f"USD→EUR: {rate:.4f} ({src})")
+    collect_cards(tcg, store, set_ids, today, log=log)
+    if ppt:
+        scan_sealed(ppt, store, today, rate, log=log)
+    features.update_static(store, log=log)
+    try:
+        features.update_pageviews(store, today, log=log)
+    except Exception as e:  # context-data is niet essentieel
+        log(f"pageviews overgeslagen: {e}")
+    build_forecasts(store, today, log=log)
+    trackrecord.resolve(store, today, log=log)
+    alerts.evaluate(store, sender, today, log=log)
+    alerts.send_digest(store, sender, today, log=log)
+    prune(store, today, log=log)
+
+
+def make_sender(log=print):
+    pem = os.environ.get("VAPID_PRIVATE_KEY")
+    if not pem:
+        log("Geen VAPID_PRIVATE_KEY: meldingen worden niet verstuurd")
+        return None
+    from push import WebPushSender
+    return WebPushSender(pem, os.environ.get("VAPID_SUBJECT", "mailto:jij@example.com"))
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--list-sets", action="store_true")
+    ap.add_argument("--sets", nargs="+")
+    ap.add_argument("--recent", type=int)
+    ap.add_argument("--forecast-only", action="store_true")
+    ap.add_argument("--probe-ppt", action="store_true")
+    args = ap.parse_args()
+
+    tcg = TCGdex()
+    if args.list_sets:
+        for s in tcg.list_sets():
+            print(f"{s['set_id']:<12} {s['name']}")
+        return
+
+    ppt = None
+    if os.environ.get("PPT_API_KEY"):
+        from ppt import PPT
+        ppt = PPT(os.environ["PPT_API_KEY"])
+    if args.probe_ppt:
+        if not ppt:
+            ap.error("zet PPT_API_KEY")
+        ppt.probe()
+        return
+
+    url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        ap.error("zet SUPABASE_URL en SUPABASE_SECRET_KEY")
+    store = SupabaseStore(url, key)
+    today = date.today().isoformat()
+    if args.forecast_only:
+        build_forecasts(store, today)
+        return
+    set_ids = args.sets or (newest_sets(tcg, store, args.recent) if args.recent else None)
+    if not set_ids:
+        ap.error("kies --sets of --recent")
+    daily(store, tcg, ppt, make_sender(), today, set_ids)
+
+
+if __name__ == "__main__":
+    main()

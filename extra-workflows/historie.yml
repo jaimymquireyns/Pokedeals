@@ -1,0 +1,47 @@
+name: Historie ophalen (eenmalig)
+
+on:
+  workflow_dispatch:
+    inputs:
+      cards_sets:
+        description: "Aantal nieuwste sets waarvoor kaarthistorie wordt opgehaald (0 = overslaan)"
+        default: "12"
+      sealed:
+        description: "Sealed-historie ophalen? (ja/nee)"
+        default: "ja"
+      backtest:
+        description: "Model testen op de historie en trackrecord vullen? (ja/nee)"
+        default: "ja"
+
+concurrency:
+  group: pokedeals-data
+  cancel-in-progress: false
+
+jobs:
+  historie:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: collector/requirements.txt
+      - run: pip install -r collector/requirements.txt
+      - name: Historie ophalen
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+          CARDS_SETS: ${{ github.event.inputs.cards_sets }}
+          DO_SEALED: ${{ github.event.inputs.sealed }}
+          DO_BACKTEST: ${{ github.event.inputs.backtest }}
+        run: |
+          args=""
+          if [ "${CARDS_SETS:-0}" != "0" ]; then args="$args --cards-sets $CARDS_SETS"; fi
+          if [ "$DO_SEALED" = "ja" ]; then args="$args --sealed"; fi
+          if [ "$DO_BACKTEST" = "ja" ]; then args="$args --backtest"; fi
+          echo "python backfill.py $args"
+          python backfill.py $args
