@@ -142,6 +142,7 @@ def probe(session, game=None):
     """Toont wat Cardmarket teruggeeft, zodat de parsers gecontroleerd kunnen worden."""
     game = game or config.CARDMARKET_GAME_ID
     print(f"=== Cardmarket (game {game}) ===")
+    raw_guide = {}
     try:
         raw = fetch(session, f"productList/products_nonsingles_{game}.json")
         print("bestand:", type(raw).__name__, "sleutels:", list(raw)[:6] if isinstance(raw, dict) else "-")
@@ -158,10 +159,11 @@ def probe(session, game=None):
         print(f"{len(excluded)} uitgesloten. Voorbeelden:", excluded[:8])
     except Exception as e:
         print("FOUT bij productlijst:", e)
-        return
+        return raw_guide
     try:
         raw = fetch(session, f"priceGuide/price_guide_{game}.json")
         recs = records(raw)
+        raw_guide = {d.get("idProduct"): d for d in recs}
         print(f"\nprijslijst: {len(recs)} records; eerste 2 ruw: {str(recs[:2])[:600]}")
         guide = load_price_guide(session, game)
         rows = [(guide[s["id"]]["price"], s["name"], guide[s["id"]]["avg7"], guide[s["id"]]["avg30"]) for s in sealed if s["id"] in guide]
@@ -177,3 +179,4 @@ def probe(session, game=None):
         print(f"setnamen (alleen gokken, zonder TCGdex): {len(names)} van {len({s['expansion'] for s in sealed})} uitbreidingen; voorbeeld: {list(names.items())[:4]}")
     except Exception as e:
         print("FOUT bij prijslijst:", e)
+    return raw_guide

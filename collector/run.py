@@ -238,11 +238,11 @@ def main():
         ppt = PPT(os.environ["PPT_API_KEY"])
     if args.probe_ppt:
         import cardmarket
-        cardmarket.probe(tcg.session)
+        guide = cardmarket.probe(tcg.session)
         if os.environ.get("PKMN_API_KEY"):
             import pkmnprices
             print()
-            pkmnprices.probe(pkmnprices.PkmnPrices(os.environ["PKMN_API_KEY"]))
+            pkmnprices.probe(pkmnprices.PkmnPrices(os.environ["PKMN_API_KEY"]), guide)
         else:
             print("\n(geen PKMN_API_KEY: PkmnPrices-test overgeslagen)")
         if ppt and os.environ.get("PROBE_PPT") == "1":

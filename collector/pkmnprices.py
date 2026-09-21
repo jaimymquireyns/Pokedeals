@@ -30,7 +30,16 @@ def _rows(body):
     return body if isinstance(body, list) else []
 
 
-def probe(pk):
+GUIDE_KEYS = ("trend", "avg", "low", "avg1", "avg7", "avg30", "trend-holo", "low-holo", "avg30-holo")
+
+
+def _guide_line(guide, cm_id):
+    row = (guide or {}).get(cm_id)
+    return {k: row.get(k) for k in GUIDE_KEYS if row.get(k) is not None} if row else None
+
+
+def probe(pk, guide=None):
+    """Test met of zonder Pro. Vergelijkt PkmnPrices-euro's automatisch met de officiële Cardmarket-prijslijst."""
     short = lambda x, n=700: str(x)[:n]
     seen = {}
 
@@ -41,55 +50,77 @@ def probe(pk):
             print(f"{label}: FOUT {e}")
             return None, None
         for k, v in headers.items():
-            if k.lower().startswith("x-") or "credit" in k.lower() or "ratelimit" in k.lower():
-                seen[k] = v
-        print(f"{label}: status {status}")
+            if k.lower() in ("x-credits-limit", "x-credits-remaining", "x-rate-limit", "x-rate-remaining"):
+                seen[k.lower()] = v
+        print(f"{label}: status {status}, credits {headers.get('x-credits-charged', '?')}")
         return status, body
+
+    def detail(cid, **params):
+        status, body = call(f"card {cid}", f"/cards/{cid}", params or None)
+        d = body.get("data", body) if isinstance(body, dict) else {}
+        return status, (d if isinstance(d, dict) else {}), body
 
     print("=== PkmnPrices ===")
     print("--- 1. Kaarten zoeken (max. 2) ---")
     status, body = call("cards", "/cards", {"name": "charizard ex", "per_page": 2})
     rows = _rows(body)
-    if isinstance(body, dict):
-        print("sleutels:", list(body)[:8], "| paginering:", short(body.get("pagination") or body.get("meta"), 200))
     if not rows:
         print("ruw:", short(body))
         return
-    print("eerste kaart, velden:", sorted(rows[0].keys()) if isinstance(rows[0], dict) else rows[0])
-    print("ruw:", short(rows[0], 900))
-    cid = rows[0].get("id") if isinstance(rows[0], dict) else None
+    cid = rows[0].get("id")
+    print("eerste kaart:", short(rows[0], 500))
 
-    print("\n--- 2. Eén kaart met prijzen ---")
-    status, body = call("card", f"/cards/{cid}")
-    d = body.get("data", body) if isinstance(body, dict) else {}
-    if isinstance(d, dict):
-        print("velden:", sorted(d.keys()))
-        print("Cardmarket-koppeling:", {k: d.get(k) for k in d if "cardmarket" in k.lower()})
-        print("plaatje/set:", {k: d.get(k) for k in d if "image" in k.lower() or k.lower().startswith("set")})
-        prices = d.get("prices") or []
-        print(f"{len(prices)} prijsregels; eerste 6:")
-        for p in prices[:6]:
-            print("  ", short(p, 250))
+    print("\n--- 2. Eén kaart: koppeling met Cardmarket en prijzen ---")
+    status, d, _ = detail(cid)
+    cm_id = d.get("cardmarket_product_id")
+    print("Cardmarket-nummer:", cm_id, "|", d.get("cardmarket_url"))
+    for p in (d.get("prices") or [])[:6]:
+        print("  ", short(p, 200))
+    print("Officiële Cardmarket-prijslijst voor dit nummer:", _guide_line(guide, cm_id))
 
-    print("\n--- 3. Euro's (Cardmarket) voor deze kaart ---")
-    status, body = call("card eur", f"/cards/{cid}", {"currency": "eur"})
-    if status == 200 and isinstance(body, dict):
-        d = body.get("data", body)
-        print("prijsregels:", [short(p, 200) for p in (d.get("prices") or [])[:6]])
+    print("\n--- 3. Euro's (Cardmarket) voor dezelfde kaart ---")
+    status, d2, body = detail(cid, currency="eur")
+    if status == 200:
+        for p in (d2.get("prices") or [])[:14]:
+            print("  ", short(p, 220))
+        print("Ter vergelijking, officiële prijslijst:", _guide_line(guide, cm_id))
     else:
-        print("melding:", short(body, 300))
+        print("melding:", short(body, 250))
 
-    print("\n--- 4. Sets ---")
+    print("\n--- 4. Hoeveel kaarten hebben een Cardmarket-nummer? (10 kaarten) ---")
+    status, body = call("lijst", "/cards", {"name": "pikachu", "per_page": 10})
+    ids = [r.get("id") for r in _rows(body)][:10]
+    mapped = 0
+    for i in ids:
+        _, dd, _ = detail(i)
+        mapped += 1 if dd.get("cardmarket_product_id") else 0
+    print(f"{mapped} van {len(ids)} kaarten hebben een Cardmarket-nummer")
+
+    print("\n--- 5. Sets ---")
     status, body = call("sets", "/sets", {"per_page": 2})
-    print("ruw:", short(_rows(body)[:2] or body, 500))
+    print("ruw:", short(_rows(body)[:2] or body, 400))
 
-    print("\n--- 5. Sealed ---")
-    status, body = call("sealed", "/sealed", {"per_page": 2})
+    print("\n--- 6. Sealed ---")
+    status, body = call("sealed", "/sealed", {"per_page": 3})
     srows = _rows(body)
-    print("ruw:", short(srows[:2] or body, 800))
+    print("ruw:", short(srows[:2] or body, 700))
+    if srows:
+        sid = srows[0].get("id")
+        status, body = call(f"sealed {sid}", f"/sealed/{sid}")
+        sd = body.get("data", body) if isinstance(body, dict) else {}
+        if isinstance(sd, dict):
+            print("velden:", sorted(sd.keys()))
+            sm = sd.get("cardmarket_product_id")
+            print("Cardmarket-nummer:", sm, "| officiële prijslijst:", _guide_line(guide, sm))
+            for p in (sd.get("prices") or [])[:6]:
+                print("  ", short(p, 200))
+        status, body = call("sealed historie", f"/sealed/{sid}/prices/history", {"currency": "eur", "period": "30d", "limit": 5})
+        print("ruw:", short(body, 600))
 
-    print("\n--- 6. Prijshistorie (Cardmarket, Near Mint, 7 dagen) ---")
-    status, body = call("history", f"/cards/{cid}/prices/history", {"currency": "eur", "period": "7d", "condition": "Near Mint", "limit": 5})
-    print("ruw:", short(body, 800))
+    print("\n--- 7. Prijshistorie kaart (Cardmarket, Near Mint, 30 dagen) ---")
+    status, body = call("history", f"/cards/{cid}/prices/history", {"currency": "eur", "period": "30d", "condition": "Near Mint", "limit": 40})
+    hrows = _rows(body)
+    print(f"{len(hrows)} rijen; paginering: {short(body.get('pagination') if isinstance(body, dict) else None, 200)}")
+    print("eerste 3:", short(hrows[:3] or body, 600))
 
-    print("\nheaders over limieten en credits:", seen)
+    print("\nlimieten:", seen)
