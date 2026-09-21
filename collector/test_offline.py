@@ -413,8 +413,12 @@ assert sl[0]["set_id"] == "slug-0", "leesbare set-code gebruikt in plaats van in
 # ============ 8c. Cardmarket-bestanden ============
 assert cardmarket.records({"version": 1, "products": [{"idProduct": 1}]}) == [{"idProduct": 1}]
 assert cardmarket.records({"priceGuides": [{"idProduct": 2}]}) == [{"idProduct": 2}] and cardmarket.records([{"a": 1}, 3]) == [{"a": 1}]
-assert cardmarket.is_sealed("Surging Sparks Booster Box", "Pokémon Booster Boxes") and cardmarket.is_sealed("Obsidian Flames Elite Trainer Box")
+assert cardmarket.is_sealed("Surging Sparks Booster Box", "Pokémon Display") and cardmarket.is_sealed("Obsidian Flames Elite Trainer Box")
+assert cardmarket.is_sealed("Great Encounters Booster", "Pokémon Booster") and cardmarket.is_sealed("Chespin Box", "Pokémon Box Set")
+assert cardmarket.is_sealed("Base Set Theme Deck", "Pokémon Theme Decks") and cardmarket.is_sealed("X", "PCG Set") and cardmarket.is_sealed("X", "Pokémon Elite Trainer Boxes")
+assert not cardmarket.is_sealed("Rare Coin", "Pokémon Coins") and not cardmarket.is_sealed("Mixed lot", "Pokémon Lot")
 assert not cardmarket.is_sealed("Ultra Pro Card Sleeves") and not cardmarket.is_sealed("Charizard Playmat") and not cardmarket.is_sealed("Dragon Shield Deck Box")
+assert cardmarket.is_sealed("Great Encounters Booster"), "'Encounters' bevat 'counter' maar is geen teller"
 class Doc:
     def __init__(self, data):
         self.data = data
@@ -435,6 +439,51 @@ sl = cardmarket.load_sealed(CmSess())
 assert [s["id"] for s in sl] == [5, 7], sl
 pr, pc = cardmarket.sealed_rows(sl, g, "2026-09-21")
 assert [p["product_id"] for p in pr] == ["cm:5"] and pc[0]["source"] == "cardmarket" and pc[0]["currency"] == "EUR"
+
+# ============ 8d. Echte PPT-vormen: graded en historie per conditie ============
+ebay_real = {"updatedAt": "x", "salesByGrade": {
+    "psa10": {"count": 5, "averagePrice": 42.9, "medianPrice": 39.79, "smartMarketPrice": {"price": 39.0, "confidence": "low"}},
+    "psa7": {"count": 1, "averagePrice": 12, "medianPrice": 12, "smartMarketPrice": {"price": 12, "confidence": "low"}},
+    "ungraded": {"count": 3, "averagePrice": 15}}}
+assert ppt.extract_graded(ebay_real) == {"PSA-10": 39.0, "PSA-7": 12.0}, ppt.extract_graded(ebay_real)
+hist_real = {"conditions": {"Lightly Played": {"history": [{"date": "2026-09-19T00:00:00.000Z", "market": 1.0}, {"date": "2026-09-20T00:00:00.000Z", "market": 1.1}, {"date": "2026-09-21T00:00:00.000Z", "market": 1.2}]},
+                            "Near Mint": {"history": [{"date": "2026-09-20T00:00:00.000Z", "market": 6.08, "volume": 1}, {"date": "2026-09-21T00:00:00.000Z", "market": 6.13}]}}}
+it = ppt.parse_item({"tcgPlayerId": "1", "name": "X - 1/2", "prices": {"market": 6.13}, "priceHistory": hist_real, "ebay": ebay_real})
+assert it["history"] == [("2026-09-20", 6.08), ("2026-09-21", 6.13)] and it["graded"]["PSA-10"] == 39.0, "Near Mint heeft voorrang"
+
+# liquiditeit: zonder 30-daags gemiddelde geen kans
+fake3, store3 = new_store()
+store3.upsert_products([{"product_id": "cm:2000", "kind": "sealed", "name": "Dunne markt"}, {"product_id": "cm:2001", "kind": "sealed", "name": "Levendige markt"}])
+rows3 = []
+for i in range(15):
+    dd = (date(2026, 6, 1) + timedelta(days=i)).isoformat()
+    rows3.append({"product_id": "cm:2000", "date": dd, "source": "cardmarket", "grade_key": "raw", "price": 50 + i, "avg1": None, "avg7": None, "avg30": None})
+    rows3.append({"product_id": "cm:2001", "date": dd, "source": "cardmarket", "grade_key": "raw", "price": 50 + i, "avg1": 50 + i, "avg7": 49 + i, "avg30": 45 + i})
+store3.upsert_prices(rows3)
+run.build_forecasts(store3, (date(2026, 6, 1) + timedelta(days=14)).isoformat(), log=quiet)
+ids3 = {r["product_id"] for r in fake3.t["forecasts"].values()}
+assert ids3 == {"cm:2001"}, ids3
+
+# ============ 8d. Echte Cardmarket-categorieën, setnamen en PPT-vormen uit de livetest ============
+importlib.reload(cardmarket)
+for n_, cat_, want in [("Great Encounters Booster", "Pokémon Booster", True), ("Chespin Box", "Pokémon Box Set", True), ("Arceus Poster Box", "Pokémon Box Set", True),
+                       ("Ultra Pro Deck Box", "Pokémon Box Set", False), ("Card Sleeves", "Pokémon Box Set", False), ("Pikachu Coin", "Pokémon Coins", False),
+                       ("Some Lot", "Pokémon Lot", False), ("Obsidian Flames Elite Trainer Box", "Pokémon Elite Trainer Boxes", True)]:
+    assert cardmarket.is_sealed(n_, cat_) is want, (n_, cat_)
+assert cardmarket.guess_set_name("Chilling Reign Fun Pack (3 Cards)") == "Chilling Reign"
+assert cardmarket.guess_set_name("Great Encounters: Infinite Space Theme Deck") == "Great Encounters"
+sn = cardmarket.resolve_set_names(
+    [{"id": 1, "name": "Base Set 2 Booster", "expansion": 10}, {"id": 2, "name": "Base Set 2 Booster Box", "expansion": 10},
+     {"id": 3, "name": "Phantom Forces Booster", "expansion": 20}, {"id": 4, "name": "Phantom Forces Booster Box", "expansion": 20},
+     {"id": 5, "name": "Odd Thing Box", "expansion": 30}], {"base1": {"name": "Base Set"}, "base4": {"name": "Base Set 2"}})
+assert sn == {10: ("base4", "Base Set 2"), 20: (None, "Phantom Forces")}, sn
+pr, _ = cardmarket.sealed_rows([{"id": 1, "name": "Phantom Forces Booster Box", "expansion": 20, "category": "x"}], {1: {"price": 50.0, "low": None, "avg1": None, "avg7": None, "avg30": None}}, "2026-09-21", sn)
+assert pr[0]["set_name"] == "Phantom Forces" and pr[0]["set_id"] == "cm:20"
+assert ppt.extract_graded({"salesByGrade": {"psa10": {"averagePrice": 42.9, "smartMarketPrice": {"price": 39.79}}, "psa7": {"averagePrice": 12}, "ungraded": {"averagePrice": 15}}}) == {"PSA-10": 39.79, "PSA-7": 12.0}
+assert ppt._card_history({"conditions": {"Lightly Played": {"history": [{"date": "2026-09-19", "market": 4.0}]},
+                                          "Near Mint": {"history": [{"date": "2026-09-19", "market": 5.92}, {"date": "2026-09-20", "market": 6.08}]}}}) == [("2026-09-19", 5.92), ("2026-09-20", 6.08)]
+import pkmnprices
+assert pkmnprices._rows({"data": [1, 2]}) == [1, 2] and pkmnprices._rows([3]) == [3] and pkmnprices._rows({"x": 1}) == []
 
 # ============ 9. PokemonPriceTracker-client: gratis plan veilig ============
 import time as _time

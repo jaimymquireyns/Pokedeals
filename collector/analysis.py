@@ -224,4 +224,4 @@ def series_for(product_id, by_source):
         series = splice(by_source.get("tcgdex", []), by_source.get("ppt_hist", []))
     rows = [{"date": r["date"], "trend": r["price"], "price": r["price"], "avg1": r.get("avg1"),
              "avg7": r.get("avg7"), "avg30": r.get("avg30")} for r in series if r["price"]]
-    return fill_avgs(rows)
+    return rows      # geen gemiddelden verzinnen: ontbreken ze in de bron, dan is er te weinig handel

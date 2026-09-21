@@ -106,7 +106,8 @@ def scan_sealed(session, store, today, log=print):
     import cardmarket
     guide = cardmarket.load_price_guide(session)
     products = cardmarket.load_sealed(session)
-    prods, prices = cardmarket.sealed_rows(products, guide, today)
+    set_names = cardmarket.resolve_set_names(products, store.known_sets())
+    prods, prices = cardmarket.sealed_rows(products, guide, today, set_names)
     if prods:
         store.upsert_products(prods)
         store.upsert_prices(prices)
@@ -143,6 +144,8 @@ def build_forecasts(store, today, log=print):
             by_source.setdefault(r["source"], []).append(
                 {**r, **{k: (float(r[k]) if r.get(k) is not None else None) for k in ("price", "avg1", "avg7", "avg30", "low")}})
         series = analysis.series_for(pid, by_source)
+        if not series or series[-1]["avg30"] is None:
+            continue    # geen verkopen in de laatste 30 dagen: te dunne markt voor een betrouwbare kans
         for horizon, pct in config.GRID:
             f = analysis.forecast(series, horizon, pct / 100)
             if not f or f["price"] < config.MIN_PRICE:
@@ -236,11 +239,15 @@ def main():
     if args.probe_ppt:
         import cardmarket
         cardmarket.probe(tcg.session)
-        if ppt:
+        if os.environ.get("PKMN_API_KEY"):
+            import pkmnprices
+            print()
+            pkmnprices.probe(pkmnprices.PkmnPrices(os.environ["PKMN_API_KEY"]))
+        else:
+            print("\n(geen PKMN_API_KEY: PkmnPrices-test overgeslagen)")
+        if ppt and os.environ.get("PROBE_PPT") == "1":
             print()
             ppt.probe()
-        else:
-            print("\n(geen PPT_API_KEY: PokemonPriceTracker-test overgeslagen)")
         return
 
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SECRET_KEY")

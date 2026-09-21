@@ -117,7 +117,7 @@ def extract_history(obj):
 
 
 GRADER_RE = re.compile(r"^\s*(psa|bgs|cgc|sgc)[\s_\-]*(\d{1,2})(?:[._](\d))?\s*$", re.I)
-GRADE_PRICE_KEYS = ("smartMarketPrice", "avg", "average", "averagePrice", "medianPrice", "marketPrice7Day", "price", "market")
+GRADE_PRICE_KEYS = ("smartMarketPrice", "marketPrice7Day", "medianPrice", "averagePrice", "average", "avg", "price", "market")
 
 
 def norm_grade(label):
@@ -130,12 +130,24 @@ def norm_grade(label):
 
 def _grade_price(v):
     if isinstance(v, dict):
-        return next((_num(v[k]) for k in GRADE_PRICE_KEYS if k in v and _num(v[k])), None)
+        sm = v.get("smartMarketPrice")
+        if isinstance(sm, dict) and _num(sm.get("price")):
+            return _num(sm["price"])
+        for k in GRADE_PRICE_KEYS:
+            x = v.get(k)
+            x = x.get("price") if isinstance(x, dict) else x      # smartMarketPrice is een blokje met 'price' erin
+            if _num(x):
+                return _num(x)
+        return None
     return _num(v)
 
 
 def extract_graded(ebay):
     out = {}
+    if isinstance(ebay, dict) and isinstance(ebay.get("salesByGrade"), dict):   # zo levert PokemonPriceTracker het echt
+        ebay = ebay["salesByGrade"]
+    if isinstance(ebay, dict) and isinstance(ebay.get("salesByGrade"), dict):
+        ebay = ebay["salesByGrade"]
     if isinstance(ebay, dict):
         for k, v in ebay.items():
             if str(k).lower() in ("psa", "bgs", "cgc", "sgc") and isinstance(v, dict):
@@ -160,6 +172,22 @@ def extract_graded(ebay):
     return out
 
 
+def _preferred_history(h):
+    """priceHistory.conditions.<conditie>.history: kies Near Mint (de conditie waar Cardmarket-kopers naar kijken)."""
+    conds = h.get("conditions") if isinstance(h, dict) else None
+    if isinstance(conds, dict) and conds:
+        return conds.get("Near Mint") or next(iter(conds.values()))
+    return h
+
+
+def _card_history(ph):
+    """Kaarten leveren historie per conditie: {'conditions': {'Near Mint': {'history': [...]}}}. We nemen Near Mint."""
+    conds = ph.get("conditions") if isinstance(ph, dict) else None
+    if isinstance(conds, dict) and conds:
+        return extract_history(conds.get("Near Mint") or next(iter(conds.values())))
+    return extract_history(ph)
+
+
 def parse_item(d, kind="card"):
     """Genormaliseerd antwoord voor één kaart of sealed product."""
     price = _num(_first(d, "prices.market", "prices.marketPrice", "unopenedPrice", "marketPrice", "market", "price"))
@@ -180,7 +208,7 @@ def parse_item(d, kind="card"):
         "image": _first(d, "imageUrl", "image", "images.small"),
         "price_usd": price,
         "low_usd": _num(_first(d, "prices.low", "lowPrice", "prices.lowPrice")),
-        "history": extract_history(d.get("priceHistory") or d.get("history") or {}),
+        "history": extract_history(_preferred_history(d.get("priceHistory") or d.get("history") or {})),
         "graded": extract_graded(d.get("ebay") or d.get("graded")),
     }
 
@@ -262,7 +290,8 @@ class PPT:
             sid = _first(d, "tcgPlayerId", "slug", "setId", "code", "id")
             if sid:
                 out.append({"set_id": str(sid), "name": _first(d, "name", "setName"),
-                            "release_date": _to_date(_first(d, "releaseDate", "release_date"))})
+                            "release_date": _to_date(_first(d, "releaseDate", "release_date")),
+                            "card_count": d.get("cardCount")})
         return out
 
     def _params(self, base, history_days=None, ebay=False):
@@ -295,13 +324,13 @@ class PPT:
         except Exception as e:
             print("FOUT:", e)
 
-        print("\n=== 2. Kaarten van één set opvragen (met limit=2) ===")
+        print("\n=== 2. Kaarten van één set opvragen (limit=2, met historie) ===")
         try:
-            released = [x for x in found if x["release_date"] and x["release_date"] <= today]
+            released = [x for x in found if x["release_date"] and x["release_date"] <= today and (x.get("card_count") or 0) > 0]
             if released:
                 raw = self._get("/cards", {"set": released[0]["set_id"], "limit": 2, "includeHistory": "true", "days": 3})
                 print("set:", released[0])
-                print("metadata:", short((raw or {}).get("metadata"), 500))
+                print("metadata:", short((raw or {}).get("metadata"), 700))
                 for it in [parse_item(d) for d in _items(raw)][:2]:
                     print("herkend:", summary(it))
         except Exception as e:
@@ -309,11 +338,9 @@ class PPT:
 
         print("\n=== 3. Kaart met historie en gegradeerde prijzen (max. 3 credits) ===")
         try:
-            raw = self._get("/cards", {"tcgPlayerId": "490294", "includeHistory": "true", "includeEbay": "true", "days": 3})
+            raw = self._get("/cards", {"tcgPlayerId": "96392", "includeHistory": "true", "includeEbay": "true", "days": 3})
             d = (_items(raw) or [{}])[0]
-            print("velden:", sorted(d.keys()))
-            print("ebay ruw:", short(d.get("ebay"), 1200))
-            print("priceHistory ruw:", short(d.get("priceHistory"), 500))
+            print("ebay ruw:", short(d.get("ebay"), 700))
             print("herkend:", summary(parse_item(d)))
         except Exception as e:
             print("FOUT:", e)
