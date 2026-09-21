@@ -17,4 +17,5 @@ jobs:
         working-directory: collector
         env:
           PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+          PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
         run: python run.py --probe-ppt
