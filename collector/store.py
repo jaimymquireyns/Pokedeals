@@ -61,7 +61,7 @@ class SupabaseStore:
     def upsert_products(self, rows):
         cols = ("product_id", "kind", "name", "set_id", "set_name", "number", "set_total", "rarity", "image",
                 "category", "product_type", "dex_id", "regulation_mark", "legal_standard", "ppt_id",
-                "printings", "newer_printing")
+                "printings", "newer_printing", "pk_id")
         self.upsert("products", [{k: r.get(k) for k in cols if k in r} for r in rows], "product_id")
 
     def upsert_prices(self, rows):

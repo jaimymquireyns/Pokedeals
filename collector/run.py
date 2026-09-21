@@ -108,6 +108,15 @@ def scan_sealed(session, store, today, log=print):
     products = cardmarket.load_sealed(session)
     set_names = cardmarket.resolve_set_names(products, store.known_sets())
     prods, prices = cardmarket.sealed_rows(products, guide, today, set_names)
+    # Wat de verrijking (enrich.py) al heeft ingevuld mag niet worden overschreven door een dagelijkse gok
+    existing = {p["product_id"]: p for p in store.products("sealed")}
+    has_pk = any("pk_id" in o for o in existing.values())      # kolom pk_id bestaat pas na de SQL-aanvulling
+    for p in prods:
+        old = existing.get(p["product_id"], {})
+        p["set_name"] = old.get("set_name") or p.get("set_name")
+        p["image"] = old.get("image")
+        if has_pk:
+            p["pk_id"] = old.get("pk_id")
     if prods:
         store.upsert_products(prods)
         store.upsert_prices(prices)

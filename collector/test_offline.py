@@ -520,4 +520,43 @@ except RuntimeError as e:
 c = ppt.PPT("key", session=Sess(R(200, {"data": [{"setId": "a"}]}, {"X-API-Calls-Consumed": "1", "X-RateLimit-Daily-Remaining": "90"})), log=quiet)
 c.sets(); assert not c.over_budget()
 
+# ============ 10. Sealed verrijken met plaatjes en setnamen (PkmnPrices) ============
+import enrich
+import pkmnprices
+cardmarket.load_price_guide = lambda session, game=None: {k: dict(v) for k, v in GUIDE.items()}
+cardmarket.load_sealed = lambda session, game=None: [
+    {"id": 999, "name": "Test Booster Box", "expansion": 7, "category": "Pokémon Booster Boxes"}, {"id": 1000, "name": "Other Box", "expansion": 7, "category": "Pokémon Box Set"}]
+class PkResp:
+    def __init__(self, body, status=200):
+        self.status_code, self._b, self.headers, self.text = status, body, {"x-credits-charged": "1"}, ""
+    def json(self):
+        return self._b
+class PkSess:
+    headers = {}
+    def __init__(self):
+        self.paths = []
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        self.paths.append(path)
+        items = {"11": 999, "12": 555, "13": 1000}
+        if path == "/sealed":
+            return PkResp({"data": [{"id": i, "name": f"n{i}", "image_url": f"https://img/{i}.webp", "set": {"id": 1, "name": "Set A"}} for i in (11, 12, 13)],
+                           "pagination": {"page": 1, "total_pages": 1}})
+        i = path.rsplit("/", 1)[1]
+        return PkResp({"data": {"id": int(i), "cardmarket_product_id": items[i], "image_url": f"https://img/{i}.webp", "set": {"id": 1, "name": "Set A"}}})
+sess = PkSess()
+pk = pkmnprices.PkmnPrices("pk_x", session=sess)
+assert enrich.enrich_sealed(store, pk, log=quiet) == 2
+p999 = fake.t["products"][("cm:999",)]
+assert p999["image"] == "https://img/11.webp" and p999["set_name"] == "Set A" and p999["pk_id"] == "11" and p999["name"] == "Test Booster Box"
+assert pk.credits == 4, pk.credits         # 1 lijst + 3 details
+sess.paths.clear()
+enrich.enrich_sealed(store, pkmnprices.PkmnPrices("pk_x", session=sess), log=quiet)
+assert sess.paths == ["/sealed", "/sealed/12"], sess.paths      # al gekoppelde producten worden niet opnieuw opgehaald
+run.scan_sealed(None, store, day(33), log=quiet)                # de dagelijkse update mag plaatje en setnaam niet wissen
+p999 = fake.t["products"][("cm:999",)]
+assert p999["image"] == "https://img/11.webp" and p999["set_name"] == "Set A" and p999["pk_id"] == "11"
+small = pkmnprices.PkmnPrices("pk_x", session=PkSess(), budget=1)
+assert small.list_all("/sealed") and small.over_budget() is True
+
 print("alle tests geslaagd")

@@ -3,15 +3,61 @@
 Voorlopig alleen een TEST (probe): hij laat zien wat de dienst teruggeeft, zodat we de koppeling erna goed kunnen bouwen.
 Gratis plan: alleen Engelse kaarten in dollars. Euro's (Cardmarket), historie en sealed zitten in Pro ($14,99 per maand).
 """
+import time
+
 import requests
 
 BASE = "https://api.pkmnprices.com/v1"
+MIN_INTERVAL = 1.05        # het plan staat 60 verzoeken per minuut toe
 
 
 class PkmnPrices:
-    def __init__(self, key, session=None):
+    def __init__(self, key, session=None, budget=15000):
         self.s = session or requests.Session()
         self.s.headers.update({"X-API-Key": key, "User-Agent": "pokedeals/2.0"})
+        self.credits = 0           # credits die deze run heeft verbruikt (er wordt per teruggegeven rij gerekend)
+        self.budget = budget
+        self._last = 0.0
+
+    def over_budget(self):
+        return self.credits >= self.budget
+
+    def call(self, path, params=None):
+        """Eén verzoek met wachttijd (60 per minuut), telt credits en probeert het opnieuw bij 429. Geeft de 'data' terug."""
+        for _ in range(4):
+            wait = MIN_INTERVAL - (time.time() - self._last)
+            if wait > 0:
+                time.sleep(wait)
+            status, body, headers = self.get(path, params)
+            self._last = time.time()
+            try:
+                self.credits += int(float(headers.get("x-credits-charged") or 0))
+            except (TypeError, ValueError):
+                pass
+            if status == 429:
+                time.sleep(15)
+                continue
+            if status >= 400:
+                raise RuntimeError(f"PkmnPrices {path}: {status} {str(body)[:160]}")
+            return body
+        raise RuntimeError(f"PkmnPrices {path}: blijft 429 geven")
+
+    def list_all(self, path, params=None, per_page=100, max_pages=200):
+        """Alle pagina's van een lijst (kosten: één credit per teruggegeven rij)."""
+        out, page = [], 1
+        while page <= max_pages and not self.over_budget():
+            body = self.call(path, {**(params or {}), "per_page": per_page, "page": page})
+            out += _rows(body)
+            total_pages = ((body or {}).get("pagination") or {}).get("total_pages") if isinstance(body, dict) else None
+            if not total_pages or page >= total_pages:
+                break
+            page += 1
+        return out
+
+    def detail(self, path, params=None):
+        body = self.call(path, params)
+        d = body.get("data", body) if isinstance(body, dict) else {}
+        return d if isinstance(d, dict) else {}
 
     def get(self, path, params=None):
         r = self.s.get(BASE + path, params=params, timeout=60)
