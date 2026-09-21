@@ -1,0 +1,32 @@
+name: Volglijst controleren
+
+on:
+  schedule:
+    - cron: "30 0,12,18 * * *"   # 3x per dag, samen met de dagelijkse update 4x
+  workflow_dispatch:
+
+concurrency:
+  group: pokedeals-data
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: collector/requirements.txt
+      - run: pip install -r collector/requirements.txt
+      - name: Collectie en prijsmeldingen verversen
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: python watch.py
