@@ -100,47 +100,18 @@ def newest_sets(provider, store, n, workers=None, log=print):
 
 
 # ---------------------------------------------------------------------------
-# Sealed (PokemonPriceTracker)
+# Sealed (Cardmarket, openbare prijslijst)
 # ---------------------------------------------------------------------------
-def sealed_rows(items, set_name_by_id, today, fx, set_id_fallback=None):
-    """Zet PPT-items om naar (products, prices)."""
-    products, prices = [], []
-    for it in items:
-        if not it["ppt_id"] or not it["name"] or not it["price_usd"]:
-            continue
-        pid = f"ppt:{it['ppt_id']}"
-        sid = it["set_id"] or set_id_fallback
-        products.append({"product_id": pid, "kind": "sealed", "name": it["name"], "set_id": sid,
-                         "set_name": it["set_name"] or set_name_by_id.get(sid), "product_type": it["product_type"],
-                         "image": it["image"], "ppt_id": it["ppt_id"]})
-        prices.append({"product_id": pid, "date": today, "source": "ppt", "grade_key": "raw",
-                       "price": round(it["price_usd"] * fx, 4), "native": it["price_usd"], "currency": "USD",
-                       "low": round(it["low_usd"] * fx, 4) if it["low_usd"] else None})
-    return products, prices
-
-
-def scan_sealed(ppt, store, today, fx, max_sets=None, log=print):
-    sets = ppt.sets()
-    if max_sets:
-        sets = sets[:max_sets]
-    names = {s["set_id"]: s["name"] for s in sets}
-    total = 0
-    for s in sets:
-        if ppt.over_budget():
-            log(f"PPT-budget bereikt ({ppt.credits} credits); sealed-scan gestopt")
-            break
-        try:
-            items = ppt.sealed_for_set(s["set_id"])
-        except Exception as e:
-            log(f"  sealed {s['set_id']}: {e}")
-            continue
-        products, prices = sealed_rows(items, names, today, fx, s["set_id"])
-        if products:
-            store.upsert_products(products)
-            store.upsert_prices(prices)
-            total += len(products)
-    log(f"Sealed klaar: {total} producten, {ppt.credits} credits gebruikt")
-    return total
+def scan_sealed(session, store, today, log=print):
+    import cardmarket
+    guide = cardmarket.load_price_guide(session)
+    products = cardmarket.load_sealed(session)
+    prods, prices = cardmarket.sealed_rows(products, guide, today)
+    if prods:
+        store.upsert_products(prods)
+        store.upsert_prices(prices)
+    log(f"Sealed van Cardmarket: {len(prods)} producten met prijs (van {len(products)} herkend)")
+    return len(prods)
 
 
 # ---------------------------------------------------------------------------
@@ -218,8 +189,10 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print):
     rate, src = fxmod.usd_to_eur(tcg.session)
     log(f"USD→EUR: {rate:.4f} ({src})")
     collect_cards(tcg, store, set_ids, today, log=log)
-    if ppt:
-        scan_sealed(ppt, store, today, rate, log=log)
+    try:
+        scan_sealed(tcg.session, store, today, log=log)
+    except Exception as e:  # kaarten gaan dan gewoon door
+        log(f"! sealed van Cardmarket overgeslagen: {e}")
     features.update_static(store, log=log)
     try:
         features.update_pageviews(store, today, log=log)
@@ -247,7 +220,7 @@ def main():
     ap.add_argument("--sets", nargs="+")
     ap.add_argument("--recent", type=int)
     ap.add_argument("--forecast-only", action="store_true")
-    ap.add_argument("--probe-ppt", action="store_true")
+    ap.add_argument("--probe-ppt", action="store_true", help="test de gegevensbronnen (Cardmarket en PokemonPriceTracker)")
     args = ap.parse_args()
 
     tcg = TCGdex()
@@ -261,9 +234,13 @@ def main():
         from ppt import PPT
         ppt = PPT(os.environ["PPT_API_KEY"])
     if args.probe_ppt:
-        if not ppt:
-            ap.error("zet PPT_API_KEY")
-        ppt.probe()
+        import cardmarket
+        cardmarket.probe(tcg.session)
+        if ppt:
+            print()
+            ppt.probe()
+        else:
+            print("\n(geen PPT_API_KEY: PokemonPriceTracker-test overgeslagen)")
         return
 
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SECRET_KEY")

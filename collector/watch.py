@@ -4,6 +4,7 @@ import os
 from datetime import date
 
 import alerts
+import cardmarket
 import run
 from providers import TCGdex
 from store import SupabaseStore
@@ -26,7 +27,7 @@ def refresh(store, tcg, ppt, today, fx, keys, log=print):
     for i in range(0, len(ids), 80):
         for p in store.select("products", {"select": "*", "product_id": f"in.({','.join(ids[i:i + 80])})"}):
             products[p["product_id"]] = p
-    rows = []
+    rows, guide = [], None
     for pid, gk in sorted(keys):
         p = products.get(pid)
         if not p:
@@ -36,11 +37,14 @@ def refresh(store, tcg, ppt, today, fx, keys, log=print):
                 res = tcg.get_card(pid)
                 if res and res["price"]:
                     rows.append({"product_id": pid, "date": today, "source": "tcgdex", "grade_key": "raw", **res["price"]})
-            elif gk == "raw" and p["kind"] == "sealed" and ppt and p.get("ppt_id"):
-                it = ppt.sealed(p["ppt_id"])
-                if it and it["price_usd"]:
-                    rows.append({"product_id": pid, "date": today, "source": "ppt", "grade_key": "raw",
-                                 "price": round(it["price_usd"] * fx, 4), "native": it["price_usd"], "currency": "USD"})
+            elif gk == "raw" and p["kind"] == "sealed" and pid.startswith("cm:"):
+                if guide is None:
+                    guide = cardmarket.load_price_guide(tcg.session)
+                g = guide.get(int(pid.split(":")[1]))
+                if g:
+                    rows.append({"product_id": pid, "date": today, "source": "cardmarket", "grade_key": "raw",
+                                 "price": g["price"], "avg1": g["avg1"], "avg7": g["avg7"], "avg30": g["avg30"], "low": g["low"],
+                                 "native": g["price"], "currency": "EUR"})
             elif gk != "raw" and ppt and p.get("ppt_id"):
                 it = ppt.card(p["ppt_id"], ebay=True)
                 usd = (it or {}).get("graded", {}).get(gk)

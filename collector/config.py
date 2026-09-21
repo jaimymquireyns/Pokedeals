@@ -8,7 +8,10 @@ HISTORY_DAYS = 60          # zoveel dagen historie gebruikt het model
 PRUNE_CHEAP_DAYS = 14      # goedkope kaarten: alleen de laatste 14 dagen bewaren (bespaart opslag)
 FX_FALLBACK = 0.86         # USD -> EUR als de koers niet op te halen is
 
-# ---- PokemonPriceTracker ----
+# ---- Cardmarket (openbare prijslijst) ----
+CARDMARKET_GAME_ID = 6     # Pokémon
+
+# ---- PokemonPriceTracker (alleen nog voor kaarthistorie en gegradeerde prijzen) ----
 PPT_BASE = "https://www.pokemonpricetracker.com/api/v2"
 PPT_DAILY_BUDGET = 15000   # max. credits per dag die we zelf gebruiken (plan: 20.000)
 PPT_HISTORY_DAYS = 180     # API-plan: 6 maanden historie

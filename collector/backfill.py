@@ -1,6 +1,6 @@
-"""Eenmalig (en zo nodig herhalen): oude prijshistorie ophalen bij PokemonPriceTracker en het model testen.
+"""Eenmalig (en zo nodig herhalen): oude prijshistorie van kaarten ophalen bij PokemonPriceTracker (betaald plan)
+en het model testen. Sealed komt voortaan van Cardmarket en heeft hier geen historie.
 
-    python backfill.py --sealed                 # historie van alle sealed producten
     python backfill.py --cards-sets 12          # historie voor kaarten uit de 12 nieuwste sets
     python backfill.py --backtest               # test het model op de historie en vul het trackrecord
 Alles is hervatbaar: draai het gerust opnieuw als het budget van een dag op is.
@@ -11,7 +11,7 @@ from datetime import date
 
 import config
 import run
-from ppt import PPT, norm, norm_number
+from ppt import PPT, clean_card_name, norm, norm_number
 from providers import TCGdex
 from store import SupabaseStore
 
@@ -21,39 +21,14 @@ def history_rows(pid, points, fx, source, today):
              "native": p, "currency": "USD"} for d, p in points if d <= today]
 
 
-def backfill_sealed(ppt, store, today, fx, days=None, log=print):
-    days = days or config.PPT_HISTORY_DAYS
-    sets = ppt.sets()
-    names = {s["set_id"]: s["name"] for s in sets}
-    total = 0
-    for s in sets:
-        if ppt.over_budget():
-            log(f"Budget bereikt ({ppt.credits} credits). Draai later opnieuw.")
-            break
-        items = ppt.sealed_for_set(s["set_id"], history_days=days)
-        products, prices = run.sealed_rows(items, names, today, fx, s["set_id"])
-        if not products:
-            continue
-        store.upsert_products(products)
-        hist = []
-        for it in items:
-            if it["ppt_id"] and it["history"]:
-                hist += history_rows(f"ppt:{it['ppt_id']}", it["history"], fx, "ppt", today)
-        store.upsert_prices(hist + prices)   # 'prices' (vandaag) wint bij overlap
-        total += len(products)
-    log(f"Sealed-historie: {total} producten, {ppt.credits} credits")
-    return total
-
-
 def find_ppt_set(tcg_set, ppt_sets):
+    """Zoekt de PPT-set bij een TCGdex-set. PPT noemt sets bijv. 'SV03: Obsidian Flames' of 'XY - Roaring Skies'."""
     n = norm(tcg_set["name"])
-    for s in ppt_sets:
-        if norm(s["name"]) == n:
-            return s
-    for s in ppt_sets:      # bijv. 'Scarlet & Violet: Obsidian Flames' tegenover 'Obsidian Flames'
-        if n and (n in norm(s["name"]) or norm(s["name"]) in n):
-            return s
-    return None
+    exact = [s for s in ppt_sets if norm(s["name"]) == n]
+    if exact:
+        return exact[0]
+    part = [s for s in ppt_sets if n and (n in norm(s["name"]) or norm(s["name"]) in n)]
+    return min(part, key=lambda s: len(norm(s["name"]))) if part else None
 
 
 def backfill_cards(ppt, store, today, fx, n_sets, days=None, log=print):
@@ -72,11 +47,12 @@ def backfill_cards(ppt, store, today, fx, n_sets, days=None, log=print):
             continue
         index = {}
         for p in store.products("card", {"set_id": f"eq.{ts['set_id']}"}):
-            index[(norm_number(p["number"]), norm(p["name"]))] = p
+            index.setdefault(norm_number(p["number"]), []).append(p)
         items = ppt.cards_in_set(ps["set_id"], history_days=days)
         prods, hist = [], []
         for it in items:
-            p = index.get((norm_number(it["number"]), norm(it["name"])))
+            name = norm(clean_card_name(it["name"]))
+            p = next((c for c in index.get(norm_number(it["number"]), []) if norm(c["name"]) == name or (name and (norm(c["name"]) in name or name in norm(c["name"])))), None)
             if not p or not it["ppt_id"]:
                 unmatched += 1
                 continue
@@ -101,14 +77,12 @@ def main():
     args = ap.parse_args()
     store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
     today = date.today().isoformat()
-    if args.sealed or args.cards_sets:
+    if args.sealed:
+        print("Sealed komt nu van Cardmarket (dagelijkse update); hier is niets meer op te halen.")
+    if args.cards_sets:
         import fx as fxmod
         rate, _ = fxmod.usd_to_eur(TCGdex().session)
-        ppt = PPT(os.environ["PPT_API_KEY"])
-        if args.cards_sets:
-            backfill_cards(ppt, store, today, rate, args.cards_sets, args.days)
-        if args.sealed:
-            backfill_sealed(ppt, store, today, rate, args.days)
+        backfill_cards(PPT(os.environ["PPT_API_KEY"]), store, today, rate, args.cards_sets, args.days)
     if args.backtest:
         import trackrecord
         trackrecord.backtest(store, today)

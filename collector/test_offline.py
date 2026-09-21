@@ -252,12 +252,22 @@ for _ in range(20):
 # dag 1 (alleen eigen snapshot -> 'snel')
 day = lambda d: (start + timedelta(days=d)).isoformat()
 run.collect_cards(m, store, ["t1"], day(0), log=quiet)
-run.scan_sealed(MockPPT(), store, day(0), 0.9, log=quiet)
-sealed = fake.t["products"][("ppt:999",)]
-assert sealed["kind"] == "sealed" and abs(float(fake.t["prices"][("ppt:999", day(0), "ppt", "raw")]["price"]) - 180.0) < 1e-6
+import cardmarket
+GUIDE = {999: {"price": 180.0, "low": 170.0, "avg1": 180.0, "avg7": 176.0, "avg30": 168.0}, 1000: {"price": 9.0, "low": 8.0, "avg1": 9.0, "avg7": 9.0, "avg30": 9.0}}
+cardmarket.load_price_guide = lambda session, game=None: {k: dict(v) for k, v in GUIDE.items()}
+cardmarket.load_sealed = lambda session, game=None: [
+    {"id": 999, "name": "Test Booster Box", "expansion": 7, "category": "Pokémon Booster Boxes"},
+    {"id": 1000, "name": "Test Sleeves", "expansion": 7, "category": "Pokémon Sleeves"}]   # 1000 is geen sealed maar we filteren op naam in load_sealed zelf
+m.session = None
+assert cardmarket.sealed_rows([{"id": 1000, "name": "x", "expansion": None, "category": None}], {1000: GUIDE[1000]}, day(0))[0], "9 euro telt mee"
+run.scan_sealed(None, store, day(0), log=quiet)
+sealed = fake.t["products"][("cm:999",)]
+assert sealed["kind"] == "sealed" and abs(float(fake.t["prices"][("cm:999", day(0), "cardmarket", "raw")]["price"]) - 180.0) < 1e-6
+assert float(fake.t["prices"][("cm:999", day(0), "cardmarket", "raw")]["avg30"]) == 168.0 and ("cm:1000",) in fake.t["products"]
 run.build_forecasts(store, day(0), log=quiet)
 fc = {(r["product_id"], r["horizon_days"], r["threshold_pct"]): r for r in fake.t["forecasts"].values()}
-assert ("t1-cheap", 30, 10) not in fc and ("t1-up", 30, 10) in fc and ("ppt:999", 30, 10) in fc
+assert ("t1-cheap", 30, 10) not in fc and ("t1-up", 30, 10) in fc and ("cm:999", 30, 10) in fc
+assert fc[("cm:999", 30, 10)]["mode"] == "snel" and fc[("cm:999", 30, 10)]["price"] == 180.0
 assert fc[("t1-up", 30, 10)]["mode"] == "snel" and fc[("t1-up", 30, 10)]["signal"] == "koop"
 assert fc[("t1-down", 30, 10)]["signal"] == "verkoop"
 assert len(fake.t["forecast_history"]) == 4 - 1 + 1 - 0 or True
@@ -272,12 +282,6 @@ assert fake.t["products"][("t1-up",)]["ppt_id"] == "555"
 run.build_forecasts(store, day(0), log=quiet)
 fc = {(r["product_id"], r["horizon_days"], r["threshold_pct"]): r for r in fake.t["forecasts"].values()}
 assert fc[("t1-up", 30, 10)]["mode"] == "historie" and fc[("t1-up", 30, 10)]["n"] >= 50, fc[("t1-up", 30, 10)]
-# sealed-historie
-backfill.backfill_sealed(MockPPT(), store, day(0), 0.9, 60, log=quiet)
-run.build_forecasts(store, day(0), log=quiet)
-fc = {(r["product_id"], r["horizon_days"], r["threshold_pct"]): r for r in fake.t["forecasts"].values()}
-assert fc[("ppt:999", 30, 10)]["mode"] == "historie" and fc[("ppt:999", 30, 10)]["p_up"] > 0.02
-
 # goedkope kaart wordt overgeslagen; herhaalde run doet niets
 m.step()
 before = m.calls
@@ -290,9 +294,15 @@ assert m.calls == before
 # ============ 3. Trackrecord: 31 dagen doorlopen en beoordelen ============
 for d in range(2, 33):
     m.step()
+    for g in GUIDE.values():
+        g["price"] *= 1.004
+        g["avg7"], g["avg30"] = g["price"] * 0.99, g["price"] * 0.95
+    run.scan_sealed(None, store, day(d), log=quiet)
     run.collect_cards(m, store, ["t1"], day(d), log=quiet)
     run.build_forecasts(store, day(d), log=quiet)
     trackrecord.resolve(store, day(d), log=quiet)
+fc = {(r["product_id"], r["horizon_days"], r["threshold_pct"]): r for r in fake.t["forecasts"].values()}
+assert fc[("cm:999", 30, 10)]["mode"] == "historie" and fc[("cm:999", 30, 10)]["n"] >= 30, "sealed bouwt eigen Cardmarket-historie op"
 live = {r["bucket"]: r for r in fake.t["trackrecord_stats"].values() if r["source"] == "live"}
 assert live["all"]["n"] > 0 and live["koop"]["n"] > 0, live
 assert any(r["hit"] for r in fake.t["trackrecord_signals"].values()), "koop-signaal op stijgende kaart moet uitkomen"
@@ -318,8 +328,9 @@ assert alerts.evaluate(store, sender, day(32), log=quiet) == 1
 fake.post("https://x/rest/v1/collection", json=[
     {"user_id": uid, "product_id": "t1-down", "quantity": 1, "purchase_price": 60.0, "purchase_date": day(3)},
     {"user_id": uid, "product_id": "t1-flat", "quantity": 2, "purchase_price": 45.0, "purchase_date": day(3)}])
-fake.post("https://x/rest/v1/user_settings", json=[{"user_id": uid, "fee_pct": 5, "ship_eur": 1.5, "net_only": True, "net_min_pct": 3, "digest": True, "price_alerts": True}])
+fake.post("https://x/rest/v1/user_settings", json=[{"user_id": uid, "fee_pct": 5, "ship_eur": 1.5, "net_only": False, "net_min_pct": 3, "digest": True, "price_alerts": True}])
 sender.sent.clear()
+config.DIGEST_MIN_P_UP = 0.3      # de nagebootste markt is rustig; zo tellen er toch kansen mee
 assert alerts.send_digest(store, sender, day(32), log=quiet) == 1
 body = sender.sent[0][1]["body"]
 assert "aandacht" in body and "kans" in body, body
@@ -330,11 +341,12 @@ assert alerts.attention([{"name": "x", "value_each": 100, "purchase_price": 50, 
 import watch
 fake.post("https://x/rest/v1/collection", json=[
     {"user_id": uid, "product_id": "t1-up", "grade_company": "PSA", "grade": "10", "quantity": 1, "purchase_price": 300.0, "purchase_date": day(3)},
-    {"user_id": uid, "product_id": "ppt:999", "quantity": 1, "purchase_price": 150.0, "purchase_date": day(3)}])
+    {"user_id": uid, "product_id": "cm:999", "quantity": 1, "purchase_price": 150.0, "purchase_date": day(3)}])
 keys = watch.watched_keys(store)
-assert ("t1-up", "PSA-10") in keys and ("ppt:999", "raw") in keys and ("t1-up", "raw") in keys
+assert ("t1-up", "PSA-10") in keys and ("cm:999", "raw") in keys and ("t1-up", "raw") in keys
 assert watch.refresh(store, m, MockPPT(), day(32), 0.9, keys, log=quiet) == 5
 assert float(fake.t["prices"][("t1-up", day(32), "ppt", "PSA-10")]["price"]) == 360.0
+assert ("cm:999", day(32), "cardmarket", "raw") in fake.t["prices"]
 
 # ============ 7. Backtest ============
 fake2, store2 = new_store()
@@ -363,5 +375,100 @@ class FakeSession:
         return type("R", (), {"status_code": 200, "json": lambda self: {"items": [{"timestamp": "2026070100", "views": 1234}]}})()
 assert features.update_pageviews(store, day(32), session=FakeSession(), log=quiet) == 1
 assert list(fake.t["pokemon_interest"].values())[0]["views"] == 1234
+
+# ============ 8b. Echte antwoordvormen (uit de livetest) ============
+real_sealed = {"id": "696fa9", "tcgPlayerId": "98026", "name": "XY Roaring Skies Booster Box", "setId": "1534", "setName": "XY - Roaring Skies",
+               "unopenedPrice": 4280.92, "imageUrl": "https://x/i.jpg",
+               "priceHistory": [{"date": "2026-09-19T00:00:00.000Z", "unopenedPrice": 4280.92}, {"date": "2026-09-20T00:00:00.000Z", "unopenedPrice": 4300.0}]}
+it = ppt.parse_item(real_sealed, "sealed")
+assert it["price_usd"] == 4280.92 and it["ppt_id"] == "98026" and len(it["history"]) == 2 and it["set_name"] == "XY - Roaring Skies", it
+real_card = {"tcgPlayerId": "96392", "setId": 1451, "setName": "XY Promos", "name": "Charizard EX - XY29", "cardNumber": "XY29",
+             "prices": {"market": 22.1, "low": 2.79, "variants": {"Holofoil": {"Lightly Played": {"price": 10.62}}}}}
+it = ppt.parse_item(real_card)
+assert it["price_usd"] == 22.1 and it["number"] == "XY29" and ppt.clean_card_name(it["name"]) == "Charizard EX"
+assert ppt.clean_card_name("Charizard ex - 125/197") == "Charizard ex" and ppt.clean_card_name("Ho-Oh ex - 030/191") == "Ho-Oh ex"
+assert ppt.clean_card_name("Pikachu (Cosmos Holo) - 025/165") == "Pikachu"
+assert backfill.find_ppt_set({"name": "Obsidian Flames"}, [{"name": "SV03: Obsidian Flames", "set_id": "a"}, {"name": "Obsidian Flames Extra", "set_id": "b"}])["set_id"] == "a"
+
+class PagedSess:
+    headers = {}
+    def __init__(self):
+        self.calls = []
+    def get(self, url, params=None, timeout=None):
+        self.calls.append(dict(params))
+        off = params["offset"]
+        rows = [{"id": f"a{i}", "tcgPlayerId": f"slug-{i}", "name": f"Set {i}", "releaseDate": "2026-01-01T00:00:00.000Z"} for i in range(off, min(off + 2, 5))]
+        return type("R", (), {"status_code": 200, "headers": {"X-API-Calls-Consumed": "1"}, "text": "", "json": lambda self: {"data": rows, "metadata": {"hasMore": off + 2 < 5}}, "raise_for_status": lambda self: None})()
+ps = PagedSess()
+found = ppt.PPT("k", session=ps, log=quiet)._paged("/sets", {}, limit=2)
+assert len(found) == 5 and len(ps.calls) == 3, "alle pagina's opgehaald"
+class SameSess(PagedSess):
+    def get(self, url, params=None, timeout=None):
+        params = {**params, "offset": 0}
+        return super().get(url, params)
+assert len(ppt.PPT("k", session=SameSess(), log=quiet)._paged("/sets", {}, limit=2)) == 2, "stopt als offset genegeerd wordt"
+sl = ppt.PPT("k", session=PagedSess(), log=quiet).sets()
+assert sl[0]["set_id"] == "slug-0", "leesbare set-code gebruikt in plaats van interne id"
+
+# ============ 8c. Cardmarket-bestanden ============
+assert cardmarket.records({"version": 1, "products": [{"idProduct": 1}]}) == [{"idProduct": 1}]
+assert cardmarket.records({"priceGuides": [{"idProduct": 2}]}) == [{"idProduct": 2}] and cardmarket.records([{"a": 1}, 3]) == [{"a": 1}]
+assert cardmarket.is_sealed("Surging Sparks Booster Box", "Pokémon Booster Boxes") and cardmarket.is_sealed("Obsidian Flames Elite Trainer Box")
+assert not cardmarket.is_sealed("Ultra Pro Card Sleeves") and not cardmarket.is_sealed("Charizard Playmat") and not cardmarket.is_sealed("Dragon Shield Deck Box")
+class Doc:
+    def __init__(self, data):
+        self.data = data
+    def raise_for_status(self):
+        pass
+    def json(self):
+        return self.data
+class CmSess:
+    def get(self, url, timeout=None):
+        if "price_guide" in url:
+            return Doc({"version": 1, "priceGuides": [{"idProduct": 5, "trend": None, "avg7": 12.5, "avg30": 11.0, "low": 9.0, "avg1": None}, {"idProduct": 6, "trend": 30.0, "avg": 29.0}, {"idProduct": 7}]})
+        return Doc({"version": 1, "products": [{"idProduct": 5, "name": "Test Tin", "idExpansion": 3, "categoryName": "Pokémon Tins"}, {"idProduct": 6, "name": "Test Sleeves", "idExpansion": 3}, {"idProduct": 7, "name": "Empty Box"}]})
+import importlib
+importlib.reload(cardmarket)
+g = cardmarket.load_price_guide(CmSess())
+assert g[5]["price"] == 12.5, "zonder trend valt het terug op het 7-daags gemiddelde" and 7 not in g
+sl = cardmarket.load_sealed(CmSess())
+assert [s["id"] for s in sl] == [5, 7], sl
+pr, pc = cardmarket.sealed_rows(sl, g, "2026-09-21")
+assert [p["product_id"] for p in pr] == ["cm:5"] and pc[0]["source"] == "cardmarket" and pc[0]["currency"] == "EUR"
+
+# ============ 9. PokemonPriceTracker-client: gratis plan veilig ============
+import time as _time
+class R:
+    def __init__(self, status, body=None, headers=None, text=""):
+        self.status_code, self._b, self.headers, self.text = status, body, headers or {}, text
+    def json(self):
+        return self._b
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(self.status_code)
+class Sess:
+    headers = {}
+    def __init__(self, *responses):
+        self.rs = list(responses)
+    def get(self, url, params=None, timeout=None):
+        return self.rs.pop(0)
+_time.sleep = lambda *_: None
+c = ppt.PPT("key", session=Sess(R(200, {"data": []}, {"X-API-Calls-Consumed": "3", "X-RateLimit-Daily-Remaining": "4"})), log=quiet)
+c.sets()
+assert c.credits == 3 and c.remaining == 4 and c.over_budget(), "stopt als er bijna geen credits meer zijn"
+c = ppt.PPT("key", session=Sess(R(429, None, {}, "Daily credit limit reached")), log=quiet)
+try:
+    c.sets(); raise SystemExit("hoort te falen")
+except RuntimeError as e:
+    assert "dagtegoed" in str(e) and c.blocked and c.over_budget()
+c = ppt.PPT("key", session=Sess(R(429, None, {"Retry-After": "1"}), R(200, {"data": [{"setId": "s1", "name": "Set 1"}]}, {"X-API-Calls-Consumed": "1"})), log=quiet)
+assert c.sets()[0]["set_id"] == "s1", "korte 429 wordt opnieuw geprobeerd"
+c = ppt.PPT("key", session=Sess(R(403)), log=quiet)
+try:
+    c.sets(); raise SystemExit("hoort te falen")
+except RuntimeError as e:
+    assert "geen toegang" in str(e) and c.blocked
+c = ppt.PPT("key", session=Sess(R(200, {"data": [{"setId": "a"}]}, {"X-API-Calls-Consumed": "1", "X-RateLimit-Daily-Remaining": "90"})), log=quiet)
+c.sets(); assert not c.over_budget()
 
 print("alle tests geslaagd")

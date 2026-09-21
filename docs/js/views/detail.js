@@ -132,5 +132,7 @@ export async function detailView(root, pid, cid) {
 
   root.replaceChildren(h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
-    head, stats, chance, why, chartSec, alertSec, btns));
+    head, stats,
+    graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
+    chance, why, chartSec, alertSec, btns));
 }

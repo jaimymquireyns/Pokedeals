@@ -1,4 +1,4 @@
-"""PokemonPriceTracker (betaald API-plan): sealed, graded en prijshistorie.
+"""PokemonPriceTracker (betaald API-plan): prijshistorie en gegradeerde prijzen van kaarten (TCGplayer/eBay, dollars).
 
 Let op: de exacte vorm van de antwoorden kon ik niet live testen. De parsers hieronder zoeken daarom op meerdere
 plekken naar velden en negeren wat ze niet snappen. Met `python run.py --probe-ppt` zie je de echte structuur en
@@ -58,8 +58,14 @@ def norm_number(n):
     return (str(n).split("/")[0].strip().lstrip("0") or "0").lower()
 
 
+def clean_card_name(name):
+    """'Charizard ex - 125/197' -> 'Charizard ex'; '(Reverse Holo)' e.d. verdwijnt ook."""
+    n = re.sub(r"\s*-\s*[A-Za-z]{0,5}\d+(?:/\d+)?\s*$", "", name or "")
+    return re.sub(r"\s*\([^)]*\)\s*", " ", n).strip()
+
+
 DATE_KEYS = ("date", "day", "timestamp", "t", "d")
-PRICE_KEYS = ("market", "marketPrice", "price", "avg", "average", "p", "close")
+PRICE_KEYS = ("market", "marketPrice", "unopenedPrice", "price", "avg", "average", "p", "close")
 
 
 def _to_date(v):
@@ -156,7 +162,7 @@ def extract_graded(ebay):
 
 def parse_item(d, kind="card"):
     """Genormaliseerd antwoord voor één kaart of sealed product."""
-    price = _num(_first(d, "prices.market", "prices.marketPrice", "marketPrice", "market", "price"))
+    price = _num(_first(d, "prices.market", "prices.marketPrice", "unopenedPrice", "marketPrice", "market", "price"))
     if price is None and isinstance(d.get("variants"), dict):
         for v in d["variants"].values():
             price = _num(_first(v, "marketPrice", "prices.market", "market")) if isinstance(v, dict) else None
@@ -231,10 +237,29 @@ class PPT:
         self.blocked = True
         raise RuntimeError("PokemonPriceTracker: blijft 429 geven (te veel verzoeken)")
 
+    def _paged(self, path, params, limit=100, max_pages=30):
+        """Haalt alle pagina's op. Stopt als er niets nieuws bijkomt (voor het geval 'offset' genegeerd wordt)."""
+        out, seen, offset = [], set(), 0
+        for _ in range(max_pages):
+            data = self._get(path, {**params, "limit": limit, "offset": offset})
+            items = _items(data)
+            fresh = [d for d in items if str(d.get("id") or d.get("tcgPlayerId") or id(d)) not in seen]
+            for d in fresh:
+                seen.add(str(d.get("id") or d.get("tcgPlayerId") or id(d)))
+            out += fresh
+            more = ((data or {}).get("metadata") or {}).get("hasMore") if isinstance(data, dict) else None
+            if more is None:
+                more = len(items) >= limit
+            if not fresh or not more or self.over_budget():
+                break
+            offset += len(items)
+        return out
+
     def sets(self):
         out = []
-        for d in _items(self._get("/sets", {"sortBy": "releaseDate", "sortOrder": "desc"})):
-            sid = _first(d, "setId", "id", "slug", "code")
+        for d in self._paged("/sets", {"sortBy": "releaseDate", "sortOrder": "desc"}):
+            # let op: 'id' is een interne code; voor de sealed-zoekopdracht heb je de leesbare code ('tcgPlayerId') nodig
+            sid = _first(d, "tcgPlayerId", "slug", "setId", "code", "id")
             if sid:
                 out.append({"set_id": str(sid), "name": _first(d, "name", "setName"),
                             "release_date": _to_date(_first(d, "releaseDate", "release_date"))})
@@ -248,15 +273,6 @@ class PPT:
             p["includeEbay"] = "true"
         return p
 
-    def sealed_for_set(self, set_id, history_days=None):
-        data = self._get("/sealed-products", self._params({"set": set_id}, history_days))
-        return [parse_item(d, "sealed") for d in _items(data)]
-
-    def sealed(self, ppt_id, history_days=None):
-        data = self._get("/sealed-products", self._params({"tcgPlayerId": ppt_id}, history_days))
-        items = [parse_item(d, "sealed") for d in _items(data)]
-        return items[0] if items else None
-
     def cards_in_set(self, set_id, history_days=None):
         data = self._get("/cards", self._params({"set": set_id, "fetchAllInSet": "true"}, history_days))
         return [parse_item(d) for d in _items(data)]
@@ -267,45 +283,38 @@ class PPT:
         return items[0] if items else None
 
     def probe(self):
-        """Kleine test (ca. 6 credits): toont de ruwe antwoorden en wat de parsers eruit halen."""
-        def short(d, n=900):
-            return str(d)[:n]
-
-        def summary(it):
-            return {k: (v if k not in ("history", "graded") else (f"{len(v)} punten" if k == "history" else v)) for k, v in it.items()}
-
-        print("=== 1. Sets (1 credit) ===")
+        """Kleine test (ca. 6 credits): sets, een set-opvraag en een kaart met historie en gegradeerde prijzen."""
+        short = lambda d, n=900: str(d)[:n]
+        today = date.today().isoformat()
+        summary = lambda it: {k: (f"{len(v)} punten" if k == "history" else v) for k, v in it.items() if k != "image"}
+        print("=== PokemonPriceTracker 1. Sets (1 credit) ===")
         found = []
         try:
-            print("ruw:", short(self._get("/sets", {"sortBy": "releaseDate", "sortOrder": "desc", "limit": 3}), 500))
             found = self.sets()
-            print("herkend:", len(found), "sets; nieuwste:", found[:2])
+            print(f"{len(found)} sets; nieuwste: {found[:2]}")
         except Exception as e:
             print("FOUT:", e)
 
-        print("\n=== 2. Sealed producten (max. 2 credits + historie) ===")
+        print("\n=== 2. Kaarten van één set opvragen (met limit=2) ===")
         try:
-            items = []
-            if found:
-                raw = self._get("/sealed-products", {"set": found[0]["set_id"], "includeHistory": "true", "days": 3, "limit": 2})
-                print("ruw:", short(raw))
-                items = [parse_item(d, "sealed") for d in _items(raw)]
-            if not items:
-                print("(geen resultaat met de set-id; nu zoeken op naam)")
-                raw = self._get("/sealed-products", {"search": "booster box", "includeHistory": "true", "days": 3, "limit": 2})
-                print("ruw:", short(raw))
-                items = [parse_item(d, "sealed") for d in _items(raw)]
-            for it in items[:2]:
-                print("herkend:", summary(it))
+            released = [x for x in found if x["release_date"] and x["release_date"] <= today]
+            if released:
+                raw = self._get("/cards", {"set": released[0]["set_id"], "limit": 2, "includeHistory": "true", "days": 3})
+                print("set:", released[0])
+                print("metadata:", short((raw or {}).get("metadata"), 500))
+                for it in [parse_item(d) for d in _items(raw)][:2]:
+                    print("herkend:", summary(it))
         except Exception as e:
             print("FOUT:", e)
 
         print("\n=== 3. Kaart met historie en gegradeerde prijzen (max. 3 credits) ===")
         try:
-            raw = self._get("/cards", {"search": "charizard ex", "limit": 1, "includeHistory": "true", "includeEbay": "true", "days": 3})
-            print("ruw:", short(raw, 1400))
-            for it in [parse_item(d) for d in _items(raw)][:1]:
-                print("herkend:", summary(it))
+            raw = self._get("/cards", {"tcgPlayerId": "490294", "includeHistory": "true", "includeEbay": "true", "days": 3})
+            d = (_items(raw) or [{}])[0]
+            print("velden:", sorted(d.keys()))
+            print("ebay ruw:", short(d.get("ebay"), 1200))
+            print("priceHistory ruw:", short(d.get("priceHistory"), 500))
+            print("herkend:", summary(parse_item(d)))
         except Exception as e:
             print("FOUT:", e)
 

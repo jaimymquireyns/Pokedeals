@@ -217,8 +217,9 @@ def calibrate(p, stats):
 def series_for(product_id, by_source):
     """De reeks waarop het model draait. Sealed: PPT-reeks. Kaarten: eigen Cardmarket-reeks, met oude
     PPT-historie (bron 'ppt_hist') eraan vastgeplakt."""
-    if product_id.startswith("ppt:"):
-        series = list(by_source.get("ppt", []))
+    if ":" in product_id:      # sealed (bijv. 'cm:12345'): de eigen reeks van die bron
+        own = [v for k, v in by_source.items() if k != "ppt_hist"]
+        series = max(own, key=len) if own else []
     else:
         series = splice(by_source.get("tcgdex", []), by_source.get("ppt_hist", []))
     rows = [{"date": r["date"], "trend": r["price"], "price": r["price"], "avg1": r.get("avg1"),
