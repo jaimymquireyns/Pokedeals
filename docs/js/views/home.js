@@ -26,7 +26,7 @@ export async function homeView(root) {
   const trackLine = h("span", { text: "" });
   const status = h("p", { class: "muted sub" }, h("span", { class: "st", text: "Laden…" }), " ", trackLine);
   const notice = h("div");
-  const legend = h("p", { class: "legend", text: `Kans dat de prijs binnen ${s.horizon} dagen minstens ${s.pct}% stijgt. Rechts de verwachte stijging na verkoopkosten en verzending.` });
+  const legend = h("p", { class: "legend", text: `Kans dat de Cardmarket-trendprijs binnen ${s.horizon} dagen minstens ${s.pct}% stijgt. Rechts de verwachte stijging na verkoopkosten en verzending. De trendprijs is een gemiddelde, niet het goedkoopste aanbod.` });
   const list = h("ul", { class: "list" });
   const more = h("div", { class: "more" }, h("button", { type: "button", text: "Toon meer", onclick: () => { state.shown += 60; draw(); } }));
   let rows = [];
@@ -47,7 +47,7 @@ export async function homeView(root) {
     notice, legend, list, more,
     h("p", { class: "fine muted", text: "Statistische schatting op basis van marktprijzen; geen financieel advies. Prijzen houden geen rekening met conditie, taal of marktplaatskosten (tenzij je die bij Instellingen invult). Controleer altijd de echte aanbiedingen." })));
 
-  rest.get("trackrecord_stats?select=*").then((st) => {
+  rest.get("trackrecord_stats?select=*&horizon_days=eq.30&threshold_pct=eq.10").then((st) => {
     const t = summarize(st);
     trackLine.replaceChildren(h("a", { href: "#/track", class: "hl", text: "Trackrecord" }),
       t?.koop?.n ? `: ${t.koop.hits} van ${t.koop.n} koop-signalen kwamen uit${t.source === "backtest" ? " (backtest)" : ""}.` : ": nog geen uitkomsten.");
@@ -59,6 +59,10 @@ export async function homeView(root) {
     const updated = rows.reduce((m, r) => (r.updated > m ? r.updated : m), "");
     status.querySelector(".st").textContent = rows.length ? `Bijgewerkt ${fmtDate(updated)}.` : "Nog geen data.";
     if (cachedAt) notice.append(note("Geen verbinding", `Je ziet de laatst opgeslagen stand van ${new Date(cachedAt).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}.`));
+    const low = rows.filter((r) => r.confidence === "laag").length;
+    if (rows.length && low / rows.length > 0.5) {
+      notice.append(note("Nog grove schattingen", "Er is nog weinig prijsgeschiedenis. Rijen met het label 'grof' zijn een eerste indicatie en worden elke dag betrouwbaarder."));
+    }
     draw();
   } catch (e) {
     status.querySelector(".st").textContent = "Laden mislukt.";

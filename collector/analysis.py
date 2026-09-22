@@ -39,7 +39,8 @@ def _history_points(rows):
 
 def _pseudo_points(last):
     pts = []
-    for t, key in ((-15, "avg30"), (-3.5, "avg7"), (-0.5, "avg1"), (0, "trend")):
+    # 'avg1' (gemiddelde van één dag) laten we weg: bij duurdere kaarten is dat vaak één enkele verkoop
+    for t, key in ((-15, "avg30"), (-3.5, "avg7"), (0, "trend")):
         v = last[key]
         if v and v > 0:
             pts.append((t, v))
@@ -76,6 +77,21 @@ def _drift_regression(pts):
     return slope, sd
 
 
+def _cond_expectation(m, sd_h, bound, tail):
+    """E[verandering | verandering voorbij 'bound'] voor een lognormale verdeling met log-gemiddelde m en spreiding sd_h."""
+    z1 = (bound - m) / sd_h
+    z2 = (bound - m - sd_h ** 2) / sd_h
+    if tail == "down":
+        denom = norm_cdf(z1)
+        if denom < 1e-6:
+            return math.exp(bound) - 1     # bijna geen kans: neem de drempel zelf
+        return math.exp(m + sd_h ** 2 / 2) * norm_cdf(z2) / denom - 1
+    denom = 1 - norm_cdf(z1)
+    if denom < 1e-6:
+        return math.exp(bound) - 1
+    return math.exp(m + sd_h ** 2 / 2) * (1 - norm_cdf(z2)) / denom - 1
+
+
 def forecast(rows, horizon=None, threshold=None):
     """rows: prijsrijen van één kaart (gesorteerd op datum). Geeft dict of None als er te weinig data is."""
     horizon = horizon or config.HORIZON_DAYS
@@ -102,16 +118,29 @@ def forecast(rows, horizon=None, threshold=None):
         mode = "snel"
         mu, fit_sd = _drift_regression(pts)
         mu *= config.AVG_MODE_SHRINK
-        sigma = max(fit_sd, config.SIGMA_FLOOR)
+        mu = max(-config.FAST_MAX_DRIFT, min(config.FAST_MAX_DRIFT, mu))
+        if last["avg30"] and abs(price / last["avg30"] - 1) > config.FAST_SPIKE:
+            mu = 0.0      # plotselinge sprong (vaak weinig verkopen): niet doortrekken
+        sigma = min(max(fit_sd, config.SIGMA_FLOOR), config.FAST_MAX_SIGMA)
         n = len(hist)
 
     mu = max(-config.MAX_DAILY_DRIFT, min(config.MAX_DAILY_DRIFT, mu))
     sd_h = sigma * math.sqrt(horizon)
-    p_up = 1.0 - norm_cdf((math.log(1 + threshold) - mu * horizon) / sd_h)
-    p_down = norm_cdf((math.log(1 - threshold) - mu * horizon) / sd_h)
+    # De dagelijkse drift is bedoeld voor korte periodes; zonder plafond op de totale periode zou een gewone trend
+    # bij 24 maanden tot absurde duizenden procenten worden doorgetrokken. Dit begrenst alleen lange periodes.
+    m = max(math.log(0.01), min(mu * horizon, math.log(1 + config.MAX_HORIZON_RETURN)))
+    ln_up = math.log(1 + threshold)
+    ln_down = math.log(1 - min(threshold, 0.99))   # bij een drempel van 100% ('verdubbeling') is 'min 100% dalen' onzinnig (prijs kan niet onder 0); we begrenzen op 99%
+    p_up = 1.0 - norm_cdf((ln_up - m) / sd_h)
+    p_down = norm_cdf((ln_down - m) / sd_h)
     # Het model is een schatting: nooit 0% of 100% zeker tonen.
     p_up = min(max(p_up, 0.02), 0.98)
     p_down = min(max(p_down, 0.02), 0.98)
+    # Verwachte omvang ALS de drempel wordt gehaald (voorwaardelijke verwachting van een afgeknotte lognormale verdeling).
+    exp_up = _cond_expectation(m, sd_h, ln_up, "up")
+    exp_down = _cond_expectation(m, sd_h, ln_down, "down")
+    exp_up = max(exp_up, threshold)
+    exp_down = min(exp_down, -min(threshold, 0.99))
 
     if mode == "historie":
         confidence = "hoog" if n >= 30 else "middel"
@@ -126,7 +155,9 @@ def forecast(rows, horizon=None, threshold=None):
         "mom30": (price / avg30 - 1) if avg30 else None,
         "p_up": p_up,
         "p_down": p_down,
-        "exp_change": math.exp(mu * horizon) - 1,   # mediane verwachte verandering over de horizon
+        "exp_change": math.exp(m) - 1,   # mediane verwachte verandering over de horizon (begrensd, zie hierboven)
+        "exp_up": exp_up,        # verwachte stijging, gegeven dat de stijgingsdrempel wordt gehaald
+        "exp_down": exp_down,    # verwachte daling, gegeven dat de dalingsdrempel wordt gehaald
         "sigma": sigma,
         "mu": mu,
         "mode": mode,

@@ -3,6 +3,7 @@ import { go, note } from "./components.js";
 import { loadSettings } from "./prefs.js";
 import { $, h, icon } from "./ui.js";
 import { collectionView } from "./views/collection.js";
+import { watchlistView } from "./views/watchlist.js";
 import { detailView } from "./views/detail.js";
 import { homeView } from "./views/home.js";
 import { loginView } from "./views/login.js";
@@ -12,7 +13,7 @@ import { trackView } from "./views/track.js";
 
 const app = $("#app");
 const tabsEl = $("#tabs");
-const TABS = [["home", "Kansen", "home"], ["search", "Zoeken", "search"], ["collection", "Collectie", "cards"]];
+const TABS = [["home", "Kansen", "home"], ["search", "Zoeken", "search"], ["watchlist", "Watchlist", "star"], ["collection", "Collectie", "cards"]];
 
 function drawTabs(active) {
   tabsEl.hidden = !active;
@@ -44,6 +45,7 @@ async function route() {
         if (!isLoggedIn()) loginView(app, { reason: "Log in om je collectie te zien en bij te houden.", onDone: route });
         else await collectionView(app);
         break;
+      case "watchlist": drawTabs("watchlist"); await watchlistView(app); break;
       case "detail": drawTabs(null); await detailView(app, parts[1], q.get("c")); break;
       case "settings": drawTabs(null); await settingsView(app); break;
       case "track": drawTabs(null); await trackView(app); break;

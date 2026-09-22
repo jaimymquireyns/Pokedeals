@@ -2,10 +2,11 @@ import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
 import { chanceBar, gradeTag, go, kindTag, pill } from "../components.js";
-import { SIGNAL_TEXT, gradeKey, netGain, ownedSignal, whyBullets } from "../model.js";
+import { PERIODS, SIGNAL_TEXT, gradeKey, netGain, ownedSignal, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
-import { closeSheet, debounce, eur, fmtDateLong, h, icon, num, openSheet, parseMoney, pp, signed, signedEur, thumb, toast, toggle } from "../ui.js";
+import { addWatch, isWatched, removeWatch } from "./watchlist.js";
+import { closeSheet, debounce, eur, fmtDateLong, h, icon, num, openSheet, parseMoney, pp, segment, signed, signedEur, thumb, toast, toggle } from "../ui.js";
 
 const enc = encodeURIComponent;
 const stat = (k, v, s, cls = "") => h("div", { class: "stat" }, h("div", { class: "k", text: k }), h("div", { class: "v num " + cls, text: v }), s ? h("div", { class: "s", text: s }) : null);
@@ -13,23 +14,30 @@ const stat = (k, v, s, cls = "") => h("div", { class: "stat" }, h("div", { class
 export async function detailView(root, pid, cid) {
   root.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
   const s = getSettings();
-  let p, c = null, f = null, hist = [], al = null;
+  let p, c = null, fcRows = [], hist = [], al = null, nmRow = null, watchId = null;
   try {
     const owned = cid ? rest.get(`v_collection?select=*&id=eq.${enc(cid)}`).then((r) => r[0] || null) : Promise.resolve(null);
-    [p, c, f] = await Promise.all([
+    [p, c, fcRows] = await Promise.all([
       rest.get(`v_search?select=*&product_id=eq.${enc(pid)}`).then((r) => r[0]), owned,
-      rest.get(`forecasts?select=*&product_id=eq.${enc(pid)}&horizon_days=eq.${s.horizon}&threshold_pct=eq.${s.pct}`).then((r) => r[0] || null)]);
+      rest.get(`forecasts?select=*&product_id=eq.${enc(pid)}`)]);
     if (!p) throw new Error("onbekend product");
     const gk = c ? gradeKey(c) : "raw";
     hist = await rest.get(`prices?select=date,price,source&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&order=date.asc&limit=1000`);
-    if (isLoggedIn()) al = (await rest.get(`alerts?select=*&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&limit=1`))[0] || null;
+    if (gk === "raw") nmRow = (await rest.get(`prices?select=date,price&product_id=eq.${enc(pid)}&grade_key=eq.nm&order=date.desc&limit=1`).catch(() => []))[0] || null;
+    if (isLoggedIn()) {
+      al = (await rest.get(`alerts?select=*&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&limit=1`))[0] || null;
+      watchId = await isWatched(pid);
+    }
   } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Kon dit product niet laden." }), h("button", { class: "linkbtn", text: "Terug", onclick: () => history.back() })); console.error(e); return; }
 
   const gk = c ? gradeKey(c) : "raw";
   const num2 = (x) => (x == null ? null : Number(x));
   const price = c ? num2(c.value_each) : num2(p.price);
-  const fx = f && { ...f, price: Number(f.price), p_up: Number(f.p_up), p_down: Number(f.p_down), exp: Number(f.exp_change), avg7: num2(f.avg7), avg30: num2(f.avg30), mom30: num2(f.mom30), sigma: num2(f.sigma) };
   const graded = gk !== "raw";
+  const fcByKey = new Map(fcRows.map((r) => [`${r.horizon_days}-${r.threshold_pct}`, r]));
+  const toFx = (r) => r && { ...r, price: Number(r.price), p_up: Number(r.p_up), p_down: Number(r.p_down), exp: Number(r.exp_change), avg7: num2(r.avg7), avg30: num2(r.avg30), mom30: num2(r.mom30), sigma: num2(r.sigma) };
+  let period = PERIODS.find((pr) => pr.horizon === s.horizon && pr.pct === s.pct) || PERIODS.find((pr) => pr.key === "30");
+  let fx = toFx(fcByKey.get(`${period.horizon}-${period.pct}`));
 
   // ---- kop ----
   const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed"),
@@ -45,24 +53,53 @@ export async function detailView(root, pid, cid) {
       stat("Waarde nu", price ? eur(price * c.quantity) : "–", price ? `${eur(price)} per stuk` : "prijs onbekend"),
       stat("Winst", total == null ? "–" : signedEur(total), price ? signed(price / Number(c.purchase_price) - 1, 1) : "", total != null && total < 0 ? "neg" : "pos"));
   } else {
-    stats = h("div", { class: "stats" }, stat("Prijs nu", price ? eur(price) : "–"), stat("Gem. 7 dagen", fx?.avg7 ? eur(fx.avg7) : "–"), stat("Gem. 30 dagen", fx?.avg30 ? eur(fx.avg30) : "–"));
+    stats = h("div", { class: "stats" }, stat("Trendprijs", price ? eur(price) : "–", "Cardmarket-gemiddelde"), stat("Gem. 7 dagen", fx?.avg7 ? eur(fx.avg7) : "–"), stat("Gem. 30 dagen", fx?.avg30 ? eur(fx.avg30) : "–"));
   }
 
-  // ---- kans ----
-  const chance = h("div", { class: "sec" }, h("h3", { text: `Kans binnen ${s.horizon} dagen` }));
-  if (fx) {
-    const net = netGain(fx.price, fx.exp, s);
-    const sig = c ? ownedSignal(fx, c) : { label: fx.signal, text: SIGNAL_TEXT[fx.signal] };
-    chance.append(...[chanceBar(fx.p_up, fx.p_down),
-      h("p", { class: "p14 dirs" }, h("span", { text: `daling van ${s.pct}% of meer` }), h("span", { text: `stijging van ${s.pct}% of meer` })),
-      h("p", { class: "p14" }, "Verwachte stijging ", h("b", { text: signed(fx.exp, 1) }), " · na verkoopkosten ", h("b", { text: signed(net, 1) }), "."),
-      h("div", { class: "sigrow" }, pill(sig.label), h("span", { text: sig.text })),
-      graded ? h("p", { class: "mini", text: `Let op: deze kans is berekend op de prijs van de ongegradeerde kaart. ${gk.replace("-", " ")} beweegt vaak anders.` }) : null].filter(Boolean));
-  } else chance.append(h("p", { class: "p14 muted", text: "Nog geen kansberekening. Dat kan komen doordat er te weinig prijsdata is, of omdat de prijs onder de € 2 ligt." }));
+  // ---- laagste Near Mint-prijs (PkmnPrices) ----
+  const nmBox = nmRow && !graded && price ? h("div", { class: "nmbox" },
+    h("div", {}, h("div", { class: "k", text: "Near Mint vanaf" }), h("div", { class: "s", text: `Laagste aanbod, ${fmtDateLong(nmRow.date)}` })),
+    h("div", { class: "r" }, h("div", { class: "v num", text: eur(Number(nmRow.price)) }), h("div", { class: "s", text: `${signed(Number(nmRow.price) / price - 1)} t.o.v. trend` }))) : null;
 
-  const why = fx ? h("div", { class: "sec" }, h("h3", { text: "Waarom deze kans?" }),
-    h("ul", { class: "why" }, ...whyBullets(fx).map((b) => h("li", {}, h("span", { class: "dot " + b.tone, text: b.tone === "g" ? "+" : b.tone === "r" ? "−" : b.tone === "n" ? "~" : "i" }),
-      h("span", {}, h("b", { text: b.head }), " " + b.text))))) : null;
+  // ---- kans, met een periode-kiezer (los van de standaardperiode in Instellingen) ----
+  const periodBar = h("div", { class: "seg periods" });
+  const chance = h("div", {});
+  const why = h("div", { class: "sec" }, h("h3", { text: "Waarom deze kans?" }));
+
+  function drawPeriods() {
+    periodBar.replaceChildren(...PERIODS.map((pr) => h("button", { type: "button", "aria-pressed": String(pr.key === period.key),
+      onclick: () => { period = pr; fx = toFx(fcByKey.get(`${pr.horizon}-${pr.pct}`)); drawPeriods(); drawChance(); }, text: pr.label })));
+  }
+
+  function drawChance() {
+    const pct = period.pct;
+    const label = period.horizon <= 30 ? `${period.horizon} dagen` : period.horizon < 365 ? `${Math.round(period.horizon / 30)} maanden` : `${Math.round(period.horizon / 365)} jaar`;
+    const box = h("div", { class: "sec" }, h("h3", { text: `Kans binnen ${label}` }));
+    if (fx) {
+      const expUp = fx.exp_up != null ? Number(fx.exp_up) : fx.exp;
+      const expDown = fx.exp_down != null ? Number(fx.exp_down) : -pct / 100;
+      const net = netGain(fx.price, expUp, s);
+      const sig = c ? ownedSignal(fx, c) : { label: fx.signal, text: SIGNAL_TEXT[fx.signal] };
+      box.append(...[chanceBar(fx.p_up, fx.p_down),
+        h("p", { class: "p14 dirs" }, h("span", { text: `daling van ${pct}% of meer` }), h("span", { text: `stijging van ${pct}% of meer` })),
+        h("p", { class: "p14 outcomes" },
+          h("span", { class: "u" }, h("b", { text: pp(fx.p_up) }), " kans op ", h("b", { text: `${signed(expUp, 0)} (${signedEur(fx.price * expUp)})` }), " stijging."),
+          h("span", { class: "d" }, h("b", { text: pp(fx.p_down) }), " kans op ", h("b", { text: `${signed(expDown, 0)} (${signedEur(fx.price * expDown)})` }), " daling.")),
+        h("p", { class: "p14" }, "Bij stijging, na verkoopkosten: ", h("b", { text: `${signed(net, 1)} (${signedEur(fx.price * net)})` }), "."),
+        h("div", { class: "sigrow" }, pill(sig.label), h("span", { text: sig.text })),
+        graded ? h("p", { class: "mini", text: `Let op: deze kans is berekend op de prijs van de ongegradeerde kaart. ${gk.replace("-", " ")} beweegt vaak anders.` }) : null].filter(Boolean));
+    } else {
+      box.append(h("p", { class: "p14 muted", text: period.horizon > 60
+        ? "Nog niet berekend voor deze periode. Lange periodes (3-24 maanden) worden 1x per week bijgewerkt, op maandag."
+        : "Nog geen kansberekening. Dat kan komen doordat er te weinig prijsdata is, of omdat de prijs onder de € 2 ligt." }));
+    }
+    chance.replaceChildren(box);
+    why.replaceChildren(h("h3", { text: "Waarom deze kans?" }), fx ? h("ul", { class: "why" }, ...whyBullets(fx).map((b) => h("li", {},
+      h("span", { class: "dot " + b.tone, text: b.tone === "g" ? "+" : b.tone === "r" ? "−" : b.tone === "n" ? "~" : "i" }),
+      h("span", {}, h("b", { text: b.head }), " " + b.text)))) : h("p", { class: "p14 muted", text: "Nog geen uitleg beschikbaar voor deze periode." }));
+  }
+  drawPeriods();
+  drawChance();
 
   // ---- grafiek ----
   const chartSec = h("div", { class: "sec" }, h("h3", { text: c ? "Prijs sinds aankoop" : "Prijsverloop" }));
@@ -114,6 +151,22 @@ export async function detailView(root, pid, cid) {
 
   // ---- knoppen ----
   const btns = h("div", { class: "btns" });
+  if (isLoggedIn()) {
+    const watchBtn = h("button", { class: "btn" + (watchId ? " watching" : ""), type: "button" },
+      icon("star", watchId ? "filled" : ""), h("span", { text: watchId ? "Wordt gevolgd" : "Volgen" }));
+    watchBtn.onclick = async () => {
+      watchBtn.disabled = true;
+      try {
+        if (watchId) { await removeWatch(watchId); watchId = null; toast("Van watchlist gehaald"); }
+        else { watchId = await addWatch(pid); toast("Toegevoegd aan watchlist"); }
+        watchBtn.classList.toggle("watching", Boolean(watchId));
+        watchBtn.replaceChildren(icon("star", watchId ? "filled" : ""), h("span", { text: watchId ? "Wordt gevolgd" : "Volgen" }));
+      } catch { toast("Aanpassen mislukte"); } finally { watchBtn.disabled = false; }
+    };
+    btns.append(watchBtn);
+  } else {
+    btns.append(h("button", { class: "btn", type: "button", text: "Volgen (log in)", onclick: () => go("#/login?next=" + enc(location.hash)) }));
+  }
   const reload = () => { closeSheet(); detailView(root, pid, cid); };
   if (c) {
     btns.append(h("button", { class: "btn", type: "button", text: "Bewerken", onclick: () => openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), addForm({ ...p, price: c.value_each }, { editing: c, onDone: reload }))) }));
@@ -132,7 +185,8 @@ export async function detailView(root, pid, cid) {
 
   root.replaceChildren(h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
-    head, stats,
+    head, stats, nmBox,
+    !c ? h("p", { class: "mini pad2", text: "De trendprijs is Cardmarkets gemiddelde voor alle talen en condities. Het goedkoopste aanbod (Near Mint) kan een stuk lager liggen, zeker bij dure kaarten met weinig verkopen." }) : null,
     graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
-    chance, why, chartSec, alertSec, btns));
+    periodBar, chance, why, chartSec, alertSec, btns));
 }

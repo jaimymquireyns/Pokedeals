@@ -127,24 +127,31 @@ def scan_sealed(session, store, today, log=print):
 # ---------------------------------------------------------------------------
 # Kansen
 # ---------------------------------------------------------------------------
-def choose_stats(rows):
-    """Kalibratiegegevens: live-uitkomsten als er genoeg zijn, anders de backtest."""
-    by = {"live": {}, "backtest": {}}
+def choose_stats_all(rows):
+    """Kalibratiegegevens per periode (horizon_days, threshold_pct): live-uitkomsten als er genoeg zijn, anders de backtest.
+    Geeft {(horizon, pct): {bucket: {n, hits}}}."""
+    by = {}
     for r in rows:
-        if r["source"] in by:
-            by[r["source"]][r["bucket"]] = r
+        key = (r["horizon_days"], r["threshold_pct"])
+        by.setdefault(key, {"live": {}, "backtest": {}})
+        if r["source"] in by[key]:
+            by[key][r["source"]][r["bucket"]] = r
     out = {}
-    for _, _, b in analysis.BUCKETS:
-        live, back = by["live"].get(b), by["backtest"].get(b)
-        pick = live if live and live["n"] >= config.CALIBRATE_MIN_N else back
-        if pick:
-            out[b] = {"n": pick["n"], "hits": pick["hits"]}
+    for key, srcs in by.items():
+        combo = {}
+        for _, _, b in analysis.BUCKETS:
+            live, back = srcs["live"].get(b), srcs["backtest"].get(b)
+            pick = live if live and live["n"] >= config.CALIBRATE_MIN_N else back
+            if pick:
+                combo[b] = {"n": pick["n"], "hits": pick["hits"]}
+        out[key] = combo
     return out
 
 
-def build_forecasts(store, today, log=print):
+def build_forecasts(store, today, log=print, combos=None):
+    combos = combos or config.GRID
     since = (date.fromisoformat(today) - timedelta(days=config.HISTORY_DAYS)).isoformat()
-    stats = choose_stats(store.select("trackrecord_stats", {"select": "*"}))
+    stats_all = choose_stats_all(store.select("trackrecord_stats", {"select": "*"}))
     rows = store.price_rows(since)
     out, history = [], []
     for pid, grp in groupby(rows, key=lambda r: r["product_id"]):
@@ -155,31 +162,34 @@ def build_forecasts(store, today, log=print):
         series = analysis.series_for(pid, by_source)
         if not series or series[-1]["avg30"] is None:
             continue    # geen verkopen in de laatste 30 dagen: te dunne markt voor een betrouwbare kans
-        for horizon, pct in config.GRID:
+        for horizon, pct in combos:
             f = analysis.forecast(series, horizon, pct / 100)
             if not f or f["price"] < config.MIN_PRICE:
                 continue
             p_raw = f["p_up"]
             p_up, p_down = f["p_up"], f["p_down"]
-            if (horizon, pct) == config.STANDARD:
-                p_up = analysis.calibrate(p_up, stats)
-                history.append({"product_id": pid, "date": today, "p_up": round(p_raw, 4),
-                                "price": f["price"], "signal": analysis._signal(p_raw, p_down)})
+            p_up = analysis.calibrate(p_up, stats_all.get((horizon, pct), {}))
+            if horizon <= 60:   # alleen periodes die binnen een redelijke tijd echt kunnen worden nagekeken
+                history.append({"product_id": pid, "date": today, "horizon_days": horizon, "threshold_pct": pct,
+                                "p_up": round(p_raw, 4), "price": f["price"], "signal": analysis._signal(p_raw, p_down)})
             out.append({
                 "product_id": pid, "horizon_days": horizon, "threshold_pct": pct,
                 "price": f["price"], "avg7": f["avg7"], "avg30": f["avg30"], "mom30": f["mom30"],
                 "p_up": round(p_up, 4), "p_down": round(p_down, 4), "exp_change": round(f["exp_change"], 4),
+                "exp_up": round(f["exp_up"], 4), "exp_down": round(f["exp_down"], 4),
                 "score": round(p_up - p_down, 4), "sigma": round(f["sigma"], 5),
                 "signal": analysis._signal(p_up, p_down), "mode": f["mode"], "confidence": f["confidence"],
                 "n": f["n"], "updated": f["updated"], "computed_on": today,
             })
     if out:
         store.upsert("forecasts", out, "product_id,horizon_days,threshold_pct")
-        store.delete("forecasts", {"computed_on": f"lt.{today}"})
+    horizons = sorted({h for h, _ in combos})   # alleen de net berekende periodes opruimen, niet die van een andere cyclus (bijv. de wekelijkse lange periodes)
+    if horizons:
+        store.delete("forecasts", {"horizon_days": f"in.({','.join(map(str, horizons))})", "computed_on": f"lt.{today}"})
     if history:
-        store.upsert("forecast_history", history, "product_id,date")
+        store.upsert("forecast_history", history, "product_id,date,horizon_days,threshold_pct")
     log(f"Kansen berekend: {len(out)} rijen voor {len({r['product_id'] for r in out})} producten"
-        f"{' (gekalibreerd)' if stats else ''}")
+        f"{' (gekalibreerd voor ' + str(len(stats_all)) + ' periodes)' if stats_all else ''}")
     return out
 
 
@@ -192,6 +202,26 @@ def prune(store, today, log=print):
 # ---------------------------------------------------------------------------
 # Hoofdprogramma
 # ---------------------------------------------------------------------------
+def spend_pkmn_credits(store, today, log=print):
+    """NM-prijzen en sealed-geschiedenis delen hier één PkmnPrices-budget voor de hele dag (eerst NM, dan wat
+    sealed-geschiedenis nog overlaat). Los aanroepbaar (--credits-only) zodat je dit kort voor het einde van de
+    PkmnPrices-dag nog een keer kunt draaien om overgebleven credits te benutten, i.p.v. ze te laten verlopen."""
+    if not os.environ.get("PKMN_API_KEY"):
+        return
+    from pkmnprices import PkmnPrices
+    pk_client = PkmnPrices(os.environ["PKMN_API_KEY"], budget=config.PK_BUDGET)
+    try:
+        import nm
+        nm.run(store, pk_client, today, log=log)
+    except Exception as e:  # de trendprijzen zijn belangrijker dan de NM-prijzen
+        log(f"! NM-prijzen overgeslagen: {e}")
+    try:
+        import sealed_history
+        sealed_history.run(store, pk_client, today, log=log)   # deelt hetzelfde budget, gebruikt wat NM nog overliet
+    except Exception as e:
+        log(f"! sealed-geschiedenis overgeslagen: {e}")
+
+
 def daily(store, tcg, ppt, sender, today, set_ids, log=print):
     import alerts
     import features
@@ -211,7 +241,17 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print):
     except Exception as e:  # context-data is niet essentieel
         log(f"pageviews overgeslagen: {e}")
     build_forecasts(store, today, log=log)
+    if date.fromisoformat(today).weekday() == 0:
+        build_forecasts(store, today, log=log, combos=config.LONG_GRID)
+    else:
+        log("Lange periodes (3-24 maanden) worden alleen op maandag herberekend; vandaag overgeslagen.")
+    spend_pkmn_credits(store, today, log=log)
     trackrecord.resolve(store, today, log=log)
+    if date.fromisoformat(today).weekday() == 0:   # maandag: ook de backtest bijwerken (dekt alle periodes, ook de lange)
+        try:
+            trackrecord.backtest(store, today, log=log)
+        except Exception as e:
+            log(f"! backtest overgeslagen: {e}")
     alerts.evaluate(store, sender, today, log=log)
     alerts.send_digest(store, sender, today, log=log)
     prune(store, today, log=log)
@@ -233,6 +273,8 @@ def main():
     ap.add_argument("--recent", type=int)
     ap.add_argument("--forecast-only", action="store_true")
     ap.add_argument("--probe-ppt", action="store_true", help="test de gegevensbronnen (Cardmarket en PokemonPriceTracker)")
+    ap.add_argument("--credits-only", action="store_true",
+                    help="alleen NM-prijzen en sealed-geschiedenis (PkmnPrices); voor een korte, late taak die overgebleven dagcredits nog benut")
     args = ap.parse_args()
 
     tcg = TCGdex()
@@ -248,6 +290,9 @@ def main():
     if args.probe_ppt:
         import cardmarket
         guide = cardmarket.probe(tcg.session)
+        print()
+        import shipping
+        shipping.probe()
         if os.environ.get("PKMN_API_KEY"):
             import pkmnprices
             print()
@@ -266,6 +311,9 @@ def main():
     today = date.today().isoformat()
     if args.forecast_only:
         build_forecasts(store, today)
+        return
+    if args.credits_only:
+        spend_pkmn_credits(store, today)
         return
     set_ids = args.sets or (newest_sets(tcg, store, args.recent) if args.recent else None)
     if not set_ids:

@@ -169,4 +169,38 @@ def probe(pk, guide=None):
     print(f"{len(hrows)} rijen; paginering: {short(body.get('pagination') if isinstance(body, dict) else None, 200)}")
     print("eerste 3:", short(hrows[:3] or body, 600))
 
+    print("\n--- 8. eBay-verkopen van gegradeerde kaarten (max. ca. 60 credits) ---")
+    shown = None
+    for c in [cid] + [i for i in ids if i != cid][:2]:
+        status, body = call(f"ebay {c}", f"/cards/{c}/listings/ebay", {"graded": "true", "per_page": 5})
+        sales = _rows(body)
+        if status == 200 and sales:
+            shown = c
+            print("velden per verkoop:", sorted(sales[0].keys()) if isinstance(sales[0], dict) else sales[0])
+            for s in sales[:3]:
+                print("  ", short(s, 400))
+            print("paginering:", short(body.get("pagination") if isinstance(body, dict) else None, 200))
+            break
+        print("geen verkopen of melding:", short(body, 200))
+    if shown:
+        for grader, grade in (("PSA", "10"), ("BGS", "10"), ("BGS", "9.5"), ("CGC", "10")):
+            status, body = call(f"ebay {grader} {grade}", f"/cards/{shown}/listings/ebay", {"graded": "true", "grader": grader, "grade": grade, "per_page": 10})
+            sales = _rows(body)
+            print(f"  {grader} {grade}: {len(sales)} verkopen; eerste: {short(sales[:1] or body, 350)}")
+            if grader == "BGS" and grade == "10":
+                special = [s.get("title") for s in sales if isinstance(s, dict) and any(w in str(s.get("title", "")).lower() for w in ("pristine", "black label"))]
+                print("  BGS 10 met 'pristine' of 'black label' in de titel:", special[:3] or "geen in deze 10")
+                print("  velden die op een label wijzen:", sorted({k for s in sales if isinstance(s, dict) for k in s if any(w in k.lower() for w in ("label", "pristine", "sub", "qualif"))}) or "geen")
+
+    print("\n--- 9. Aantal aanbiedingen (listings) ---")
+    status, d3, _ = detail(cid)
+    listing_fields = {k: v for k, v in d3.items() if any(w in k.lower() for w in ("listing", "seller", "offer", "count", "stock", "available", "quantity"))}
+    print("velden op de kaart zelf die kunnen wijzen op een aantal aanbiedingen:", listing_fields or "geen")
+    for extra_path in (f"/cards/{cid}/listings", f"/cards/{cid}/listings/cardmarket", f"/cards/{cid}/inventory"):
+        status, body = call(extra_path.replace(f"/cards/{cid}", "cards/<id>"), extra_path)
+        print(f"  {extra_path}: status {status}")
+        if status == 200:
+            rows = _rows(body)
+            print("    sleutels:", sorted(body.keys()) if isinstance(body, dict) else "-", "| rijen:", len(rows), "| voorbeeld:", short(rows[:1] or body, 300))
+
     print("\nlimieten:", seen)

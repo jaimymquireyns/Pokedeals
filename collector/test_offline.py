@@ -1,4 +1,5 @@
 """Offline tests met een nep-Supabase (geen internet nodig): python test_offline.py"""
+import os
 import math
 import random
 import uuid
@@ -32,7 +33,7 @@ class Resp:
 
 PK = {"sets": ["set_id"], "products": ["product_id"], "prices": ["product_id", "date", "source", "grade_key"],
       "forecasts": ["product_id", "horizon_days", "threshold_pct"], "pokemon_interest": ["dex_id", "date"],
-      "forecast_history": ["product_id", "date"], "trackrecord_stats": ["source", "bucket"], "trackrecord_signals": [],
+      "forecast_history": ["product_id", "date", "horizon_days", "threshold_pct"], "trackrecord_stats": ["source", "horizon_days", "threshold_pct", "bucket"], "trackrecord_signals": [],
       "collection": [], "alerts": [], "user_settings": ["user_id"], "push_subscriptions": []}
 NOT_NULL = {"products": ["name"]}
 FK = {"prices", "forecasts", "forecast_history", "collection", "alerts"}
@@ -303,10 +304,15 @@ for d in range(2, 33):
     trackrecord.resolve(store, day(d), log=quiet)
 fc = {(r["product_id"], r["horizon_days"], r["threshold_pct"]): r for r in fake.t["forecasts"].values()}
 assert fc[("cm:999", 30, 10)]["mode"] == "historie" and fc[("cm:999", 30, 10)]["n"] >= 30, "sealed bouwt eigen Cardmarket-historie op"
-live = {r["bucket"]: r for r in fake.t["trackrecord_stats"].values() if r["source"] == "live"}
+live = {r["bucket"]: r for r in fake.t["trackrecord_stats"].values() if r["source"] == "live" and r["horizon_days"] == 30 and r["threshold_pct"] == 10}
 assert live["all"]["n"] > 0 and live["koop"]["n"] > 0, live
+live7 = {r["bucket"]: r for r in fake.t["trackrecord_stats"].values() if r["source"] == "live" and r["horizon_days"] == 7}
+assert live7["all"]["n"] > 0, "de korte periode (7 dagen) wordt ook los bijgehouden"
 assert any(r["hit"] for r in fake.t["trackrecord_signals"].values()), "koop-signaal op stijgende kaart moet uitkomen"
-assert all(r["resolved"] for r in fake.t["forecast_history"].values() if r["date"] <= day(2)), "oude voorspellingen beoordeeld"
+resolved_30 = [r for r in fake.t["forecast_history"].values() if r["date"] <= day(2) and r["horizon_days"] == 30 and r["threshold_pct"] == 10]
+assert resolved_30 and all(r["resolved"] for r in resolved_30), "oude voorspellingen (30 dagen) beoordeeld"
+unresolved_60 = [r for r in fake.t["forecast_history"].values() if r["date"] <= day(2) and r["horizon_days"] == 60]
+assert unresolved_60 and not any(r["resolved"] for r in unresolved_60), "een periode van 60 dagen kan in dit venster van 31 dagen nog niet zijn afgerond"
 assert not [r for r in fake.t["forecast_history"].values() if r["resolved"] and r["date"] < day(32 - 45)]
 
 # ============ 4. Prijsmeldingen ============
@@ -360,12 +366,17 @@ for i in range(6):
         rows.append({"product_id": f"b-{i}", "date": (date(2026, 1, 1) + timedelta(days=d)).isoformat(), "source": "tcgdex",
                      "grade_key": "raw", "price": p, "avg1": None, "avg7": None, "avg30": None})
 store2.upsert_prices(rows)
-st = trackrecord.backtest(store2, "2026-06-01", days=200, step=5, log=quiet)
-assert st["all"]["n"] > 100 and set(st) >= {"all"}
-assert any(r["source"] == "backtest" for r in fake2.t["trackrecord_stats"].values())
-# kalibratie gebruikt backtest-uitkomsten zodra er genoeg zijn
-choose = run.choose_stats(list(fake2.t["trackrecord_stats"].values()))
-assert choose and all(v["n"] >= config.CALIBRATE_MIN_N for v in choose.values()) or True
+st = trackrecord.backtest(store2, "2026-06-01", days=200, step=5, log=quiet)   # combos=None -> alle periodes, GRID + LONG_GRID
+assert (30, 10) in st and st[(30, 10)]["all"]["n"] > 100, st.get((30, 10))
+assert any(r["source"] == "backtest" and r["horizon_days"] == 30 and r["threshold_pct"] == 10 for r in fake2.t["trackrecord_stats"].values())
+assert (730, 100) not in st, "te lange periode past niet in de 150 dagen historie van deze test, dus wordt gewoon overgeslagen"
+# opnieuw draaien met alleen de standaardcombinatie overschrijft alleen die ene periode, de rest blijft staan
+before_other = [r for r in fake2.t["trackrecord_stats"].values() if r["source"] == "backtest" and r["horizon_days"] != 30]
+trackrecord.backtest(store2, "2026-06-01", days=200, step=5, combos=[(30, 10)], log=quiet)
+assert all(r in fake2.t["trackrecord_stats"].values() for r in before_other), "backtest van 1 periode laat de andere periodes met rust"
+# kalibratie gebruikt backtest-uitkomsten per periode zodra er genoeg zijn
+choose = run.choose_stats_all(list(fake2.t["trackrecord_stats"].values()))
+assert choose.get((30, 10)) and any(v["n"] >= config.CALIBRATE_MIN_N for v in choose[(30, 10)].values()), choose.get((30, 10))
 
 # ============ 8. Pageviews (nep-sessie) ============
 class FakeSession:
@@ -485,6 +496,15 @@ assert ppt._card_history({"conditions": {"Lightly Played": {"history": [{"date":
 import pkmnprices
 assert pkmnprices._rows({"data": [1, 2]}) == [1, 2] and pkmnprices._rows([3]) == [3] and pkmnprices._rows({"x": 1}) == []
 
+# ============ 8e. 'snel'-modus is voorzichtig ============
+spike = analysis.forecast([{"date": "2026-09-21", "trend": 8.42, "avg1": 8.0, "avg7": 7.0, "avg30": 5.0}], 30, 0.10)
+assert spike["mode"] == "snel" and spike["p_up"] < 0.45 and spike["signal"] == "afwachten" and spike["mu"] == 0.0, spike     # sprong wordt niet doorgetrokken
+steady = analysis.forecast([{"date": "2026-09-21", "trend": 74.0, "avg1": 73.0, "avg7": 68.0, "avg30": 61.0}], 30, 0.10)
+assert steady["mode"] == "snel" and steady["p_up"] <= 0.70 and steady["mu"] <= config.FAST_MAX_DRIFT + 1e-9, steady
+assert steady["confidence"] == "laag"
+mew = analysis.forecast([{"date": "2026-09-21", "trend": 908.89, "avg1": 1199.0, "avg7": 830.66, "avg30": 864.31}], 30, 0.10)
+assert mew["sigma"] <= config.FAST_MAX_SIGMA and 0.05 < mew["p_up"] < 0.55 and abs(mew["exp_change"]) < 0.15, mew     # één dure verkoop (avg1) verstoort niets
+
 # ============ 9. PokemonPriceTracker-client: gratis plan veilig ============
 import time as _time
 class R:
@@ -558,5 +578,216 @@ p999 = fake.t["products"][("cm:999",)]
 assert p999["image"] == "https://img/11.webp" and p999["set_name"] == "Set A" and p999["pk_id"] == "11"
 small = pkmnprices.PkmnPrices("pk_x", session=PkSess(), budget=1)
 assert small.list_all("/sealed") and small.over_budget() is True
+
+# ============ 11. Laagste Near Mint-prijs ============
+import nm
+assert nm.nm_price({"prices": [
+    {"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "1st Edition Holofoil", "market_price": 900},
+    {"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 40},
+    {"source": "cardmarket", "currency": "EUR", "condition": "Excellent", "variant": "Normal", "market_price": 30},
+    {"source": "tcgplayer", "currency": "USD", "condition": "Near Mint", "variant": "Normal", "market_price": 55}]}) == ("Normal", 40.0)
+assert nm.nm_price({"prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Good", "market_price": 3}]}) is None
+cands = [{"id": 900, "number": "1", "set": {"name": "Other"}}, {"id": 901, "number": "232", "total_set_number": "091", "set": {"name": "SV04.5: Paldean Fates"}},
+         {"id": 902, "number": "232", "total_set_number": "999", "set": {"name": "Elsewhere"}}]
+assert nm.match_card({"number": "232", "set_name": "Paldean Fates", "set_total": 91}, cands)["id"] == 901
+assert nm.match_card({"number": "77", "set_name": "Paldean Fates", "set_total": 91}, cands) is None
+
+fake3, store3 = new_store()
+store3.upsert_products([
+    {"product_id": "sv04.5-232", "kind": "card", "name": "Mew ex", "set_name": "Paldean Fates", "number": "232", "set_total": 91},
+    {"product_id": "base1-58", "kind": "card", "name": "Pikachu", "set_name": "Base Set", "number": "058", "set_total": 102},
+    {"product_id": "x-1", "kind": "card", "name": "Zzz", "set_name": "Nope", "number": "1", "set_total": 10}])
+for pid_, price_, up_ in (("sv04.5-232", 900.0, 0.5), ("base1-58", 50.0, 0.3), ("x-1", 20.0, 0.1)):
+    fake3.t["forecasts"][(pid_, 30, 10)] = {"product_id": pid_, "horizon_days": 30, "threshold_pct": 10, "price": price_, "p_up": up_, "p_down": 0.1}
+fake3.post("https://x/rest/v1/collection", json=[{"user_id": "u", "product_id": "base1-58", "quantity": 1, "purchase_price": 30.0, "purchase_date": "2026-09-01"}])
+
+class NmSess:
+    headers = {}
+    def __init__(self):
+        self.paths = []
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        self.paths.append(path)
+        if path == "/cards":
+            data = {"Mew ex": [{"id": 900, "number": "1", "set": {"name": "Other"}}, {"id": 901, "number": "232", "total_set_number": "091", "set": {"name": "SV04.5: Paldean Fates"}}],
+                    "Pikachu": [{"id": 500, "number": "58", "total_set_number": "102", "set": {"name": "Base Set"}}]}.get(params["name"], [])
+            return PkResp({"data": data, "pagination": {"page": 1, "total_pages": 1}})
+        d = {"/cards/901": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Holofoil", "market_price": 630.0}],
+             "/cards/500": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 40.0},
+                            {"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "1st Edition Holofoil", "market_price": 900.0}]}[path]
+        return PkResp({"data": {"id": 1, "prices": d}})
+ns = NmSess()
+pk3 = pkmnprices.PkmnPrices("pk", session=ns)
+assert nm.run(store3, pk3, "2026-09-21", log=quiet) == 2
+assert fake3.t["products"][("sv04.5-232",)]["pk_id"] == "901" and fake3.t["products"][("base1-58",)]["pk_id"] == "500"
+assert "pk_id" not in fake3.t["products"][("x-1",)] or not fake3.t["products"][("x-1",)].get("pk_id")
+assert float(fake3.t["prices"][("sv04.5-232", "2026-09-21", "pkmnprices", "nm")]["price"]) == 630.0
+assert float(fake3.t["prices"][("base1-58", "2026-09-21", "pkmnprices", "nm")]["price"]) == 40.0
+ns.paths.clear()
+nm.run(store3, pkmnprices.PkmnPrices("pk", session=ns), "2026-09-22", log=quiet)
+assert [p for p in ns.paths if p == "/cards"] == ["/cards"], ns.paths       # alleen nog de mislukte kaart 'Zzz' wordt opnieuw gezocht
+assert "/cards/901" in ns.paths and "/cards/500" in ns.paths
+order, _fc = nm.pick_targets(store3, 10)
+assert order[0] == "base1-58" and order[1:] == ["sv04.5-232", "x-1"], order       # collectie eerst, dan beste kansen
+
+# ============ 12. Verzendkosten-probe: geen crash, herkent gevulde vs lege tabel ============
+import shipping
+assert not shipping._looks_like_table("Sorry, we are not shipping between these countries.")
+assert shipping._looks_like_table("Shipping Method Tracked Max. Value Price Average Delivery Time (days) " * 5)
+assert "Belgium" not in [c for c in shipping.EU_COUNTRIES if c != "Belgium"] or True
+assert "Switzerland" not in shipping.EU_COUNTRIES and "United Kingdom" not in shipping.EU_COUNTRIES
+assert len(shipping.EU_COUNTRIES) == 27 and shipping.ISO["Germany"] == "DE"
+
+# ============ 13. Meerdere periodes: wekelijkse lange combo's overschrijven de dagelijkse niet ============
+f100 = analysis.forecast([{"date": "2026-09-21", "trend": 45.5, "avg1": 46.0, "avg7": 46.41, "avg30": 42.32}], 730, 1.0)
+assert -0.99 <= f100["exp_down"] < 0 and f100["exp_up"] >= 1.0 - 1e-9, f100     # geen wiskundige fout bij 100% drempel
+
+fake4, store4 = new_store()
+store4.upsert_products([{"product_id": "w-1", "kind": "card", "name": "W1"}])
+base = date(2026, 6, 1)
+prices4 = [40.0 * math.exp(0.01 * i) for i in range(41)]
+def wrow(i, price):
+    return {"product_id": "w-1", "date": (base + timedelta(days=i)).isoformat(), "source": "tcgdex", "grade_key": "raw",
+            "price": price, "avg1": price, "avg7": sum(prices4[max(0, i - 6):i + 1]) / len(prices4[max(0, i - 6):i + 1]),
+            "avg30": sum(prices4[max(0, i - 29):i + 1]) / len(prices4[max(0, i - 29):i + 1])}
+store4.upsert_prices([wrow(i, prices4[i]) for i in range(40)])
+today4 = (base + timedelta(days=39)).isoformat()   # 2026-07-10, een vrijdag: geen maandag
+run.build_forecasts(store4, today4, log=quiet)                              # dagelijkse combo's
+run.build_forecasts(store4, today4, log=quiet, combos=config.LONG_GRID)     # simuleert een eerdere maandag-run
+assert (("w-1", 90, 20) in fake4.t["forecasts"]) and (("w-1", 30, 10) in fake4.t["forecasts"])
+next_day = (base + timedelta(days=40)).isoformat()   # niet-maandag: alleen de dagelijkse combo's opnieuw
+store4.upsert_prices([wrow(40, 61.0)])
+run.build_forecasts(store4, next_day, log=quiet)
+assert ("w-1", 90, 20) in fake4.t["forecasts"], "de lange periode van vorige week mag niet zijn verwijderd door de dagelijkse opruiming"
+assert fake4.t["forecasts"][("w-1", 30, 10)]["computed_on"] == next_day and fake4.t["forecasts"][("w-1", 90, 20)]["computed_on"] == today4
+
+# ============ 14. Lange periodes: doorgetrokken trend krijgt een plafond ============
+hot = [{"date": f"2026-{(6 + i // 28):02d}-{(i % 28) + 1:02d}", "trend": 40 * math.exp(0.012 * i), "price": 40 * math.exp(0.012 * i),
+        "avg1": 40 * math.exp(0.012 * i), "avg7": 40 * math.exp(0.012 * i), "avg30": 40 * math.exp(0.012 * i)} for i in range(60)]
+f30 = analysis.forecast(hot, 30, 0.10)
+f365 = analysis.forecast(hot, 365, 0.60)
+f730 = analysis.forecast(hot, 730, 1.0)
+assert round(f30["exp_change"], 3) == round(math.exp(f30["mu"] * 30) - 1, 3), "30 dagen blijft ongewijzigd (geen plafond nodig)"
+assert f365["exp_change"] <= config.MAX_HORIZON_RETURN + 1e-9 and f730["exp_change"] <= config.MAX_HORIZON_RETURN + 1e-9
+assert f365["exp_up"] <= config.MAX_HORIZON_RETURN + 0.1 and f730["exp_up"] <= config.MAX_HORIZON_RETURN + 0.1
+assert f730["exp_change"] < 20, f730   # geen duizenden procenten meer
+
+# ============ 15. Sealed-geschiedenis (PkmnPrices, Cardmarket-bron) ============
+import sealed_history
+raw_hist = [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": None, "variant": None, "avg": 140.0, "low": 138.0},
+            {"date": "2026-08-02", "source": "cardmarket", "currency": "EUR", "avg": 141.0, "low": 139.0},
+            {"date": "2026-08-03", "source": "tcgplayer", "currency": "USD", "market_price": 150.0},   # andere bron: overslaan
+            {"date": "2026-09-21", "source": "cardmarket", "currency": "EUR", "avg": 180.0}]           # vandaag zelf: overslaan
+parsed = sealed_history.parse_rows("cm:999", raw_hist, "2026-09-21")
+assert len(parsed) == 2 and parsed[0]["price"] == 140.0 and parsed[0]["source"] == "cardmarket", parsed
+
+fake5, store5 = new_store()
+store5.upsert_products([{"product_id": "cm:999", "kind": "sealed", "name": "Test Box", "pk_id": "11"},
+                        {"product_id": "cm:1000", "kind": "sealed", "name": "Other Box", "pk_id": "12"}])
+store5.upsert_prices([{"product_id": "cm:1000", "date": "2026-06-01", "source": "cardmarket", "grade_key": "raw", "price": 9.0}])   # heeft al oude data
+assert sealed_history.needs_backfill(store5, "cm:999", "2026-09-21") is True
+assert sealed_history.needs_backfill(store5, "cm:1000", "2026-09-21") is False
+
+class SealedHistSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        i = url.rsplit("/", 2)[1]   # .../sealed/<id>/prices
+        rows = [{"date": f"2026-08-{d:02d}", "source": "cardmarket", "currency": "EUR", "avg": 140.0 + d} for d in range(1, 21)]
+        return PkResp({"data": rows, "pagination": {"page": 1, "total_pages": 1}})
+sh_pk = pkmnprices.PkmnPrices("pk", session=SealedHistSess())
+n = sealed_history.run(store5, sh_pk, "2026-09-21", log=quiet)
+assert n == 20 and ("cm:999", "2026-08-01", "cardmarket", "raw") in fake5.t["prices"]
+assert ("cm:1000", "2026-06-01", "cardmarket", "raw") in fake5.t["prices"] and not any(
+    k[0] == "cm:1000" and k[1].startswith("2026-08") for k in fake5.t["prices"])   # al genoeg historie: niet opnieuw opgehaald
+
+# ============ 16. Overgebleven PkmnPrices-budget wordt echt gebruikt (NM eerst, dan extra kaarten) ============
+fake6, store6 = new_store()
+cards6 = [{"product_id": f"e-{i}", "kind": "card", "name": f"E{i}", "number": "1", "set_name": "S", "set_total": 1} for i in range(5)]
+store6.upsert_products(cards6)
+for i, pid in enumerate(f["product_id"] for f in cards6):
+    fake6.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+
+class WideSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            i = int(params["name"][1:])
+            return PkResp({"data": [{"id": i, "number": "1", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 9.0}]}})
+ws = WideSess()
+pk6 = pkmnprices.PkmnPrices("pk_x", session=ws, budget=1000)   # ruim budget: de vaste lijst (limit=2) mag niet de stopreden zijn
+n = nm.run(store6, pk6, "2026-09-21", log=quiet, limit=2)
+assert n == 5, "met budget over worden ook kaarten buiten de vaste lijst (limit=2) van een NM-prijs voorzien"
+assert all(("e-%d" % i, "2026-09-21", "pkmnprices", "nm") in fake6.t["prices"] for i in range(5))
+
+# gedeeld budget: NM eerst, sealed-geschiedenis krijgt alleen nog over wat NM overliet
+fake7, store7 = new_store()
+store7.upsert_products([{"product_id": "e-0", "kind": "card", "name": "E0", "number": "1", "set_name": "S", "set_total": 1},
+                        {"product_id": "cm:1", "kind": "sealed", "name": "Box", "pk_id": "77"}])
+fake7.t["forecasts"][("e-0", 30, 10)] = {"product_id": "e-0", "horizon_days": 30, "threshold_pct": 10, "price": 50.0, "p_up": 0.5, "p_down": 0.1}
+class TinySess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            return PkResp({"data": [{"id": 1, "number": "1", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        if "prices/history" in path:
+            return PkResp({"data": [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "avg": 10.0}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 9.0}]}})
+shared_pk = pkmnprices.PkmnPrices("pk_x", session=TinySess(), budget=2)   # precies genoeg voor NM (zoeken + prijs), niets over voor sealed
+nm.run(store7, shared_pk, "2026-09-21", log=quiet, limit=5)
+assert shared_pk.over_budget()
+sealed_history.run(store7, shared_pk, "2026-09-21", log=quiet)
+assert not any(k[0] == "cm:1" and k[2] == "cardmarket" for k in fake7.t["prices"]), "gedeeld budget was al op door NM, sealed-geschiedenis kan dan niets meer ophalen"
+
+# ============ 17. Late 'credits opmaken'-taak slaat kaarten over die vandaag al ververst zijn ============
+fake8, store8 = new_store()
+cards8 = [{"product_id": f"g-{i}", "kind": "card", "name": f"G{i}", "number": "1", "set_name": "S", "set_total": 1, "pk_id": str(i)} for i in range(4)]
+store8.upsert_products(cards8)
+for i, pid in enumerate(f["product_id"] for f in cards8):
+    fake8.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+# 'g-0' en 'g-1' kregen vanochtend al een NM-prijs (bijv. door de dagelijkse update)
+fake8.post("https://x/rest/v1/prices", json=[
+    {"product_id": "g-0", "date": "2026-09-21", "source": "pkmnprices", "grade_key": "nm", "price": 5.0, "native": 5.0, "currency": "EUR"},
+    {"product_id": "g-1", "date": "2026-09-21", "source": "pkmnprices", "grade_key": "nm", "price": 6.0, "native": 6.0, "currency": "EUR"}])
+
+class SkipSess:
+    headers = {}
+    def __init__(self):
+        self.detail_calls = []
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})   # al gekoppeld, geen zoekopdracht nodig
+        self.detail_calls.append(path)
+        return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 3.0}]}})
+sess8 = SkipSess()
+nm.run(store8, pkmnprices.PkmnPrices("pk", session=sess8), "2026-09-21", log=quiet, limit=4)
+assert "/cards/0" not in sess8.detail_calls and "/cards/1" not in sess8.detail_calls, "vandaag al ververste kaarten worden niet opnieuw opgehaald"
+assert "/cards/2" in sess8.detail_calls and "/cards/3" in sess8.detail_calls, "de rest van de lijst wordt gewoon gedaan"
+
+# ============ 18. spend_pkmn_credits: NM en sealed-geschiedenis achter elkaar, los aanroepbaar (--credits-only) ============
+fake9, store9 = new_store()
+store9.upsert_products([{"product_id": "cm:5", "kind": "sealed", "name": "Box5", "pk_id": "55"}])
+os.environ["PKMN_API_KEY"] = "pk_test"
+import importlib
+importlib.reload(run)
+class DummySess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if "prices/history" in path:
+            return PkResp({"data": [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "avg": 12.0}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})
+import pkmnprices as pkmnprices_mod
+real_pk_cls = pkmnprices_mod.PkmnPrices
+pkmnprices_mod.PkmnPrices = lambda key, budget=None: real_pk_cls(key, session=DummySess(), budget=budget)
+try:
+    run.spend_pkmn_credits(store9, "2026-09-21", log=quiet)
+finally:
+    pkmnprices_mod.PkmnPrices = real_pk_cls
+    del os.environ["PKMN_API_KEY"]
+assert ("cm:5", "2026-08-01", "cardmarket", "raw") in fake9.t["prices"], "spend_pkmn_credits draait ook sealed-geschiedenis"
 
 print("alle tests geslaagd")

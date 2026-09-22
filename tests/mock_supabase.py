@@ -14,11 +14,11 @@ def build_db():
     P = lambda pid, kind, name, st, num, tot, img=None: {"product_id": pid, "kind": kind, "name": name, "set_name": st, "number": num,
                                                           "set_total": tot, "rarity": None, "image": img}
     products = [P("sv03-125", "card", "Charizard ex", "Obsidian Flames", "125", 197), P("base1-4", "card", "Charizard", "Base Set", "4", 102),
-                P("swsh7-215", "card", "Umbreon VMAX", "Evolving Skies", "215", 203), P("ppt:999", "sealed", "Surging Sparks Booster Box", "Surging Sparks", None, None),
+                P("swsh7-215", "card", "Umbreon VMAX", "Evolving Skies", "215", 203), P("cm:999", "sealed", "Surging Sparks Booster Box", "Surging Sparks", None, None),
                 P("sv08-100", "card", "Pikachu ex", "Surging Sparks", "100", 191)]
-    price = {"sv03-125": 45.5, "base1-4": 350.0, "swsh7-215": 610.0, "ppt:999": 145.0, "sv08-100": 40.0}
+    price = {"sv03-125": 45.5, "base1-4": 350.0, "swsh7-215": 610.0, "cm:999": 145.0, "sv08-100": 40.0}
     fc = {"sv03-125": (.72, .06, .14, "koop"), "base1-4": (.30, .22, .02, "afwachten"), "swsh7-215": (.18, .41, -.06, "verkoop"),
-          "ppt:999": (.55, .10, .15, "koop"), "sv08-100": (.64, .05, .18, "koop")}
+          "cm:999": (.55, .10, .15, "koop"), "sv08-100": (.64, .05, .18, "koop")}
     forecasts = []
     for pid, (u, d, e, sig) in fc.items():
         forecasts.append({"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": price[pid], "avg7": price[pid] * 1.02, "avg30": price[pid] * .93,
@@ -27,15 +27,17 @@ def build_db():
     prices = []
     for pid, p in price.items():
         for i in range(45):
-            prices.append({"product_id": pid, "date": (TODAY - timedelta(days=44 - i)).isoformat(), "source": "tcgdex" if pid != "ppt:999" else "ppt",
+            prices.append({"product_id": pid, "date": (TODAY - timedelta(days=44 - i)).isoformat(), "source": "tcgdex" if pid != "cm:999" else "cardmarket",
                            "grade_key": "raw", "price": round(p * (0.85 + 0.15 * i / 44), 2)})
     prices.append({"product_id": "sv03-125", "date": TODAY.isoformat(), "source": "ppt", "grade_key": "PSA-10", "price": 180.0})
-    stats = [{"source": "live", "bucket": b, "n": n, "hits": h, "sum_p": sp} for b, n, h, sp in
+    prices.append({"product_id": "sv03-125", "date": TODAY.isoformat(), "source": "pkmnprices", "grade_key": "nm", "price": 38.0})
+    stats = [{"source": "live", "horizon_days": 30, "threshold_pct": 10, "bucket": b, "n": n, "hits": h, "sum_p": sp} for b, n, h, sp in
              [("all", 200, 48, 60.0), ("koop", 46, 27, 30.0), ("40-60", 60, 21, 30.0), ("60-80", 40, 22, 28.0), ("80-100", 10, 8, 9.0), ("20-40", 50, 9, 15.0)]]
-    signals = [{"id": 1, "product_id": "sv03-125", "name": "Charizard ex", "signal_date": "2026-08-01", "p_up": .72, "change": .18, "hit": True, "resolved_on": "2026-08-31"},
-               {"id": 2, "product_id": "sv08-100", "name": "Pikachu ex", "signal_date": "2026-08-02", "p_up": .64, "change": -.04, "hit": False, "resolved_on": "2026-09-01"}]
+    signals = [{"id": 1, "product_id": "sv03-125", "name": "Charizard ex", "signal_date": "2026-08-01", "horizon_days": 30, "threshold_pct": 10, "p_up": .72, "change": .18, "hit": True, "resolved_on": "2026-08-31"},
+               {"id": 2, "product_id": "sv08-100", "name": "Pikachu ex", "signal_date": "2026-08-02", "horizon_days": 30, "threshold_pct": 10, "p_up": .64, "change": -.04, "hit": False, "resolved_on": "2026-09-01"}]
     return {"products": products, "forecasts": forecasts, "prices": prices, "trackrecord_stats": stats, "trackrecord_signals": signals,
-            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "_log": []}
+            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [],
+            "watch_items": [], "watch_folders": [], "watch_folder_items": [], "_log": []}
 
 
 def _cmp(cell, op, val):
@@ -81,6 +83,7 @@ class Mock:
     def __init__(self):
         self.db = build_db()
         self.logged_in = False
+        self.accounts = {}
 
     def latest(self, pid, gk="raw"):
         rows = sorted([p for p in self.db["prices"] if p["product_id"] == pid and p["grade_key"] == gk], key=lambda r: r["date"])
@@ -94,6 +97,15 @@ class Mock:
             return [{**f, **{k: prod[f["product_id"]][k] for k in ("kind", "name", "set_name", "number", "rarity", "image")}} for f in d["forecasts"]]
         if name == "v_search":
             return [{**p, "price": (self.latest(p["product_id"]) or {}).get("price"), "p_up": fc.get(p["product_id"], {}).get("p_up"), "signal": fc.get(p["product_id"], {}).get("signal")} for p in d["products"]]
+        if name == "v_watchlist":
+            out = []
+            for w in d["watch_items"]:
+                pr = prod[w["product_id"]]
+                out.append({**{k: w.get(k) for k in ("id", "product_id", "created_at")},
+                            **{k: pr[k] for k in ("kind", "name", "set_name", "number", "rarity", "image")},
+                            "value_each": (self.latest(w["product_id"]) or {}).get("price"),
+                            **{k: fc.get(w["product_id"], {}).get(k) for k in ("p_up", "p_down", "exp_change", "exp_up", "exp_down", "signal", "confidence", "mode", "n")}})
+            return out
         if name == "v_collection":
             out = []
             for c in d["collection"]:
@@ -117,14 +129,20 @@ class Mock:
             return route.fulfill(status=204, headers=CORS)
         j = lambda body, status=200: route.fulfill(status=status, headers={**CORS, "content-type": "application/json"}, body=json.dumps(body))
         self.db["_log"].append((method, path, url.query))
-        if path == "/auth/v1/otp":
-            return j({})
-        if path == "/auth/v1/verify":
+        session = lambda email: {"access_token": "tok", "refresh_token": "r", "expires_in": 3600, "user": {"id": "u1", "email": email}}
+        if path == "/auth/v1/signup":
             body = json.loads(request.post_data)
-            if body["token"] != "123456":
-                return j({"msg": "bad"}, 403)
+            if body["email"] in self.accounts:
+                return j({"msg": "User already registered"}, 422)
+            self.accounts[body["email"]] = body["password"]
             self.logged_in = True
-            return j({"access_token": "tok", "refresh_token": "r", "expires_in": 3600, "user": {"id": "u1", "email": body["email"]}})
+            return j(session(body["email"]))
+        if path == "/auth/v1/token":
+            body = json.loads(request.post_data)
+            if self.accounts.get(body.get("email")) != body.get("password"):
+                return j({"msg": "Invalid login credentials"}, 400)
+            self.logged_in = True
+            return j(session(body["email"]))
         if path == "/auth/v1/logout":
             return j({}, 204)
         m = re.match(r"^/rest/v1/(\w+)$", path)
@@ -150,7 +168,7 @@ class Mock:
             conflict = qs.get("on_conflict", [None])[0]
             for r in body:
                 r = dict(r)
-                if name in ("collection", "alerts", "push_subscriptions"):
+                if name in ("collection", "alerts", "push_subscriptions", "watch_items", "watch_folders"):
                     r.setdefault("id", str(uuid.uuid4()))
                 if conflict:
                     cols = conflict.split(",")

@@ -34,7 +34,8 @@ export function oppRow(r, net) {
     thumb(r.image, "ph", r.kind === "sealed"),
     h("div", { class: "body" },
       h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: eur(r.price) })),
-      h("div", { class: "l2" }, h("span", { class: "set", text: r.set_name || "" }, r.number && r.kind === "card" ? ` #${r.number}` : ""), kindTag(r.kind)),
+      h("div", { class: "l2" }, h("span", { class: "set", text: r.set_name || "" }, r.number && r.kind === "card" ? ` #${r.number}` : ""),
+        h("span", { class: "tags" }, r.confidence === "laag" ? h("span", { class: "tag grof", title: "Weinig prijsgeschiedenis: grove schatting", text: "grof" }) : null, kindTag(r.kind))),
       upBar(r.p_up, net))));
 }
 

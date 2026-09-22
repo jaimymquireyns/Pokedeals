@@ -32,6 +32,14 @@ def _first(d, *paths):
     return None
 
 
+def _int(x):
+    try:
+        v = int(float(x))
+    except (TypeError, ValueError):
+        return None
+    return v if v >= 0 else None
+
+
 def _num(x):
     try:
         v = float(x)
@@ -210,6 +218,9 @@ def parse_item(d, kind="card"):
         "low_usd": _num(_first(d, "prices.low", "lowPrice", "prices.lowPrice")),
         "history": extract_history(_preferred_history(d.get("priceHistory") or d.get("history") or {})),
         "graded": extract_graded(d.get("ebay") or d.get("graded")),
+        "listings": _int(_first(d, "prices.listings", "listings", "totalListings")),
+        "sellers": _int(_first(d, "prices.sellers", "sellers", "totalSellers")),
+        "recent_sales": _int(_first(d, "prices.recentSales", "recentSales")),
     }
 
 
@@ -342,6 +353,23 @@ class PPT:
             d = (_items(raw) or [{}])[0]
             print("ebay ruw:", short(d.get("ebay"), 700))
             print("herkend:", summary(parse_item(d)))
+        except Exception as e:
+            print("FOUT:", e)
+
+        print("\n=== 4. Aanbod (listings/sellers) op een paar kaarten ===")
+        try:
+            test_ids = ["96392", "490294", "624679"]
+            found_any = False
+            for tid in test_ids:
+                raw = self._get("/cards", {"tcgPlayerId": tid})
+                d = (_items(raw) or [{}])[0]
+                it = parse_item(d)
+                print(f"  {tid}: listings={it['listings']}, sellers={it['sellers']}, recent_sales={it['recent_sales']}, prijs=${it['price_usd']}")
+                print("    ruwe 'prices'-sleutels:", sorted((d.get('prices') or {}).keys()))
+                if it["listings"] is not None or it["sellers"] is not None:
+                    found_any = True
+            print("wel/geen aanbod-getallen gevonden:", "JA" if found_any else "NEE, geen van deze velden zat erbij")
+            print("(let op: dit is één totaal voor de kaart, niet per conditie/graad, voor zover hier te zien)")
         except Exception as e:
             print("FOUT:", e)
 

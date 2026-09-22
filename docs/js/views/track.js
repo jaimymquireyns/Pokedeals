@@ -14,8 +14,8 @@ export async function trackView(root) {
   root.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
   let stats = [], signals = [];
   try {
-    [stats, signals] = await Promise.all([rest.get("trackrecord_stats?select=*"),
-      rest.get("trackrecord_signals?select=*&order=resolved_on.desc,id.desc&limit=6")]);
+    [stats, signals] = await Promise.all([rest.get("trackrecord_stats?select=*&horizon_days=eq.30&threshold_pct=eq.10"),
+      rest.get("trackrecord_signals?select=*&horizon_days=eq.30&threshold_pct=eq.10&order=resolved_on.desc,id.desc&limit=6")]);
   } catch { root.replaceChildren(h("p", { class: "err pad", text: "Kon het trackrecord niet laden." })); return; }
   const s = summarize(stats);
 

@@ -78,7 +78,12 @@ def main():
     store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
     today = date.today().isoformat()
     if args.sealed:
-        print("Sealed komt nu van Cardmarket (dagelijkse update); hier is niets meer op te halen.")
+        from pkmnprices import PkmnPrices
+        if not os.environ.get("PKMN_API_KEY"):
+            print("Sealed-geschiedenis heeft PKMN_API_KEY nodig (PkmnPrices); overgeslagen.")
+        else:
+            import sealed_history
+            sealed_history.run(store, PkmnPrices(os.environ["PKMN_API_KEY"]), today, limit=10_000)
     if args.cards_sets:
         import fx as fxmod
         rate, _ = fxmod.usd_to_eur(TCGdex().session)
