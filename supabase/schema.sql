@@ -160,11 +160,13 @@ create table if not exists push_subscriptions (
 );
 
 -- ===================== Views en functies voor de app =====================
-create or replace view v_forecasts with (security_invoker = on) as
+drop view if exists v_forecasts;
+create view v_forecasts with (security_invoker = on) as
     select f.*, p.kind, p.name, p.set_name, p.number, p.rarity, p.image, p.dex_id
     from forecasts f join products p using (product_id);
 
-create or replace view v_search with (security_invoker = on) as
+drop view if exists v_search;
+create view v_search with (security_invoker = on) as
     select p.product_id, p.kind, p.name, p.set_name, p.number, p.set_total, p.rarity, p.image,
            lp.price, f.p_up, f.signal
     from products p
@@ -174,7 +176,8 @@ create or replace view v_search with (security_invoker = on) as
         order by date desc limit 1) lp on true
     left join forecasts f on f.product_id = p.product_id and f.horizon_days = 30 and f.threshold_pct = 10;
 
-create or replace view v_collection with (security_invoker = on) as
+drop view if exists v_collection;
+create view v_collection with (security_invoker = on) as
     select c.id, c.product_id, c.quantity, c.condition, c.grade_company, c.grade,
            c.purchase_price, c.purchase_date,
            p.kind, p.name, p.set_name, p.number, p.rarity, p.image,
@@ -196,7 +199,8 @@ create or replace view v_collection with (security_invoker = on) as
         order by date desc limit 1) p30 on true
     left join forecasts f on f.product_id = c.product_id and f.horizon_days = 30 and f.threshold_pct = 10;
 
-create or replace view latest_prices with (security_invoker = on) as
+drop view if exists latest_prices;
+create view latest_prices with (security_invoker = on) as
     select distinct on (product_id) product_id, date, price
     from prices where grade_key = 'raw'
     order by product_id, date desc;
@@ -219,7 +223,8 @@ language sql stable security invoker as $$
     group by d order by d
 $$;
 
-create or replace view v_watchlist with (security_invoker = on) as
+drop view if exists v_watchlist;
+create view v_watchlist with (security_invoker = on) as
     select w.id, w.product_id, w.created_at,
            p.kind, p.name, p.set_name, p.number, p.rarity, p.image,
            lp.price as value_each, lp.date as value_date,
