@@ -48,6 +48,8 @@ create table if not exists forecasts (
     primary key (product_id, horizon_days, threshold_pct)
 );
 create index if not exists forecasts_lookup on forecasts (horizon_days, threshold_pct, score desc);
+alter table forecasts add column if not exists exp_up numeric;   -- voor bestaande databases: moet vóór de views hieronder staan
+alter table forecasts add column if not exists exp_down numeric;
 
 create table if not exists pokemon_interest (   -- Wikipedia-bezoekers per Pokémon (context, nog niet in de berekening)
     dex_id int not null, date date not null, views int,
@@ -260,8 +262,6 @@ begin
     end loop;
 end $$;
 
-alter table forecasts add column if not exists exp_up numeric;   -- voor bestaande databases
-alter table forecasts add column if not exists exp_down numeric;
 grant select on sets, products, prices, forecasts, pokemon_interest, trackrecord_stats, trackrecord_signals to anon, authenticated;
 grant select on v_forecasts, v_search to anon, authenticated;
 grant select on v_collection to authenticated;
