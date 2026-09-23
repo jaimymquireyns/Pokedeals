@@ -1,4 +1,6 @@
 """Opslag in Supabase via de REST-interface (PostgREST). Geen extra bibliotheek nodig."""
+import time
+
 import requests
 
 PAGE = 1000
@@ -14,14 +16,22 @@ class SupabaseStore:
             self.s.headers["Authorization"] = f"Bearer {key}"
 
     # ---- basis ----
+    def _get(self, url, params, timeout):
+        """Eén verzoek, met één keer opnieuw proberen (langere wachttijd) als de verbinding traag is of wegvalt."""
+        try:
+            r = self.s.get(url, params=params, timeout=timeout)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            time.sleep(3)
+            r = self.s.get(url, params=params, timeout=timeout * 2)
+        r.raise_for_status()
+        return r
+
     def select(self, table, params=None):
         rows, offset = [], 0
         while True:
             q = dict(params or {})
             q.update({"limit": PAGE, "offset": offset})
-            r = self.s.get(f"{self.base}/{table}", params=q, timeout=90)
-            r.raise_for_status()
-            page = r.json()
+            page = self._get(f"{self.base}/{table}", q, 90).json()
             rows.extend(page)
             if len(page) < PAGE:
                 return rows

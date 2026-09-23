@@ -836,4 +836,92 @@ fc_y1 = fake11.t["forecasts"][("y-1", 30, 10)]
 assert fc_y1["basis"] == "nm" and abs(float(fc_y1["price"]) - nm_prices[-1]) < 1e-6, fc_y1
 assert float(fc_y1["p_up"]) > 0.6, "de stijgende NM-reeks moet de kans sturen, niet de vlakke trend-reeks"
 
+# ============ 20. Tussentijds opslaan: een storing halverwege verliest niet alles ============
+fake12, store12 = new_store()
+cards12 = [{"product_id": f"f-{i}", "kind": "card", "name": f"F{i}", "number": "1", "set_name": "S", "set_total": 1} for i in range(5)]
+store12.upsert_products(cards12)
+for i, pid in enumerate(f["product_id"] for f in cards12):
+    fake12.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+
+class NormalSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            i = int(params["name"][1:])
+            return PkResp({"data": [{"id": i, "number": "1", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 9.0}]}})
+
+# tussentijds opslaan: met flush_every=2 (via het exemplaar hieronder) wordt er meerdere keren tussendoor opgeslagen,
+# niet pas na alle 5 kaarten. We simuleren een storing na de 3e opslagronde en controleren dat de eerdere rondes blijven staan.
+class CountingStore(SupabaseStore):
+    def __init__(self, *a, fail_after=None, **kw):
+        super().__init__(*a, **kw)
+        self.upsert_calls = 0
+        self.fail_after = fail_after
+    def upsert(self, table, rows, on_conflict, chunk=500):
+        if table == "prices":
+            self.upsert_calls += 1
+            if self.fail_after is not None and self.upsert_calls > self.fail_after:
+                raise RuntimeError("verbinding weggevallen (gesimuleerd)")
+        return super().upsert(table, rows, on_conflict, chunk)
+
+fake12b, sess12 = FakePostgrest(), None
+store_fail = CountingStore("https://x.supabase.co", "sb_secret_test", session=fake12b, fail_after=1)
+store_fail.upsert_products(cards12)
+for i, pid in enumerate(f["product_id"] for f in cards12):
+    fake12b.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+products_map = {p["product_id"]: p for p in store_fail.products("card")}
+try:
+    nm._map_and_refresh(store_fail, pkmnprices.PkmnPrices("pk_x", session=NormalSess(), budget=1000), "2026-09-21",
+                        [c["product_id"] for c in cards12], products_map, quiet, flush_every=2)
+except RuntimeError:
+    pass   # de gesimuleerde storing hoort de aanroeper te bereiken; dat vangt spend_pkmn_credits() normaal af
+saved = [k for k in fake12b.t["prices"] if k[2] == "pkmnprices" and k[3] == "nm"]
+assert 0 < len(saved) < 5, f"de opslagronde(s) vóór de storing moeten blijven staan, niet alles of niets: {saved}"
+
+# geen dubbele volledige catalogus-bevraging meer: store.products('card') wordt in run() maar 1x aangeroepen
+calls = {"n": 0}
+orig_products = store12.products
+def counted(*a, **kw):
+    calls["n"] += 1
+    return orig_products(*a, **kw)
+store12.products = counted
+nm.run(store12, pkmnprices.PkmnPrices("pk_x", session=NormalSess()), "2026-09-22", log=quiet, limit=5)
+assert calls["n"] == 1, f"store.products('card') hoort maar 1x per run() te worden opgehaald, niet {calls['n']}x"
+
+# store.select probeert het na een verbindingsfout nog één keer met meer geduld
+class OnceFlaky:
+    headers = {}
+    def __init__(self, ok_body):
+        self.calls = 0
+        self.ok_body = ok_body
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        if self.calls == 1:
+            import requests as _rq
+            raise _rq.exceptions.ConnectionError("weg")
+        class R:
+            def raise_for_status(self): pass
+            def json(self): return self.ok_body
+        r = R(); r.ok_body = self.ok_body
+        return r
+sess13 = OnceFlaky([])
+store13 = SupabaseStore("https://x.supabase.co", "sb_secret_test", session=sess13)
+assert store13.select("products", {"select": "*"}) == [] and sess13.calls == 2, "1x opnieuw geprobeerd na een verbindingsfout"
+
+# ============ 21. Zoekopdracht bij PkmnPrices is zo goedkoop mogelijk gemaakt ============
+class SpySess:
+    headers = {}
+    def __init__(self):
+        self.seen = []
+    def get(self, url, params=None, timeout=None):
+        self.seen.append(dict(params or {}))
+        return PkResp({"data": [{"id": 1, "number": "125", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 3}})
+spy = SpySess()
+nm.find_card(pkmnprices.PkmnPrices("pk", session=spy), {"name": "Charizard ex", "number": "125", "set_name": "S"})
+assert spy.seen[0]["number"] == "125" and spy.seen[0]["per_page"] == 15, spy.seen[0]
+assert len(spy.seen) == 1, "max_pages=1: er wordt geen 2e pagina meer opgehaald, ook al zijn er meer beschikbaar"
+assert config.PK_BUDGET >= 70000, "dagbudget hoort op het betaalde Pro-plan (75.000) afgestemd te zijn"
+
 print("alle tests geslaagd")

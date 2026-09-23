@@ -51,4 +51,4 @@ DIGEST_MIN_P_UP = 0.60
 # ---- Laagste Near Mint-prijs per kaart (PkmnPrices Pro) ----
 PK_TARGETS = 1200          # zoveel kaarten volgen we dagelijks: eerst collectie en prijsmeldingen, dan de beste kansen, dan de duurste
 PK_MAP_PER_RUN = 300       # zoveel nieuwe kaarten per run aan PkmnPrices koppelen (elk zoekopdracht kost credits)
-PK_BUDGET = 15000          # maximaal aantal credits per run
+PK_BUDGET = 72000          # maximaal aantal credits per dag (Pro-plan: 75.000; kleine marge ingebouwd)

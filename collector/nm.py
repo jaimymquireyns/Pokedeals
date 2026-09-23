@@ -55,7 +55,10 @@ def match_card(product, candidates):
 
 
 def find_card(pk, product):
-    rows = pk.list_all("/cards", {"name": product["name"]}, per_page=50, max_pages=2)
+    """Zoekt de kaart bij PkmnPrices. Credits worden per teruggegeven rij gerekend, dus een korte, gerichte
+    zoekopdracht scheelt veel: een klein aantal resultaten per pagina, en het kaartnummer meegestuurd (voor het
+    geval de zoekopdracht daarop kan filteren; negeert de API dat veld, dan kost het verder niets extra)."""
+    rows = pk.list_all("/cards", {"name": product["name"], "number": product.get("number")}, per_page=15, max_pages=1)
     hit = match_card(product, rows)
     return str(hit["id"]) if hit else None
 
@@ -97,13 +100,14 @@ def extra_targets(fc, exclude, cap=20_000):
     return order
 
 
-def _map_and_refresh(store, pk, today, targets, log):
+def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150):
     """Koppelt nog niet-gekoppelde kaarten uit 'targets' aan PkmnPrices en ververst hun Near Mint-prijs.
     Slaat kaarten over die vandaag al een NM-prijs kregen (bijv. door een eerdere taak dezelfde dag), zodat een
     late 'maak het dagbudget op'-taak niet dezelfde kaarten herhaalt maar verder komt in de lijst.
+    Slaat tussentijds op (elke 'flush_every' kaarten), zodat een haperende verbinding verderop niet de opgehaalde
+    resultaten van hiervoor ongedaan maakt en er geen PkmnPrices-credits voor niets worden uitgegeven.
     Stopt vanzelf zodra pk.over_budget() aangeeft dat het dagbudget op is; verder geen eigen limiet."""
     wanted = set(targets)
-    products = {p["product_id"]: p for p in store.products("card") if p["product_id"] in wanted}
     done_today = set()
     for ch in _chunks(sorted(wanted), 150):
         rows = store.select("prices", {"select": "product_id", "product_id": f"in.({','.join(ch)})",
@@ -112,7 +116,7 @@ def _map_and_refresh(store, pk, today, targets, log):
 
     mapped = failed = 0
     new_links = []
-    for pid in targets:
+    for i, pid in enumerate(targets, 1):
         if pk.over_budget():
             break
         p = products.get(pid)
@@ -130,13 +134,17 @@ def _map_and_refresh(store, pk, today, targets, log):
             mapped += 1
         else:
             failed += 1
+        if len(new_links) >= flush_every or (i == len(targets) and new_links):
+            store.upsert_products(new_links)
+            new_links = []
     if new_links:
         store.upsert_products(new_links)
 
-    rows, examples = [], []
+    all_rows, examples = [], []
     price_now = {f["product_id"]: float(f["price"]) for f in store.select(
         "forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})}
-    for pid in targets:
+    pending = []
+    for i, pid in enumerate(targets, 1):
         if pk.over_budget():
             break
         p = products.get(pid)
@@ -150,13 +158,18 @@ def _map_and_refresh(store, pk, today, targets, log):
         nm = nm_price(d)
         if not nm:
             continue
-        rows.append({"product_id": pid, "date": today, "source": "pkmnprices", "grade_key": "nm",
-                     "price": nm[1], "native": nm[1], "currency": "EUR"})
+        row = {"product_id": pid, "date": today, "source": "pkmnprices", "grade_key": "nm",
+              "price": nm[1], "native": nm[1], "currency": "EUR"}
+        pending.append(row)
+        all_rows.append(row)
         if price_now.get(pid):
             examples.append((price_now[pid], f"{p['name']} ({p.get('set_name')} #{p.get('number')}): NM €{nm[1]:.2f} ({nm[0]}) tegenover trend €{price_now[pid]:.2f}"))
-    if rows:
-        store.upsert_prices(rows)
-    return mapped, failed, rows, examples
+        if len(pending) >= flush_every:
+            store.upsert_prices(pending)
+            pending = []
+    if pending:
+        store.upsert_prices(pending)
+    return mapped, failed, all_rows, examples
 
 
 def run(store, pk, today, log=print, limit=None):
@@ -165,17 +178,19 @@ def run(store, pk, today, log=print, limit=None):
     vaste lijst van dag tot dag verder afwerken in plaats van vroegtijdig te stoppen."""
     limit = limit or config.PK_TARGETS
     targets, fc = pick_targets(store, limit)
-    already = sum(1 for p in store.products("card") if p["product_id"] in set(targets) and p.get("pk_id"))
+    products = {p["product_id"]: p for p in store.products("card")}   # 1x opgehaald, hieronder hergebruikt (voorkomt een tweede trage aanvraag)
+    already = sum(1 for pid in targets if products.get(pid, {}).get("pk_id"))
     log(f"NM-prijzen: {len(targets)} kaarten in de vaste lijst, {already} al gekoppeld")
 
-    mapped, failed, rows, examples = _map_and_refresh(store, pk, today, targets, log)
+    mapped, failed, rows, examples = _map_and_refresh(store, pk, today, targets, products, log)
     log(f"Vaste lijst: {mapped} nieuw gekoppeld, {failed} niet gevonden, {len(rows)} prijzen opgeslagen ({pk.credits} credits tot nu toe)")
 
     if not pk.over_budget():
         extra = extra_targets(fc, exclude=set(targets))
         if extra:
             log(f"Nog budget over: {len(extra)} extra kaarten (buiten de vaste lijst) worden ook meegenomen, duurste eerst")
-            m2, f2, r2, e2 = _map_and_refresh(store, pk, today, extra, log)
+            extra_products = {pid: products[pid] for pid in extra if pid in products}
+            m2, f2, r2, e2 = _map_and_refresh(store, pk, today, [pid for pid in extra if pid in products], extra_products, log)
             mapped += m2
             failed += f2
             rows += r2
