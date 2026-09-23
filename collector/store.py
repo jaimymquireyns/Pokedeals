@@ -38,6 +38,11 @@ class SupabaseStore:
             offset += PAGE
 
     def upsert(self, table, rows, on_conflict, chunk=500):
+        # Postgres accepteert geen twee rijen met dezelfde sleutel in één upsert ("cannot affect row a second
+        # time"); dat gebeurt soms per ongeluk (bijv. dezelfde kaart die via twee routes in een lijst belandt).
+        # Vangnet: bij een dubbele sleutel binnen deze aanroep telt de laatste.
+        cols = on_conflict.split(",")
+        rows = list({tuple(r.get(c) for c in cols): r for r in rows}.values())
         for i in range(0, len(rows), chunk):
             r = self.s.post(f"{self.base}/{table}", params={"on_conflict": on_conflict},
                             headers={"Prefer": "resolution=merge-duplicates,return=minimal"},

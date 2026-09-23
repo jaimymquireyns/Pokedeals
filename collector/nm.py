@@ -89,11 +89,14 @@ def pick_targets(store, limit, fc=None):
 
 def extra_targets(fc, exclude, cap=20_000):
     """Aanvullende kaarten (buiten de vaste lijst), duurste eerst: alleen gebruikt als er na de vaste lijst nog
-    budget overblijft, zodat een dag met credits over toch meer kaarten van een Near Mint-prijs voorziet."""
-    order = []
+    budget overblijft, zodat een dag met credits over toch meer kaarten van een Near Mint-prijs voorziet.
+    Eén kaart heeft meerdere rijen in 'fc' (één per periode van 7 dagen tot 24 maanden) — zonder dedupen zou
+    diezelfde kaart hier meerdere keren in de lijst belanden."""
+    order, seen = [], set(exclude)
     for f in sorted(fc, key=lambda f: -float(f["price"])):
         pid = f["product_id"]
-        if pid and ":" not in pid and pid not in exclude:
+        if pid and ":" not in pid and pid not in seen:
+            seen.add(pid)
             order.append(pid)
             if len(order) >= cap:
                 break

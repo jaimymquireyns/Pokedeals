@@ -924,4 +924,20 @@ assert spy.seen[0]["number"] == "125" and spy.seen[0]["per_page"] == 15, spy.see
 assert len(spy.seen) == 1, "max_pages=1: er wordt geen 2e pagina meer opgehaald, ook al zijn er meer beschikbaar"
 assert config.PK_BUDGET >= 70000, "dagbudget hoort op het betaalde Pro-plan (75.000) afgestemd te zijn"
 
+# ============ 22. extra_targets: een kaart met meerdere periodes komt maar 1x in de lijst ============
+fc_multi = [{"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0},
+            {"product_id": "z-2", "price": 30.0}, {"product_id": "z-2", "price": 30.0}]   # zoals bij meerdere periodes per kaart
+extra = nm.extra_targets(fc_multi, exclude=set())
+assert extra == ["z-1", "z-2"], f"elke kaart hoort maar 1x voor te komen, ook al heeft ze meerdere periode-rijen: {extra}"
+assert nm.extra_targets(fc_multi, exclude={"z-1"}) == ["z-2"]
+
+# ============ 23. store.upsert: een dubbele sleutel in dezelfde batch crasht niet meer ============
+fake14, store14 = new_store()
+store14.upsert_products([{"product_id": "z-1", "kind": "card", "name": "Z1"}])
+store14.upsert_prices([
+    {"product_id": "z-1", "date": "2026-09-21", "source": "pkmnprices", "grade_key": "nm", "price": 10.0},
+    {"product_id": "z-1", "date": "2026-09-21", "source": "pkmnprices", "grade_key": "nm", "price": 11.0},   # zelfde sleutel, andere prijs
+])
+assert fake14.t["prices"][("z-1", "2026-09-21", "pkmnprices", "nm")]["price"] == 11.0, "geen crash, de laatste van de twee wint"
+
 print("alle tests geslaagd")
