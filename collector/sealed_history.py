@@ -4,6 +4,7 @@ begint elk sealed product vanaf nul. Alleen mogelijk voor producten die al aan P
 (via enrich.py, kolom products.pk_id).
 """
 import os
+import time
 from datetime import date, timedelta
 
 from pkmnprices import PkmnPrices
@@ -46,7 +47,7 @@ def needs_backfill(store, product_id, today):
     return not rows
 
 
-def run(store, pk, today, log=print, limit=10_000):
+def run(store, pk, today, log=print, limit=10_000, deadline=None):
     """limit: zoveel sealed producten per run (elke dag opnieuw, tot alles is bijgewerkt)."""
     products = [p for p in store.products("sealed") if p.get("pk_id")]
     todo = [p for p in products if needs_backfill(store, p["product_id"], today)]
@@ -55,6 +56,9 @@ def run(store, pk, today, log=print, limit=10_000):
     for p in todo[:limit]:
         if pk.over_budget():
             log(f"Credit-budget bereikt ({pk.credits}). De rest volgt een volgende keer.")
+            break
+        if deadline and time.time() >= deadline:
+            log("Tijdslimiet van deze run bereikt. De rest volgt een volgende keer.")
             break
         try:
             data = pk.list_all(f"/sealed/{p['pk_id']}/prices/history", {"currency": "eur"}, per_page=100)

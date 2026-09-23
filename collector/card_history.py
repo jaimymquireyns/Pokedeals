@@ -5,6 +5,7 @@ als de Near Mint-prijzen zelf (collectie, prijsmeldingen, beste kansen, dan de r
 waar het gebleven is doordat al bijgewerkte kaarten worden overgeslagen.
 """
 import os
+import time
 from datetime import date, timedelta
 
 import nm
@@ -67,7 +68,7 @@ def candidates(store):
     return order
 
 
-def run(store, pk, today, log=print):
+def run(store, pk, today, log=print, deadline=None):
     order = candidates(store)
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
     order = [pid for pid in order if pid in products]
@@ -79,6 +80,9 @@ def run(store, pk, today, log=print):
     for pid in todo:
         if pk.over_budget():
             log(f"Credit-budget bereikt ({pk.credits}). Morgen gaat het verder waar het nu stopt.")
+            break
+        if deadline and time.time() >= deadline:
+            log("Tijdslimiet van deze run bereikt. Morgen gaat het verder waar het nu stopt.")
             break
         p = products[pid]
         try:

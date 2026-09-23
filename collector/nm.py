@@ -5,6 +5,7 @@ volgen slaan we daarom dagelijks de Near Mint-prijs van PkmnPrices op (grade_key
 één keer aan PkmnPrices (zoeken op naam, dan op kaartnummer en set), daarna kost het vernieuwen 1 credit per kaart.
 """
 import os
+import time
 from datetime import date
 
 import config
@@ -103,7 +104,7 @@ def extra_targets(fc, exclude, cap=20_000):
     return order
 
 
-def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150):
+def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, deadline=None):
     """Koppelt nog niet-gekoppelde kaarten uit 'targets' aan PkmnPrices en ververst hun Near Mint-prijs.
     Slaat kaarten over die vandaag al een NM-prijs kregen (bijv. door een eerdere taak dezelfde dag), zodat een
     late 'maak het dagbudget op'-taak niet dezelfde kaarten herhaalt maar verder komt in de lijst.
@@ -120,7 +121,7 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150):
     mapped = failed = 0
     new_links = []
     for i, pid in enumerate(targets, 1):
-        if pk.over_budget():
+        if pk.over_budget() or (deadline and time.time() >= deadline):
             break
         p = products.get(pid)
         if not p or p.get("pk_id"):
@@ -148,7 +149,7 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150):
         "forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})}
     pending = []
     for i, pid in enumerate(targets, 1):
-        if pk.over_budget():
+        if pk.over_budget() or (deadline and time.time() >= deadline):
             break
         p = products.get(pid)
         if not p or not p.get("pk_id") or pid in done_today:
@@ -175,7 +176,7 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150):
     return mapped, failed, all_rows, examples
 
 
-def run(store, pk, today, log=print, limit=None):
+def run(store, pk, today, log=print, limit=None, deadline=None):
     """pk: een PkmnPrices-client die de HELE dag deelt (ook met sealed_history.py), zodat het echte dagbudget
     maar één keer wordt opgemaakt, niet per taak apart. Blijft, zolang er budget over is, ook kaarten buiten de
     vaste lijst van dag tot dag verder afwerken in plaats van vroegtijdig te stoppen."""
@@ -185,15 +186,15 @@ def run(store, pk, today, log=print, limit=None):
     already = sum(1 for pid in targets if products.get(pid, {}).get("pk_id"))
     log(f"NM-prijzen: {len(targets)} kaarten in de vaste lijst, {already} al gekoppeld")
 
-    mapped, failed, rows, examples = _map_and_refresh(store, pk, today, targets, products, log)
+    mapped, failed, rows, examples = _map_and_refresh(store, pk, today, targets, products, log, deadline=deadline)
     log(f"Vaste lijst: {mapped} nieuw gekoppeld, {failed} niet gevonden, {len(rows)} prijzen opgeslagen ({pk.credits} credits tot nu toe)")
 
-    if not pk.over_budget():
+    if not pk.over_budget() and not (deadline and time.time() >= deadline):
         extra = extra_targets(fc, exclude=set(targets))
         if extra:
             log(f"Nog budget over: {len(extra)} extra kaarten (buiten de vaste lijst) worden ook meegenomen, duurste eerst")
             extra_products = {pid: products[pid] for pid in extra if pid in products}
-            m2, f2, r2, e2 = _map_and_refresh(store, pk, today, [pid for pid in extra if pid in products], extra_products, log)
+            m2, f2, r2, e2 = _map_and_refresh(store, pk, today, [pid for pid in extra if pid in products], extra_products, log, deadline=deadline)
             mapped += m2
             failed += f2
             rows += r2

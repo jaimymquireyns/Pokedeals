@@ -940,4 +940,39 @@ store14.upsert_prices([
 ])
 assert fake14.t["prices"][("z-1", "2026-09-21", "pkmnprices", "nm")]["price"] == 11.0, "geen crash, de laatste van de twee wint"
 
+# ============ 24. Zelf op tijd stoppen, ruim binnen de 5 uur van GitHub Actions ============
+import time as _time
+fake15, store15 = new_store()
+cards15 = [{"product_id": f"t-{i}", "kind": "card", "name": f"T{i}", "number": "1", "set_name": "S", "set_total": 1} for i in range(10)]
+store15.upsert_products(cards15)
+for i, pid in enumerate(c["product_id"] for c in cards15):
+    fake15.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+
+class SlowSess:
+    """Elke aanroep 'kost' 0,1 seconde (nagebootst door de klok vooruit te zetten), zodat een korte deadline raakt."""
+    headers = {}
+    def __init__(self):
+        self.calls = 0
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        _fake_clock[0] += 0.1
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            i = int(params["name"][1:])
+            return PkResp({"data": [{"id": i, "number": "1", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 9.0}]}})
+
+_fake_clock = [1000.0]
+real_time = nm.time.time
+nm.time.time = lambda: _fake_clock[0]
+try:
+    slow = SlowSess()
+    pk15 = pkmnprices.PkmnPrices("pk_x", session=slow, budget=100000)   # ruim voldoende credits, dus alleen de tijd mag hier de stopreden zijn
+    deadline15 = _fake_clock[0] + 1.35   # genoeg voor het koppelen van alle 10, maar maar een paar prijzen erna
+    nm.run(store15, pk15, "2026-09-21", log=quiet, limit=10, deadline=deadline15)
+finally:
+    nm.time.time = real_time
+saved15 = [k for k in fake15.t["prices"] if k[2] == "pkmnprices" and k[3] == "nm"]
+assert 0 < len(saved15) < 10, f"moet halverwege stoppen op de deadline, niet alles of niets: {saved15}"
+
 print("alle tests geslaagd")

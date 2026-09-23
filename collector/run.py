@@ -10,6 +10,7 @@ Lokaal proberen:
 """
 import argparse
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from itertools import groupby
@@ -212,28 +213,33 @@ def prune(store, today, log=print):
 # ---------------------------------------------------------------------------
 # Hoofdprogramma
 # ---------------------------------------------------------------------------
-def spend_pkmn_credits(store, today, log=print):
-    """NM-prijzen en sealed-geschiedenis delen hier één PkmnPrices-budget voor de hele dag (eerst NM, dan wat
-    sealed-geschiedenis nog overlaat). Los aanroepbaar (--credits-only) zodat je dit kort voor het einde van de
-    PkmnPrices-dag nog een keer kunt draaien om overgebleven credits te benutten, i.p.v. ze te laten verlopen."""
+def spend_pkmn_credits(store, today, log=print, time_budget=None):
+    """NM-prijzen, kaartgeschiedenis en sealed-geschiedenis delen hier één PkmnPrices-budget voor de hele dag
+    (in die volgorde). Los aanroepbaar (--credits-only) zodat je dit kort voor het einde van de PkmnPrices-dag
+    nog een keer kunt draaien om overgebleven credits te benutten, i.p.v. ze te laten verlopen.
+    Stopt zichzelf ook op tijd (standaard na 4 uur): bij een groot dagbudget kan PkmnPrices' eigen snelheidslimiet
+    (60 verzoeken per minuut) er anders voor zorgen dat de taak de 5 à 6 uur die GitHub Actions toestaat overschrijdt
+    en van buitenaf wordt afgebroken. Bij een nette, eigen stop blijft alles wat al gelukt is gewoon staan, en de
+    rest volgt gewoon de volgende keer — net als wanneer het creditbudget op is."""
     if not os.environ.get("PKMN_API_KEY"):
         log("PKMN_API_KEY niet gevonden: NM-prijzen en sealed-geschiedenis worden overgeslagen (kans-berekening zelf werkt hier los van).")
         return
+    deadline = time.time() + (time_budget if time_budget is not None else config.PK_TIME_BUDGET)
     from pkmnprices import PkmnPrices
     pk_client = PkmnPrices(os.environ["PKMN_API_KEY"], budget=config.PK_BUDGET)
     try:
         import nm
-        nm.run(store, pk_client, today, log=log)
+        nm.run(store, pk_client, today, log=log, deadline=deadline)
     except Exception as e:  # de actuele NM-prijs is het belangrijkst, dus die gaat als eerste
         log(f"! NM-prijzen overgeslagen: {e}")
     try:
         import card_history
-        card_history.run(store, pk_client, today, log=log)   # deelt hetzelfde budget: bouwt Near Mint-geschiedenis op, kaart voor kaart, zonder vast maximum
+        card_history.run(store, pk_client, today, log=log, deadline=deadline)   # deelt hetzelfde budget: bouwt Near Mint-geschiedenis op, kaart voor kaart, zonder vast maximum
     except Exception as e:
         log(f"! kaartgeschiedenis overgeslagen: {e}")
     try:
         import sealed_history
-        sealed_history.run(store, pk_client, today, log=log)   # krijgt wat de twee taken hierboven nog overlaten
+        sealed_history.run(store, pk_client, today, log=log, deadline=deadline)   # krijgt wat de twee taken hierboven nog overlaten
     except Exception as e:
         log(f"! sealed-geschiedenis overgeslagen: {e}")
 
@@ -329,7 +335,7 @@ def main():
         build_forecasts(store, today)
         return
     if args.credits_only:
-        spend_pkmn_credits(store, today)
+        spend_pkmn_credits(store, today, time_budget=config.PK_CREDITS_ONLY_TIME_BUDGET)
         return
     set_ids = args.sets or (newest_sets(tcg, store, args.recent) if args.recent else None)
     if not set_ids:
