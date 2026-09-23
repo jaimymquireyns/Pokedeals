@@ -43,13 +43,14 @@ create table if not exists forecasts (
     threshold_pct int not null,
     price numeric, avg7 numeric, avg30 numeric, mom30 numeric,
     p_up numeric, p_down numeric, exp_change numeric, exp_up numeric, exp_down numeric, score numeric, sigma numeric,
-    signal text, mode text, confidence text, n int,
+    signal text, mode text, confidence text, n int, basis text,   -- 'trend' (Cardmarket, standaard) of 'nm' (eigen Near Mint-geschiedenis)
     updated date, computed_on date,
     primary key (product_id, horizon_days, threshold_pct)
 );
 create index if not exists forecasts_lookup on forecasts (horizon_days, threshold_pct, score desc);
 alter table forecasts add column if not exists exp_up numeric;   -- voor bestaande databases: moet vóór de views hieronder staan
 alter table forecasts add column if not exists exp_down numeric;
+alter table forecasts add column if not exists basis text;   -- moet ook vóór de views hieronder staan
 
 create table if not exists pokemon_interest (   -- Wikipedia-bezoekers per Pokémon (context, nog niet in de berekening)
     dex_id int not null, date date not null, views int,

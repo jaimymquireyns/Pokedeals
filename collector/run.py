@@ -153,13 +153,22 @@ def build_forecasts(store, today, log=print, combos=None):
     since = (date.fromisoformat(today) - timedelta(days=config.HISTORY_DAYS)).isoformat()
     stats_all = choose_stats_all(store.select("trackrecord_stats", {"select": "*"}))
     rows = store.price_rows(since)
-    out, history = [], []
+    nm_by_pid = {}
+    for r in store.price_rows(since, grade_key="nm"):
+        nm_by_pid.setdefault(r["product_id"], []).append({**r, "price": float(r["price"]) if r.get("price") is not None else None})
+    for pid in nm_by_pid:
+        nm_by_pid[pid].sort(key=lambda r: r["date"])
+    out, history, nm_used = [], [], 0
     for pid, grp in groupby(rows, key=lambda r: r["product_id"]):
         by_source = {}
         for r in grp:
             by_source.setdefault(r["source"], []).append(
                 {**r, **{k: (float(r[k]) if r.get(k) is not None else None) for k in ("price", "avg1", "avg7", "avg30", "low")}})
-        series = analysis.series_for(pid, by_source)
+        nm_rows = nm_by_pid.get(pid)
+        basis = "nm" if nm_rows and len(nm_rows) >= config.MIN_HISTORY_POINTS else "trend"
+        if basis == "nm":
+            nm_used += 1
+        series = analysis.series_for(pid, by_source, nm_rows=nm_rows)
         if not series or series[-1]["avg30"] is None:
             continue    # geen verkopen in de laatste 30 dagen: te dunne markt voor een betrouwbare kans
         for horizon, pct in combos:
@@ -179,7 +188,7 @@ def build_forecasts(store, today, log=print, combos=None):
                 "exp_up": round(f["exp_up"], 4), "exp_down": round(f["exp_down"], 4),
                 "score": round(p_up - p_down, 4), "sigma": round(f["sigma"], 5),
                 "signal": analysis._signal(p_up, p_down), "mode": f["mode"], "confidence": f["confidence"],
-                "n": f["n"], "updated": f["updated"], "computed_on": today,
+                "n": f["n"], "updated": f["updated"], "computed_on": today, "basis": basis,
             })
     if out:
         store.upsert("forecasts", out, "product_id,horizon_days,threshold_pct")
@@ -189,7 +198,8 @@ def build_forecasts(store, today, log=print, combos=None):
     if history:
         store.upsert("forecast_history", history, "product_id,date,horizon_days,threshold_pct")
     log(f"Kansen berekend: {len(out)} rijen voor {len({r['product_id'] for r in out})} producten"
-        f"{' (gekalibreerd voor ' + str(len(stats_all)) + ' periodes)' if stats_all else ''}")
+        f"{' (gekalibreerd voor ' + str(len(stats_all)) + ' periodes)' if stats_all else ''}, "
+        f"waarvan {nm_used} kaarten op basis van eigen Near Mint-geschiedenis")
     return out
 
 
@@ -207,17 +217,23 @@ def spend_pkmn_credits(store, today, log=print):
     sealed-geschiedenis nog overlaat). Los aanroepbaar (--credits-only) zodat je dit kort voor het einde van de
     PkmnPrices-dag nog een keer kunt draaien om overgebleven credits te benutten, i.p.v. ze te laten verlopen."""
     if not os.environ.get("PKMN_API_KEY"):
+        log("PKMN_API_KEY niet gevonden: NM-prijzen en sealed-geschiedenis worden overgeslagen (kans-berekening zelf werkt hier los van).")
         return
     from pkmnprices import PkmnPrices
     pk_client = PkmnPrices(os.environ["PKMN_API_KEY"], budget=config.PK_BUDGET)
     try:
         import nm
         nm.run(store, pk_client, today, log=log)
-    except Exception as e:  # de trendprijzen zijn belangrijker dan de NM-prijzen
+    except Exception as e:  # de actuele NM-prijs is het belangrijkst, dus die gaat als eerste
         log(f"! NM-prijzen overgeslagen: {e}")
     try:
+        import card_history
+        card_history.run(store, pk_client, today, log=log)   # deelt hetzelfde budget: bouwt Near Mint-geschiedenis op, kaart voor kaart, zonder vast maximum
+    except Exception as e:
+        log(f"! kaartgeschiedenis overgeslagen: {e}")
+    try:
         import sealed_history
-        sealed_history.run(store, pk_client, today, log=log)   # deelt hetzelfde budget, gebruikt wat NM nog overliet
+        sealed_history.run(store, pk_client, today, log=log)   # krijgt wat de twee taken hierboven nog overlaten
     except Exception as e:
         log(f"! sealed-geschiedenis overgeslagen: {e}")
 

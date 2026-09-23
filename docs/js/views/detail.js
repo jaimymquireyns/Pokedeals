@@ -87,7 +87,8 @@ export async function detailView(root, pid, cid) {
           h("span", { class: "d" }, h("b", { text: pp(fx.p_down) }), " kans op ", h("b", { text: `${signed(expDown, 0)} (${signedEur(fx.price * expDown)})` }), " daling.")),
         h("p", { class: "p14" }, "Bij stijging, na verkoopkosten: ", h("b", { text: `${signed(net, 1)} (${signedEur(fx.price * net)})` }), "."),
         h("div", { class: "sigrow" }, pill(sig.label), h("span", { text: sig.text })),
-        graded ? h("p", { class: "mini", text: `Let op: deze kans is berekend op de prijs van de ongegradeerde kaart. ${gk.replace("-", " ")} beweegt vaak anders.` }) : null].filter(Boolean));
+        graded ? h("p", { class: "mini", text: `Let op: deze kans is berekend op de prijs van de ongegradeerde kaart. ${gk.replace("-", " ")} beweegt vaak anders.` }) : null,
+        fx.basis === "nm" ? h("p", { class: "mini", text: "Gebaseerd op de eigen Near Mint-prijsgeschiedenis van deze kaart, niet op de gemengde Cardmarket-trend." }) : null].filter(Boolean));
     } else {
       box.append(h("p", { class: "p14 muted", text: period.horizon > 60
         ? "Nog niet berekend voor deze periode. Lange periodes (3-24 maanden) worden 1x per week bijgewerkt, op maandag."

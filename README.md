@@ -55,6 +55,12 @@ Open `.github/workflows/daily.yml`, klik op het potlood en zet onder `PPT_API_KE
 
 Draai eenmalig de taak **Sealed verrijken** (bestand `.github/workflows/verrijk.yml`, zie Claude voor de inhoud) om plaatjes en officiële setnamen aan de sealed producten te koppelen. Dat kost ongeveer 12.000 credits en 1 à 2 uur; draait hij vast op het dagbudget, start hem de volgende dag opnieuw. Eerst moet je in Supabase (SQL Editor) deze regel draaien: `alter table products add column if not exists pk_id text;`
 
+### Nieuw: Near Mint-geschiedenis als basis van de kansberekening
+
+De app bouwt nu voor kaarten (naast sealed) ook een eigen Near Mint-prijsgeschiedenis op via PkmnPrices, in dezelfde volgorde als de Near Mint-prijzen (collectie, prijsmeldingen, beste kansen, dan de rest op prijs). Geen vast maximum: elke dag gaat het verder waar het de vorige keer stopte, tot het gedeelde PkmnPrices-budget op is. Zodra een kaart genoeg van die geschiedenis heeft, draait zíjn kansberekening voortaan op die eigen Near Mint-reeks in plaats van op de gemengde Cardmarket-trend; dat zie je op de kaartdetailpagina terug in een regel onder "Waarom deze kans?". Kaarten zonder die geschiedenis blijven gewoon op Cardmarket draaien, zodat het scherm Kansen breed blijft zoeken.
+
+Volgorde waarin het gedeelde PkmnPrices-budget per dag wordt besteed: eerst de actuele Near Mint-prijs (nm.py), dan deze geschiedenis-opbouw (card_history.py), dan sealed-geschiedenis. Vraagt ook weer het volledige `supabase/schema.sql` opnieuw (voegt de kolom `basis` toe aan `forecasts`).
+
 ### Nieuw: een late taak die overgebleven credits opmaakt
 
 Als je denkt dat het PkmnPrices-dagbudget rond een bepaald tijdstip reset, kun je vlak daarvoor een extra taak draaien die alles nog probeert te benutten: **Actions → Credits opmaken (laat op de dag)**. Hij draait sowieso al elke nacht vanzelf, rond 00:30-01:30 Belgische tijd (23:30 UTC) — ik weet de echte reset-tijd van PkmnPrices niet zeker, dus pas de tijd in `.github/workflows/credits.yml` gerust aan (het cijfer bij `cron:`, in UTC) als jij een ander tijdstip ziet. Kaarten die dezelfde dag al een prijs kregen, worden overgeslagen, zodat deze taak meteen verder gaat waar de ochtendtaak stopte in plaats van dezelfde kaarten over te doen.

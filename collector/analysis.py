@@ -245,9 +245,14 @@ def calibrate(p, stats):
     return min(max((st["n"] * obs + k * p) / (st["n"] + k), 0.02), 0.98)
 
 
-def series_for(product_id, by_source):
-    """De reeks waarop het model draait. Sealed: PPT-reeks. Kaarten: eigen Cardmarket-reeks, met oude
-    PPT-historie (bron 'ppt_hist') eraan vastgeplakt."""
+def series_for(product_id, by_source, nm_rows=None):
+    """De reeks waarop het model draait. Heeft een kaart genoeg eigen Near Mint-geschiedenis (PkmnPrices,
+    via card_history.py), dan is dát de basis in plaats van de gemengde Cardmarket-trend. Anders: sealed de
+    eigen reeks van die bron, kaarten hun Cardmarket-reeks met oude PPT-historie ('ppt_hist') eraan vastgeplakt."""
+    if nm_rows and len(nm_rows) >= config.MIN_HISTORY_POINTS:
+        rows = [{"date": r["date"], "trend": r["price"], "price": r["price"], "avg1": None, "avg7": None, "avg30": None}
+                for r in nm_rows if r["price"]]
+        return fill_avgs(rows)   # hier wél een gemiddelde berekenen: dit is echte dagelijkse Near Mint-historie, geen dunne markt
     if ":" in product_id:      # sealed (bijv. 'cm:12345'): de eigen reeks van die bron
         own = [v for k, v in by_source.items() if k != "ppt_hist"]
         series = max(own, key=len) if own else []

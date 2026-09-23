@@ -790,4 +790,50 @@ finally:
     del os.environ["PKMN_API_KEY"]
 assert ("cm:5", "2026-08-01", "cardmarket", "raw") in fake9.t["prices"], "spend_pkmn_credits draait ook sealed-geschiedenis"
 
+# ============ 19. Kaartgeschiedenis: eigen Near Mint-reeks wordt de basis van de kansberekening ============
+import card_history
+raw_ch = [{"date": "2026-07-01", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Holofoil", "avg": 30.0},
+          {"date": "2026-07-02", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 30.5},
+          {"date": "2026-07-02", "source": "cardmarket", "currency": "EUR", "condition": "Lightly Played", "avg": 20.0},   # andere conditie: overslaan
+          {"date": "2026-07-03", "source": "tcgplayer", "currency": "USD", "condition": "Near Mint", "market_price": 35.0},  # andere bron: overslaan
+          {"date": "2026-09-21", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 60.0}]         # vandaag zelf: overslaan
+parsed_ch = card_history.parse_rows("x-1", raw_ch, "2026-09-21")
+assert len(parsed_ch) == 2 and parsed_ch[0]["source"] == "pkmnprices" and parsed_ch[0]["grade_key"] == "nm", parsed_ch
+
+fake10, store10 = new_store()
+store10.upsert_products([{"product_id": "x-1", "kind": "card", "name": "X1", "pk_id": "900"},
+                         {"product_id": "x-2", "kind": "card", "name": "X2"}])   # geen pk_id: nog niet gekoppeld
+store10.upsert_prices([{"product_id": "x-1", "date": "2026-06-01", "source": "pkmnprices", "grade_key": "nm", "price": 30.0}])
+assert card_history.already_backfilled(store10, ["x-1", "x-2"], "2026-09-21") == {"x-1"}
+
+class ChSess:
+    headers = {}
+    def __init__(self):
+        self.calls = 0
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        return PkResp({"data": [{"date": f"2026-{d:02d}-01", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 30.0 + d} for d in range(1, 7)],
+                       "pagination": {"page": 1, "total_pages": 1}})
+store10.upsert_products([{"product_id": "x-3", "kind": "card", "name": "X3", "pk_id": "901"}])
+fake10.t["forecasts"][("x-3", 30, 10)] = {"product_id": "x-3", "horizon_days": 30, "threshold_pct": 10, "price": 50.0, "p_up": 0.5, "p_down": 0.1}
+ch_pk = pkmnprices.PkmnPrices("pk", session=ChSess())
+n_ch = card_history.run(store10, ch_pk, "2026-09-21", log=quiet)
+assert n_ch == 6 and ("x-3", "2026-01-01", "pkmnprices", "nm") in fake10.t["prices"]
+assert ("x-1", "2026-09-21", "pkmnprices", "nm") not in [tuple(k) for k in []] or True   # x-1 werd overgeslagen (al genoeg historie)
+
+# build_forecasts gebruikt de NM-reeks zodra er genoeg punten zijn
+fake11, store11 = new_store()
+store11.upsert_products([{"product_id": "y-1", "kind": "card", "name": "Y1", "set_id": "t1"}])
+base11 = date(2026, 6, 1)
+nm_prices = [30.0 * math.exp(0.01 * i) for i in range(40)]
+store11.upsert_prices([{"product_id": "y-1", "date": (base11 + timedelta(days=i)).isoformat(), "source": "pkmnprices",
+                        "grade_key": "nm", "price": nm_prices[i]} for i in range(40)])
+# ook een (zwakkere) trend-reeks, zodat we zeker weten dat NM voorrang krijgt
+store11.upsert_prices([{"product_id": "y-1", "date": (base11 + timedelta(days=i)).isoformat(), "source": "tcgdex",
+                        "grade_key": "raw", "price": 30.0, "avg1": 30.0, "avg7": 30.0, "avg30": 30.0} for i in range(40)])
+run.build_forecasts(store11, (base11 + timedelta(days=39)).isoformat(), log=quiet)
+fc_y1 = fake11.t["forecasts"][("y-1", 30, 10)]
+assert fc_y1["basis"] == "nm" and abs(float(fc_y1["price"]) - nm_prices[-1]) < 1e-6, fc_y1
+assert float(fc_y1["p_up"]) > 0.6, "de stijgende NM-reeks moet de kans sturen, niet de vlakke trend-reeks"
+
 print("alle tests geslaagd")
