@@ -1035,4 +1035,27 @@ assert n_off == 2 and ("o-1", 1) in fake17.t["offers"] and fake17.t["offers"][("
 assert offers.stale(store17, ["o-1"], "2026-09-21") == [], "net ververst: hoort niet meer in de todo-lijst"
 assert offers.stale(store17, ["o-1"], "2026-09-25") == ["o-1"], "4 dagen later (> REFRESH_DAYS): weer aan de beurt"
 
+# ============ 27. Een falende 'wie is al gedaan'-controle mag de hele taak niet meeslepen ============
+fake18, store18 = new_store()
+store18.upsert_products([{"product_id": "r-1", "kind": "card", "name": "R1", "number": "1", "set_name": "S", "set_total": 1}])
+fake18.t["forecasts"][("r-1", 30, 10)] = {"product_id": "r-1", "horizon_days": 30, "threshold_pct": 10, "price": 20.0, "p_up": 0.5, "p_down": 0.1}
+
+class BrokenSelectStore(SupabaseStore):
+    def select(self, table, params=None):
+        if table == "prices" and params and "date" in params:
+            raise RuntimeError("db weg (gesimuleerd)")
+        return super().select(table, params)
+
+store18b = BrokenSelectStore("https://x.supabase.co", "sb_secret_test", session=fake18)
+class SimpleSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            return PkResp({"data": [{"id": 1, "number": "1", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 9.0}]}})
+n_resilient = nm.run(store18b, pkmnprices.PkmnPrices("pk", session=SimpleSess()), "2026-09-21", log=quiet, limit=1)
+assert n_resilient == 1, "de 'wie is al gedaan'-controle faalt, maar de rest van de taak gaat gewoon door"
+assert ("r-1", "2026-09-21", "pkmnprices", "nm") in fake18.t["prices"]
+
 print("alle tests geslaagd")

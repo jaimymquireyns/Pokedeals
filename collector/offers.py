@@ -46,9 +46,12 @@ def stale(store, product_ids, today, max_age_days=REFRESH_DAYS):
     """Kaarten die nog nooit, of langer dan max_age_days geleden, zijn ververst."""
     cutoff = (date.fromisoformat(today) - timedelta(days=max_age_days)).isoformat()
     fresh = set()
-    for ch in _chunks(sorted(product_ids), 150):
-        rows = store.select("offers", {"select": "product_id", "product_id": f"in.({','.join(ch)})", "date": f"gte.{cutoff}"})
-        fresh.update(r["product_id"] for r in rows)
+    try:
+        for ch in _chunks(sorted(product_ids), 150):
+            rows = store.select("offers", {"select": "product_id", "product_id": f"in.({','.join(ch)})", "date": f"gte.{cutoff}"})
+            fresh.update(r["product_id"] for r in rows)
+    except Exception as e:
+        print(f"  (kon niet controleren welke kaarten al vers zijn, ga gewoon door: {e})")
     return [pid for pid in product_ids if pid not in fresh]
 
 

@@ -113,10 +113,13 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
     Stopt vanzelf zodra pk.over_budget() aangeeft dat het dagbudget op is; verder geen eigen limiet."""
     wanted = set(targets)
     done_today = set()
-    for ch in _chunks(sorted(wanted), 150):
-        rows = store.select("prices", {"select": "product_id", "product_id": f"in.({','.join(ch)})",
-                                       "date": f"eq.{today}", "source": "eq.pkmnprices", "grade_key": "eq.nm"})
-        done_today.update(r["product_id"] for r in rows)
+    try:
+        for ch in _chunks(sorted(wanted), 150):
+            rows = store.select("prices", {"select": "product_id", "product_id": f"in.({','.join(ch)})",
+                                           "date": f"eq.{today}", "source": "eq.pkmnprices", "grade_key": "eq.nm"})
+            done_today.update(r["product_id"] for r in rows)
+    except Exception as e:
+        log(f"  (kon niet controleren wie vandaag al gedaan is, ga gewoon door: {e})")
 
     mapped = failed = 0
     new_links = []
@@ -145,8 +148,11 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
         store.upsert_products(new_links)
 
     all_rows, examples = [], []
-    price_now = {f["product_id"]: float(f["price"]) for f in store.select(
-        "forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})}
+    try:
+        price_now = {f["product_id"]: float(f["price"]) for f in store.select(
+            "forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})}
+    except Exception:
+        price_now = {}   # alleen nodig voor de voorbeeldregels in het logboek; niet kritiek
     pending = []
     for i, pid in enumerate(targets, 1):
         if pk.over_budget() or (deadline and time.time() >= deadline):

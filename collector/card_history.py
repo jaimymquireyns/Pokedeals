@@ -53,10 +53,13 @@ def already_backfilled(store, product_ids, today):
     kaarten in plaats van per kaart, om het aantal databaseverzoeken laag te houden."""
     cutoff = (date.fromisoformat(today) - timedelta(days=BACKFILLED_ENOUGH_DAYS)).isoformat()
     done = set()
-    for ch in _chunks(sorted(product_ids), 150):
-        rows = store.select("prices", {"select": "product_id", "product_id": f"in.({','.join(ch)})",
-                                       "source": "eq.pkmnprices", "grade_key": "eq.nm", "date": f"lt.{cutoff}"})
-        done.update(r["product_id"] for r in rows)
+    try:
+        for ch in _chunks(sorted(product_ids), 150):
+            rows = store.select("prices", {"select": "product_id", "product_id": f"in.({','.join(ch)})",
+                                           "source": "eq.pkmnprices", "grade_key": "eq.nm", "date": f"lt.{cutoff}"})
+            done.update(r["product_id"] for r in rows)
+    except Exception as e:
+        print(f"  (kon niet controleren wie al genoeg historie heeft, ga gewoon door: {e})")
     return done
 
 
