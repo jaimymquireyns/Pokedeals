@@ -34,7 +34,7 @@ class Resp:
 PK = {"sets": ["set_id"], "products": ["product_id"], "prices": ["product_id", "date", "source", "grade_key"],
       "forecasts": ["product_id", "horizon_days", "threshold_pct"], "pokemon_interest": ["dex_id", "date"],
       "forecast_history": ["product_id", "date", "horizon_days", "threshold_pct"], "trackrecord_stats": ["source", "horizon_days", "threshold_pct", "bucket"], "trackrecord_signals": [],
-      "collection": [], "alerts": [], "user_settings": ["user_id"], "push_subscriptions": []}
+      "collection": [], "alerts": [], "user_settings": ["user_id"], "push_subscriptions": [], "offers": ["product_id", "rank"]}
 NOT_NULL = {"products": ["name"]}
 FK = {"prices", "forecasts", "forecast_history", "collection", "alerts"}
 
@@ -159,7 +159,8 @@ assert ppt.extract_history({"2026-09-01": 1.0, "2026-09-02": {"market": 2.0}}) =
 assert ppt.extract_graded([{"grade": "PSA 9", "averagePrice": 50}, {"grader": "BGS", "grade": "9.5", "medianPrice": 70}]) == {"PSA-9": 50.0, "BGS-9.5": 70.0}
 assert ppt.norm_number("125/197") == "125" and ppt.norm_number("045") == "45" and ppt.norm("Mr. Mime ex") == "mrmimeex"
 assert features.species_name("Team Rocket's Mewtwo ex") == "Mewtwo" and features.species_name("Charizard VSTAR") == "Charizard"
-assert alerts.net_change(100, 0.15, 5, 1.5) == (1.15 * .95 - .015) - 1
+assert abs(alerts.net_change(100, 0.15, 5) - ((1.15 * .95) - config.ship_cost(115) / 100 - 1)) < 1e-9
+assert config.ship_cost(4) == 1.50 and config.ship_cost(45) == 7.00 and config.ship_cost(500) == 15.00, "oplopende verzendtabel"
 
 # splice: historie in ander prijsniveau wordt op ons niveau gezet
 own = [{"date": f"2026-09-{d:02d}", "price": 100.0 + d, "avg1": None, "avg7": None, "avg30": None} for d in range(10, 13)]
@@ -1007,5 +1008,31 @@ for i, pid in enumerate(c["product_id"] for c in cards16):
 wall2 = WallSess()
 nm.run(store16, pkmnprices.PkmnPrices("pk", session=wall2, budget=100000), "2026-09-21", log=quiet, limit=20)
 assert wall2.calls < 20 * 2, f"stopt ruim voor alle 20 kaarten apart geprobeerd zijn: {wall2.calls} verzoeken"
+
+# ============ 26. Laagste aanbiedingen (PkmnPrices, alleen Near Mint) ============
+import offers
+raw_off = [
+    {"price": 2.5, "condition": "Poor", "seller": "jort589426", "quantity": 1, "language": "EN"},
+    {"price": 12.0, "condition": "Near Mint", "seller": "rudifer", "quantity": 1, "language": "EN"},
+    {"price": 9.5, "condition": "Near Mint", "seller": "nofox", "quantity": 3, "language": "EN"},
+    {"price": 11.0, "condition": "Excellent", "seller": "x", "quantity": 1, "language": "EN"},
+]
+parsed_off = offers.parse_offers("sv03-125", raw_off, "2026-09-21")
+assert [p["seller"] for p in parsed_off] == ["nofox", "rudifer"], "alleen Near Mint, goedkoopste eerst"
+assert parsed_off[0]["rank"] == 1 and parsed_off[0]["price"] == 9.5
+
+fake17, store17 = new_store()
+store17.upsert_products([{"product_id": "o-1", "kind": "card", "name": "O1", "pk_id": "700"}])
+fake17.t["forecasts"][("o-1", 30, 10)] = {"product_id": "o-1", "horizon_days": 30, "threshold_pct": 10, "p_up": 0.7, "p_down": 0.1}
+assert offers.stale(store17, ["o-1"], "2026-09-21") == ["o-1"], "nog nooit ververst: hoort in de todo-lijst"
+
+class OffSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        return PkResp({"data": raw_off, "pagination": {"page": 1, "total_pages": 1}})
+n_off = offers.run(store17, pkmnprices.PkmnPrices("pk", session=OffSess()), "2026-09-21", log=quiet)
+assert n_off == 2 and ("o-1", 1) in fake17.t["offers"] and fake17.t["offers"][("o-1", 1)]["seller"] == "nofox"
+assert offers.stale(store17, ["o-1"], "2026-09-21") == [], "net ververst: hoort niet meer in de todo-lijst"
+assert offers.stale(store17, ["o-1"], "2026-09-25") == ["o-1"], "4 dagen later (> REFRESH_DAYS): weer aan de beurt"
 
 print("alle tests geslaagd")

@@ -1,7 +1,7 @@
 // Berekeningen aan de kant van de app: netto winst, uitleg bij de kans en 'aandacht nodig'.
 import { days, eur, pp, signed } from "./ui.js";
 
-export const DEFAULT_SETTINGS = { fee_pct: 5, ship_eur: 1.5, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10 };
+export const DEFAULT_SETTINGS = { fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10 };
 
 // Periodes op de kaartdetailpagina, los van de Instellingen-standaard. Bij lange periodes ligt de drempel hoger,
 // anders is bijna alles "kans op stijging én kans op daling" tegelijk (over 2 jaar beweegt bijna elke prijs 10%).
@@ -16,9 +16,24 @@ export const PERIODS = [
 ];
 
 /** Verwachte winst na verkoopkosten en verzending, als fractie van de huidige prijs. */
-export const netGain = (price, exp, s) => ((1 + exp) * (1 - s.fee_pct / 100) - s.ship_eur / price) - 1;
+// Verzendkosten lopen op met de verkoopprijs (Cardmarkets eigen tarieven zijn niet automatisch op te halen).
+export const SHIP_TIERS = [[5, 1.5], [20, 4], [50, 7], [150, 10], [Infinity, 15]];
+export const shipCost = (price) => SHIP_TIERS.find(([limit]) => price <= limit)[1];
+export const netGain = (price, exp, s) => {
+  const sellPrice = price * (1 + exp);
+  return (1 + exp) * (1 - s.fee_pct / 100) - shipCost(sellPrice) / price - 1;
+};
 
 export const isOpportunity = (r, s) => !s.net_only || netGain(r.price, r.exp, s) * 100 >= s.net_min_pct;
+
+// Verkoopprijs die nodig is om quitte te spelen op 'costPrice' (aankoopprijs of, als je 'm nog niet hebt, de huidige
+// prijs), na commissie en de oplopende verzendtabel. De verzendtrap hangt af van de verkoopprijs zelf, dus een
+// paar keer benaderen tot het stabiel is (de tabel heeft maar een paar treden, dit convergeert vrijwel meteen).
+export function breakEven(costPrice, feePct) {
+  let sell = costPrice;
+  for (let i = 0; i < 5; i++) sell = (costPrice + shipCost(sell)) / (1 - feePct / 100);
+  return sell;
+}
 
 export const ATTN = { minDown: 0.35, profit: 0.30, maxUp: 0.25 };
 
@@ -32,29 +47,33 @@ export function attention(items) {
   return out;
 }
 
-/** Uitleg bij de kans, opgebouwd uit dezelfde gegevens als het model. */
+const LABELS = { g: "Positief", r: "Negatief", n: "Matig" };
+
+/** Uitleg bij de kans, opgebouwd uit dezelfde gegevens als het model. Elk punt krijgt ook een kort getal (val) en
+ * een kwalitatief label (label), zodat de app dat apart en duidelijk kan tonen naast de volzin. */
 export function whyBullets(f) {
   const out = [];
   if (f.mom30 != null && Math.abs(f.mom30) >= 0.03 && f.avg30) {
     out.push(f.mom30 > 0
-      ? { tone: "g", head: "Opwaartse trend.", text: `De prijs staat ${signed(f.mom30).replace("+", "")} boven het 30-daags gemiddelde (${eur(f.avg30)}).` }
-      : { tone: "r", head: "Neerwaartse trend.", text: `De prijs staat ${signed(-f.mom30).replace("+", "")} onder het 30-daags gemiddelde (${eur(f.avg30)}).` });
+      ? { tone: "g", head: "Prijs ligt boven het gemiddelde", text: `Nu ${signed(f.mom30).replace("+", "")} hoger dan het gemiddelde van de laatste 30 dagen (${eur(f.avg30)}) — de prijs is dus al aan het stijgen.`, val: signed(f.mom30, 0), label: LABELS.g }
+      : { tone: "r", head: "Prijs ligt onder het gemiddelde", text: `Nu ${signed(-f.mom30).replace("+", "")} lager dan het gemiddelde van de laatste 30 dagen (${eur(f.avg30)}) — de prijs is dus al aan het dalen.`, val: signed(f.mom30, 0), label: LABELS.r });
   }
   if (f.avg7 && f.avg30) {
-    if (f.avg7 > f.avg30 * 1.01) out.push({ tone: "g", head: "De stijging is recent.", text: `Het 7-daags gemiddelde (${eur(f.avg7)}) ligt boven het 30-daagse.` });
-    else if (f.avg7 < f.avg30 * 0.99) out.push({ tone: "r", head: "De daling is recent.", text: `Het 7-daags gemiddelde (${eur(f.avg7)}) ligt onder het 30-daagse.` });
+    const diff = f.avg7 / f.avg30 - 1;
+    if (f.avg7 > f.avg30 * 1.01) out.push({ tone: "g", head: "De stijging versnelt", text: "De laatste 7 dagen ging het sneller omhoog dan de 30 dagen ervoor — de trend zet nog door, is niet alweer aan het afvlakken.", val: signed(diff, 0), label: LABELS.g });
+    else if (f.avg7 < f.avg30 * 0.99) out.push({ tone: "r", head: "De daling versnelt", text: "De laatste 7 dagen ging het sneller omlaag dan de 30 dagen ervoor — de trend zet nog door, is niet alweer aan het afvlakken.", val: signed(diff, 0), label: LABELS.r });
   }
   if (f.sigma && f.mode === "snel") {
-    out.push({ tone: "n", head: "Schommeling is een aanname.", text: `Er is nog te weinig prijsgeschiedenis; we rekenen met ongeveer ${(f.sigma * 100).toFixed(0)}% per dag.` });
+    out.push({ tone: "n", head: "Schommeling is een aanname", text: `Er is nog te weinig prijsgeschiedenis; we rekenen met ongeveer ${(f.sigma * 100).toFixed(0)}% per dag.`, val: `±${(f.sigma * 100).toFixed(0)}%`, label: LABELS.n });
   } else if (f.sigma) {
     const pct = (f.sigma * 100).toFixed(1).replace(".", ",");
     out.push(f.sigma >= 0.05
-      ? { tone: "r", head: "Prijs schommelt sterk.", text: `Gemiddeld ongeveer ${pct}% per dag, dus de uitkomst is erg onzeker.` }
-      : { tone: "n", head: "Prijs schommelt.", text: `Gemiddeld ongeveer ${pct}% per dag, dus de uitkomst blijft onzeker.` });
+      ? { tone: "r", head: "Prijs schommelt sterk", text: "Gemiddelde dagelijkse beweging — de uitkomst is hierdoor erg onzeker.", val: `±${pct}%`, label: "Hoog" }
+      : { tone: "n", head: "Prijs schommelt", text: "Gemiddelde dagelijkse beweging — de uitkomst blijft hierdoor onzeker.", val: `±${pct}%`, label: "Matig" });
   }
-  out.push({ tone: "i", head: `Betrouwbaarheid ${f.confidence}.`, text: f.mode === "snel"
+  out.push({ tone: "i", head: "Betrouwbaarheid", text: f.mode === "snel"
     ? `Schatting uit de 30/7/1-daagse gemiddelden, want er is pas ${days(f.n)} prijsdata. Meer data maakt de schatting scherper.`
-    : `Gebaseerd op ${days(f.n)} prijsdata; meer data maakt de schatting scherper.` });
+    : `Hoeveelheid prijsdata waar de schatting op is gebaseerd. Meer data maakt de schatting scherper.`, val: days(f.n), label: f.confidence.charAt(0).toUpperCase() + f.confidence.slice(1) });
   return out;
 }
 

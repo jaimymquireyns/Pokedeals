@@ -2,7 +2,7 @@ import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
 import { chanceBar, gradeTag, go, kindTag, pill } from "../components.js";
-import { PERIODS, SIGNAL_TEXT, gradeKey, netGain, ownedSignal, whyBullets } from "../model.js";
+import { PERIODS, SIGNAL_TEXT, breakEven, gradeKey, netGain, ownedSignal, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
@@ -14,7 +14,7 @@ const stat = (k, v, s, cls = "") => h("div", { class: "stat" }, h("div", { class
 export async function detailView(root, pid, cid) {
   root.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
   const s = getSettings();
-  let p, c = null, fcRows = [], hist = [], al = null, nmRow = null, watchId = null;
+  let p, c = null, fcRows = [], hist = [], al = null, nmRow = null, watchId = null, offerRows = [];
   try {
     const owned = cid ? rest.get(`v_collection?select=*&id=eq.${enc(cid)}`).then((r) => r[0] || null) : Promise.resolve(null);
     [p, c, fcRows] = await Promise.all([
@@ -24,6 +24,7 @@ export async function detailView(root, pid, cid) {
     const gk = c ? gradeKey(c) : "raw";
     hist = await rest.get(`prices?select=date,price,source&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&order=date.asc&limit=1000`);
     if (gk === "raw") nmRow = (await rest.get(`prices?select=date,price&product_id=eq.${enc(pid)}&grade_key=eq.nm&order=date.desc&limit=1`).catch(() => []))[0] || null;
+    if (p.kind === "card" && gk === "raw") offerRows = await rest.get(`offers?select=*&product_id=eq.${enc(pid)}&order=rank.asc`).catch(() => []);
     if (isLoggedIn()) {
       al = (await rest.get(`alerts?select=*&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&limit=1`))[0] || null;
       watchId = await isWatched(pid);
@@ -39,11 +40,29 @@ export async function detailView(root, pid, cid) {
   let period = PERIODS.find((pr) => pr.horizon === s.horizon && pr.pct === s.pct) || PERIODS.find((pr) => pr.key === "30");
   let fx = toFx(fcByKey.get(`${period.horizon}-${period.pct}`));
 
+  // ---- laagste aanbiedingen (Cardmarket, Near Mint, via PkmnPrices) ----
+  let offersSec = null;
+  if (p.kind === "card" && gk === "raw" && offerRows.length) {
+    offersSec = h("div", { class: "sec" }, h("h3", { text: "Laagste aanbiedingen · Near Mint" }),
+      ...offerRows.map((o) => h("div", { class: "offrow" },
+        h("div", {}, h("div", { class: "offprice num", text: eur(Number(o.price)) }),
+          h("div", { class: "offmeta", text: [o.seller, o.quantity > 1 ? `${o.quantity} stuks` : "1 stuk", o.language].filter(Boolean).join(" · ") })))),
+      h("a", { class: "linkbtn", target: "_blank", rel: "noopener", text: "Alle aanbiedingen op Cardmarket →",
+        href: `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${enc([p.name, p.number || ""].join(" ").trim())}` }),
+      h("p", { class: "mini", text: `Live aanbod van Cardmarket, alleen Near Mint. Bijgewerkt ${fmtDateLong(offerRows[0].date)}. Alleen beschikbaar voor je collectie en de beste kansen.` }));
+  }
+
   // ---- kop ----
   const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed"),
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null),
       h("div", { class: "big num", text: price ? eur(price) : "Geen prijs" })));
+
+  // ---- identificatie: zeldzaamheid, uitgiftedatum, taal ----
+  const idBits = [p.kind === "card" && p.rarity ? ["Zeldzaamheid", p.rarity] : null,
+    p.release_date ? ["Uitgiftedatum", fmtDateLong(p.release_date)] : null,
+    p.kind === "card" ? ["Taal", "Engels"] : null].filter(Boolean);
+  const idgrid = idBits.length ? h("div", { class: "idgrid" }, ...idBits.map(([k, v]) => h("div", { class: "idbox" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v)))) : null;
 
   // ---- cijfers ----
   let stats;
@@ -54,6 +73,30 @@ export async function detailView(root, pid, cid) {
       stat("Winst", total == null ? "–" : signedEur(total), price ? signed(price / Number(c.purchase_price) - 1, 1) : "", total != null && total < 0 ? "neg" : "pos"));
   } else {
     stats = h("div", { class: "stats" }, stat("Trendprijs", price ? eur(price) : "–", "Cardmarket-gemiddelde"), stat("Gem. 7 dagen", fx?.avg7 ? eur(fx.avg7) : "–"), stat("Gem. 30 dagen", fx?.avg30 ? eur(fx.avg30) : "–"));
+  }
+
+  // ---- winstgrens: welke verkoopprijs is nodig om quitte te spelen, na commissie en verzendkosten ----
+  let breakEvenBox = null;
+  if (price) {
+    const costPrice = c ? Number(c.purchase_price) : price;
+    const be = breakEven(costPrice, s.fee_pct);
+    const fee = be * (s.fee_pct / 100);
+    const ship = be - costPrice - fee > 0 ? be - costPrice - fee : 0;
+    const rows = [
+      [c ? "Aankoopprijs" : "Huidige prijs (als aankoopprijs)", eur(costPrice)],
+      [`Cardmarket-commissie (${s.fee_pct}%)`, `+ ${eur(fee)}`],
+      ["Geschatte verzendkosten", `+ ${eur(ship)}`],
+    ];
+    const diff = price / be - 1;
+    breakEvenBox = h("div", { class: "sec" }, h("h3", { text: c ? "Winstgrens (dit exemplaar)" : "Winstgrens (bij aankoop tegen de huidige prijs)" }),
+      ...rows.map(([k, v]) => h("div", { class: "berow" }, h("span", { text: k }), h("b", { text: v }))),
+      h("div", { class: "beline" }),
+      h("div", { class: "betotal" }, h("span", { class: "k", text: "Verkoopprijs om quitte te spelen" }), h("span", { class: "v", text: eur(be) })),
+      c
+        ? h("div", { class: "bestatus " + (diff >= 0 ? "good" : "bad"), text: diff >= 0
+            ? `✓ Nu al ${eur(price - be)} winst (+${(diff * 100).toFixed(0)}% boven de winstgrens)`
+            : `Nog ${(Math.abs(diff) * 100).toFixed(0)}% te gaan tot de winstgrens (${eur(be - price)}).` })
+        : h("p", { class: "mini", text: `Koop je nu voor ${eur(price)}, dan moet de prijs eerst ${signed(be / price - 1, 1)} stijgen voor je break-even bent.` }));
   }
 
   // ---- laagste Near Mint-prijs (PkmnPrices) ----
@@ -95,9 +138,11 @@ export async function detailView(root, pid, cid) {
         : "Nog geen kansberekening. Dat kan komen doordat er te weinig prijsdata is, of omdat de prijs onder de € 2 ligt." }));
     }
     chance.replaceChildren(box);
-    why.replaceChildren(h("h3", { text: "Waarom deze kans?" }), fx ? h("ul", { class: "why" }, ...whyBullets(fx).map((b) => h("li", {},
+    why.replaceChildren(h("h3", { text: "Waarom deze kans?" }), fx ? h("ul", { class: "why" }, ...whyBullets(fx).map((b) => h("li", { class: "whyrow " + (b.tone === "g" ? "good" : b.tone === "r" ? "bad" : b.tone === "n" ? "warn" : "") },
       h("span", { class: "dot " + b.tone, text: b.tone === "g" ? "+" : b.tone === "r" ? "−" : b.tone === "n" ? "~" : "i" }),
-      h("span", {}, h("b", { text: b.head }), " " + b.text)))) : h("p", { class: "p14 muted", text: "Nog geen uitleg beschikbaar voor deze periode." }));
+      h("div", { class: "txt" }, h("b", { text: b.head }), h("span", { text: b.text })),
+      b.val != null ? h("div", { class: "whyvalbox" }, h("div", { class: "whyval " + b.tone, text: b.val }), h("div", { class: "whytag " + b.tone, text: b.label })) : null)))
+      : h("p", { class: "p14 muted", text: "Nog geen uitleg beschikbaar voor deze periode." }));
   }
   drawPeriods();
   drawChance();
@@ -186,8 +231,8 @@ export async function detailView(root, pid, cid) {
 
   root.replaceChildren(h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
-    head, stats, nmBox,
+    head, idgrid, stats, nmBox,
     !c ? h("p", { class: "mini pad2", text: "De trendprijs is Cardmarkets gemiddelde voor alle talen en condities. Het goedkoopste aanbod (Near Mint) kan een stuk lager liggen, zeker bij dure kaarten met weinig verkopen." }) : null,
     graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
-    periodBar, chance, why, chartSec, alertSec, btns));
+    periodBar, chance, why, breakEvenBox, chartSec, offersSec, alertSec, btns));
 }

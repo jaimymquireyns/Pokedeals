@@ -21,8 +21,11 @@ def eur(x):
     return "€\u00a0" + f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def net_change(price, exp, fee_pct, ship):
-    """Verwachte winst na verkoopkosten en verzending, als fractie van de huidige prijs."""
+def net_change(price, exp, fee_pct):
+    """Verwachte winst na verkoopkosten en verzending, als fractie van de huidige prijs. De verzendkosten schalen
+    mee met de verwachte verkoopprijs (duurdere kaarten hebben duurdere, verzekerde verzending nodig)."""
+    sell_price = price * (1 + exp)
+    ship = config.ship_cost(sell_price)
     return ((1 + exp) * (1 - fee_pct / 100) - ship / price) - 1
 
 
@@ -124,13 +127,13 @@ def send_digest(store, sender, today, log=print):
         st = settings.get(uid, {})
         if not st.get("digest", True):
             continue
-        fee, ship = _f(st.get("fee_pct", 5)), _f(st.get("ship_eur", 1.5))
+        fee = _f(st.get("fee_pct", config.DEFAULT_FEE_PCT))
         net_only, net_min = st.get("net_only", True), _f(st.get("net_min_pct", 3)) / 100
         opps = 0
         for f in fc.values():
             if _f(f["p_up"]) < config.DIGEST_MIN_P_UP:
                 continue
-            if net_only and net_change(_f(f["price"]), _f(f["exp_change"]), fee, ship) < net_min:
+            if net_only and net_change(_f(f["price"]), _f(f["exp_change"]), fee) < net_min:
                 continue
             opps += 1
         rows = store.select("collection", {"select": "*", "user_id": f"eq.{uid}"})

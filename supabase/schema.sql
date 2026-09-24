@@ -52,6 +52,15 @@ alter table forecasts add column if not exists exp_up numeric;   -- voor bestaan
 alter table forecasts add column if not exists exp_down numeric;
 alter table forecasts add column if not exists basis text;   -- moet ook vóór de views hieronder staan
 
+create table if not exists offers (      -- laagste live aanbiedingen (Cardmarket, via PkmnPrices), alleen Near Mint
+    product_id text not null references products(product_id) on delete cascade,
+    rank int not null,                        -- 1 = goedkoopste
+    price numeric not null,
+    seller text, quantity int, language text,
+    date date not null default current_date,  -- wanneer dit is opgehaald, voor de 'bijgewerkt op'-tekst en het ververs-ritme
+    primary key (product_id, rank)
+);
+
 create table if not exists pokemon_interest (   -- Wikipedia-bezoekers per Pokémon (context, nog niet in de berekening)
     dex_id int not null, date date not null, views int,
     primary key (dex_id, date)
@@ -168,9 +177,10 @@ create view v_forecasts with (security_invoker = on) as
 
 drop view if exists v_search;
 create view v_search with (security_invoker = on) as
-    select p.product_id, p.kind, p.name, p.set_name, p.number, p.set_total, p.rarity, p.image,
+    select p.product_id, p.kind, p.name, p.set_name, p.number, p.set_total, p.rarity, p.image, st.release_date,
            lp.price, f.p_up, f.signal
     from products p
+    left join sets st on st.set_id = p.set_id
     left join lateral (
         select price from prices pr
         where pr.product_id = p.product_id and pr.grade_key = 'raw'
@@ -244,6 +254,7 @@ alter table products enable row level security;
 alter table prices enable row level security;
 alter table forecasts enable row level security;
 alter table pokemon_interest enable row level security;
+alter table offers enable row level security;
 alter table forecast_history enable row level security;
 alter table trackrecord_stats enable row level security;
 alter table trackrecord_signals enable row level security;
@@ -258,7 +269,7 @@ alter table watch_folder_items enable row level security;
 do $$
 declare t text;
 begin
-    foreach t in array array['sets','products','prices','forecasts','pokemon_interest','trackrecord_stats','trackrecord_signals'] loop
+    foreach t in array array['sets','products','prices','forecasts','pokemon_interest','trackrecord_stats','trackrecord_signals','offers'] loop
         execute format('drop policy if exists "public read" on %I', t);
         execute format('create policy "public read" on %I for select to anon, authenticated using (true)', t);
     end loop;
@@ -268,7 +279,7 @@ begin
     end loop;
 end $$;
 
-grant select on sets, products, prices, forecasts, pokemon_interest, trackrecord_stats, trackrecord_signals to anon, authenticated;
+grant select on sets, products, prices, forecasts, pokemon_interest, trackrecord_stats, trackrecord_signals, offers to anon, authenticated;
 grant select on v_forecasts, v_search to anon, authenticated;
 grant select on v_collection to authenticated;
 grant select on v_watchlist to authenticated;

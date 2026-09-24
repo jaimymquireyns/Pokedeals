@@ -49,6 +49,20 @@ ATTN_MAX_P_UP = 0.25
 DIGEST_MIN_P_UP = 0.60
 
 # ---- Laagste Near Mint-prijs per kaart (PkmnPrices Pro) ----
+# Cardmarket-commissie (5%) + Trustee Service (1%, het voorzichtige uiteinde van 0,5-1%): samen als vaste veilige aanname.
+DEFAULT_FEE_PCT = 6.0
+# Geschatte verzendkosten, oplopend met de verkoopprijs (Cardmarkets eigen tarieven zijn niet automatisch op te halen).
+SHIP_TIERS = [(5, 1.50), (20, 4.00), (50, 7.00), (150, 10.00), (float("inf"), 15.00)]
+
+
+def ship_cost(price):
+    """Geschatte verzendkosten bij een verkoop van deze waarde."""
+    for limit, cost in SHIP_TIERS:
+        if price <= limit:
+            return cost
+    return SHIP_TIERS[-1][1]
+
+
 PK_TARGETS = 1200          # zoveel kaarten volgen we dagelijks: eerst collectie en prijsmeldingen, dan de beste kansen, dan de duurste
 PK_MAP_PER_RUN = 300       # zoveel nieuwe kaarten per run aan PkmnPrices koppelen (elk zoekopdracht kost credits)
 PK_BUDGET = 72000          # maximaal aantal credits per dag (Pro-plan: 75.000; kleine marge ingebouwd)

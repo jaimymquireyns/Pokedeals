@@ -242,6 +242,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         sealed_history.run(store, pk_client, today, log=log, deadline=deadline)   # krijgt wat de twee taken hierboven nog overlaten
     except Exception as e:
         log(f"! sealed-geschiedenis overgeslagen: {e}")
+    try:
+        import offers
+        offers.run(store, pk_client, today, log=log, deadline=deadline)   # laagste aanbiedingen: helemaal achteraan, profiteert van budget dat vrijkomt
+    except Exception as e:
+        log(f"! laagste aanbiedingen overgeslagen: {e}")
 
 
 def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=None):
