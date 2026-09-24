@@ -8,6 +8,9 @@ on:
       recent:
         description: "Aantal sets om te verversen (klein = snelle test, 500 = alles)"
         default: "500"
+      pk_minutes:
+        description: "Tijdslimiet in minuten voor PkmnPrices (leeg = standaard 4 uur; bijv. 10 voor een snelle test)"
+        default: ""
 
 concurrency:
   group: pokedeals-data
@@ -34,4 +37,4 @@ jobs:
           PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
-        run: python run.py --recent ${{ github.event.inputs.recent || '500' }}
+        run: python run.py --recent ${{ github.event.inputs.recent || '500' }} ${{ github.event.inputs.pk_minutes && format('--pk-minutes {0}', github.event.inputs.pk_minutes) || '' }}
