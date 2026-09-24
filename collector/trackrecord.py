@@ -77,10 +77,19 @@ def resolve(store, today, log=print):
 def backtest(store, today, days=200, step=5, combos=None, log=print):
     """Speelt het model na op historische data: voor elke (product, dag, periode) de kans voorspellen met alleen
     de data tot dan, en vergelijken met wat er echt gebeurde. Dit is de enige praktische manier om lange periodes
-    (3-24 maanden) te controleren zonder daadwerkelijk jaren te wachten."""
+    (3-24 maanden) te controleren zonder daadwerkelijk jaren te wachten.
+    Gebruikt, net als de echte dagelijkse berekening, de eigen Near Mint-geschiedenis als basis voor kaarten die
+    daar genoeg van hebben — anders zou de backtest een kaart op de Cardmarket-trend controleren terwijl de
+    kans die de kaart nu echt te zien krijgt op Near Mint draait, en zegt de uitkomst dus niets over de kans
+    die je daadwerkelijk in de app ziet."""
     combos = combos or (config.GRID + config.LONG_GRID)
     since = (date.fromisoformat(today) - timedelta(days=days)).isoformat()
     rows = store.price_rows(since)
+    nm_by_pid = {}
+    for r in store.price_rows(since, grade_key="nm"):
+        nm_by_pid.setdefault(r["product_id"], []).append({**r, "price": float(r["price"]) if r.get("price") is not None else None})
+    for pid in nm_by_pid:
+        nm_by_pid[pid].sort(key=lambda r: r["date"])
     series_by_pid = {}
     for pid, grp in groupby(rows, key=lambda r: r["product_id"]):
         by_source = {}
@@ -88,7 +97,7 @@ def backtest(store, today, days=200, step=5, combos=None, log=print):
             by_source.setdefault(r["source"], []).append(
                 {**r, "price": float(r["price"]) if r.get("price") is not None else None,
                  "avg1": None, "avg7": None, "avg30": None})
-        series_by_pid[pid] = analysis.series_for(pid, by_source)
+        series_by_pid[pid] = analysis.series_for(pid, by_source, nm_rows=nm_by_pid.get(pid))
 
     all_stats = {}
     for horizon, pct in combos:

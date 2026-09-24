@@ -1087,4 +1087,42 @@ assert n_off_price == 0, "geen prijzen opgeslagen"
 assert store19.products("card")[0]["pk_id"] == "5", "koppelen gebeurt nog gewoon"
 config.NM_REFRESH_PRICE = True
 
+# ============ 29. Geschiedenis-opbouw vraagt niet meer op dan nodig (90 dagen, sneller en goedkoper) ============
+class SpyHistSess:
+    headers = {}
+    def __init__(self):
+        self.seen = []
+    def get(self, url, params=None, timeout=None):
+        self.seen.append(dict(params or {}))
+        return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})
+spy_ch = SpyHistSess()
+store10.upsert_products([{"product_id": "x-9", "kind": "card", "name": "X9", "pk_id": "909"}])
+fake10.t["forecasts"][("x-9", 30, 10)] = {"product_id": "x-9", "horizon_days": 30, "threshold_pct": 10, "price": 50.0, "p_up": 0.5, "p_down": 0.1}
+card_history.run(store10, pkmnprices.PkmnPrices("pk", session=spy_ch), "2026-09-21", log=quiet)
+assert any(p.get("period") == config.HISTORY_PERIOD for p in spy_ch.seen), spy_ch.seen
+
+spy_sh = SpyHistSess()
+store14 = SupabaseStore("https://x.supabase.co", "sb_secret_test", session=FakePostgrest())
+store14.upsert_products([{"product_id": "cm:77", "kind": "sealed", "name": "Box77", "pk_id": "77"}])
+sealed_history.run(store14, pkmnprices.PkmnPrices("pk", session=spy_sh), "2026-09-21", log=quiet)
+assert any(p.get("period") == config.HISTORY_PERIOD for p in spy_sh.seen), spy_sh.seen
+
+# ============ 30. Backtest gebruikt ook de Near Mint-reeks, net als de echte berekening ============
+fake20, store20 = new_store()
+store20.upsert_products([{"product_id": "bt-1", "kind": "card", "name": "BT1"}])
+base20 = date(2026, 3, 1)
+n_days = 150
+nm_bt = [30.0 * math.exp(0.012 * i) for i in range(n_days)]      # duidelijk stijgend
+trend_bt = [30.0 for _ in range(n_days)]                          # vlak, ter vergelijking
+store20.upsert_prices([{"product_id": "bt-1", "date": (base20 + timedelta(days=i)).isoformat(), "source": "pkmnprices",
+                        "grade_key": "nm", "price": nm_bt[i]} for i in range(n_days)])
+store20.upsert_prices([{"product_id": "bt-1", "date": (base20 + timedelta(days=i)).isoformat(), "source": "tcgdex",
+                        "grade_key": "raw", "price": trend_bt[i], "avg1": trend_bt[i], "avg7": trend_bt[i], "avg30": trend_bt[i]} for i in range(n_days)])
+today20 = (base20 + timedelta(days=n_days - 1)).isoformat()
+st_bt = trackrecord.backtest(store20, today20, days=200, step=5, combos=[(30, 10)], log=quiet)
+assert (30, 10) in st_bt, "moet genoeg historie hebben om uitkomsten te geven"
+# bij een duidelijk stijgende NM-reeks horen 'koop'-voorspellingen vaker uit te komen dan bij de vlakke trend ernaast
+bucket = st_bt[(30, 10)].get("all") or st_bt[(30, 10)].get("koop")
+assert bucket and bucket["n"] > 0 and bucket["hits"] / bucket["n"] > 0.5, f"de NM-reeks stijgt duidelijk, dus de meeste voorspellingen zouden moeten uitkomen: {bucket}"
+
 print("alle tests geslaagd")

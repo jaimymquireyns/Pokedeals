@@ -7,10 +7,12 @@ import os
 import time
 from datetime import date, timedelta
 
+import config
+
 from pkmnprices import PkmnPrices
 from store import SupabaseStore
 
-BACKFILLED_ENOUGH_DAYS = 60   # heeft een product al oudere prijzen dan dit, dan hoeft de historie niet opnieuw
+BACKFILLED_ENOUGH_DAYS = 60   # ruim onder de 90 dagen die we opvragen, anders blijft een sealed product net-niet 'genoeg' hebben
 
 
 def _num(x):
@@ -61,7 +63,7 @@ def run(store, pk, today, log=print, limit=10_000, deadline=None):
             log("Tijdslimiet van deze run bereikt. De rest volgt een volgende keer.")
             break
         try:
-            data = pk.list_all(f"/sealed/{p['pk_id']}/prices/history", {"currency": "eur"}, per_page=100)
+            data = pk.list_all(f"/sealed/{p['pk_id']}/prices/history", {"currency": "eur", "period": config.HISTORY_PERIOD}, per_page=100)
         except Exception as e:
             log(f"  {p['name']}: {e}")
             continue

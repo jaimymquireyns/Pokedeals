@@ -8,11 +8,12 @@ import os
 import time
 from datetime import date, timedelta
 
+import config
 import nm
 from pkmnprices import PkmnPrices
 from store import SupabaseStore
 
-BACKFILLED_ENOUGH_DAYS = 60
+BACKFILLED_ENOUGH_DAYS = 60   # ruim onder de 90 dagen die we opvragen, anders blijft een kaart net-niet 'genoeg' hebben en wordt hij steeds opnieuw opgehaald
 
 
 def _chunks(xs, n):
@@ -89,7 +90,7 @@ def run(store, pk, today, log=print, deadline=None):
             break
         p = products[pid]
         try:
-            data = pk.list_all(f"/cards/{p['pk_id']}/prices/history", {"currency": "eur", "condition": "Near Mint"}, per_page=100)
+            data = pk.list_all(f"/cards/{p['pk_id']}/prices/history", {"currency": "eur", "condition": "Near Mint", "period": config.HISTORY_PERIOD}, per_page=100)
         except Exception as e:
             log(f"  {p['name']}: {e}")
             continue
