@@ -104,8 +104,11 @@ def extra_targets(fc, exclude, cap=20_000):
     return order
 
 
-def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, deadline=None):
-    """Koppelt nog niet-gekoppelde kaarten uit 'targets' aan PkmnPrices en ververst hun Near Mint-prijs.
+def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, deadline=None, refresh_price=True):
+    """Koppelt nog niet-gekoppelde kaarten uit 'targets' aan PkmnPrices en ververst (als refresh_price=True) hun
+    Near Mint-prijs. refresh_price=False slaat het verversen over maar koppelt gewoon door, voor als de actuele
+    prijs zelf even kan wachten (bijv. tijdens het opbouwen van geschiedenis) maar nieuwe kaarten wel gekoppeld
+    moeten blijven worden, want dat is een voorwaarde voor card_history.py.
     Slaat kaarten over die vandaag al een NM-prijs kregen (bijv. door een eerdere taak dezelfde dag), zodat een
     late 'maak het dagbudget op'-taak niet dezelfde kaarten herhaalt maar verder komt in de lijst.
     Slaat tussentijds op (elke 'flush_every' kaarten), zodat een haperende verbinding verderop niet de opgehaalde
@@ -148,6 +151,8 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
         store.upsert_products(new_links)
 
     all_rows, examples = [], []
+    if not refresh_price:
+        return mapped, failed, all_rows, examples
     try:
         price_now = {f["product_id"]: float(f["price"]) for f in store.select(
             "forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})}
@@ -190,12 +195,13 @@ def run(store, pk, today, log=print, limit=None, deadline=None):
     targets, fc = pick_targets(store, limit)
     products = {p["product_id"]: p for p in store.products("card")}   # 1x opgehaald, hieronder hergebruikt (voorkomt een tweede trage aanvraag)
     already = sum(1 for pid in targets if products.get(pid, {}).get("pk_id"))
-    log(f"NM-prijzen: {len(targets)} kaarten in de vaste lijst, {already} al gekoppeld")
+    log(f"NM-prijzen: {len(targets)} kaarten in de vaste lijst, {already} al gekoppeld"
+        + ("" if config.NM_REFRESH_PRICE else " (verversen staat tijdelijk uit; koppelen gaat wel door voor de geschiedenis-opbouw)"))
 
-    mapped, failed, rows, examples = _map_and_refresh(store, pk, today, targets, products, log, deadline=deadline)
+    mapped, failed, rows, examples = _map_and_refresh(store, pk, today, targets, products, log, deadline=deadline, refresh_price=config.NM_REFRESH_PRICE)
     log(f"Vaste lijst: {mapped} nieuw gekoppeld, {failed} niet gevonden, {len(rows)} prijzen opgeslagen ({pk.credits} credits tot nu toe)")
 
-    if not pk.over_budget() and not (deadline and time.time() >= deadline):
+    if config.NM_WIDEN_EXTRA and not pk.over_budget() and not (deadline and time.time() >= deadline):
         extra = extra_targets(fc, exclude=set(targets))
         if extra:
             log(f"Nog budget over: {len(extra)} extra kaarten (buiten de vaste lijst) worden ook meegenomen, duurste eerst")

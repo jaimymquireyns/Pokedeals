@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import alerts
 import analysis
 import config
+config.NM_REFRESH_PRICE = True   # de meeste tests hieronder testen het ververs-mechanisme zelf; zie de aparte test voor de uit-stand (config.NM_REFRESH_PRICE = False, de huidige standaard)
 import features
 import ppt
 import providers
@@ -718,8 +719,19 @@ class WideSess:
         return PkResp({"data": {"id": 1, "prices": [{"source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "variant": "Normal", "market_price": 9.0}]}})
 ws = WideSess()
 pk6 = pkmnprices.PkmnPrices("pk_x", session=ws, budget=1000)   # ruim budget: de vaste lijst (limit=2) mag niet de stopreden zijn
-n = nm.run(store6, pk6, "2026-09-21", log=quiet, limit=2)
-assert n == 5, "met budget over worden ook kaarten buiten de vaste lijst (limit=2) van een NM-prijs voorzien"
+config.NM_WIDEN_EXTRA = True   # standaard nu uit (geschiedenis-opbouw krijgt voorrang); hier expliciet aanzetten om het mechanisme zelf te testen
+try:
+    n = nm.run(store6, pk6, "2026-09-21", log=quiet, limit=2)
+finally:
+    config.NM_WIDEN_EXTRA = False
+assert n == 5, "met budget over worden ook kaarten buiten de vaste lijst (limit=2) van een NM-prijs voorzien, als NM_WIDEN_EXTRA aanstaat"
+
+fake6b, store6b = new_store()
+store6b.upsert_products(cards6)
+for i, pid in enumerate(f["product_id"] for f in cards6):
+    fake6b.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+n_default = nm.run(store6b, pkmnprices.PkmnPrices("pk_x", session=WideSess(), budget=1000), "2026-09-21", log=quiet, limit=2)
+assert n_default == 2, "standaard (NM_WIDEN_EXTRA uit): alleen de vaste lijst, niet breder koppelen"
 assert all(("e-%d" % i, "2026-09-21", "pkmnprices", "nm") in fake6.t["prices"] for i in range(5))
 
 # gedeeld budget: NM eerst, sealed-geschiedenis krijgt alleen nog over wat NM overliet
@@ -1057,5 +1069,22 @@ class SimpleSess:
 n_resilient = nm.run(store18b, pkmnprices.PkmnPrices("pk", session=SimpleSess()), "2026-09-21", log=quiet, limit=1)
 assert n_resilient == 1, "de 'wie is al gedaan'-controle faalt, maar de rest van de taak gaat gewoon door"
 assert ("r-1", "2026-09-21", "pkmnprices", "nm") in fake18.t["prices"]
+
+# ============ 28. NM_REFRESH_PRICE uit (de standaard): koppelen gaat door, verversen niet ============
+fake19, store19 = new_store()
+store19.upsert_products([{"product_id": "s-1", "kind": "card", "name": "S1", "number": "1", "set_name": "S", "set_total": 1}])
+fake19.t["forecasts"][("s-1", 30, 10)] = {"product_id": "s-1", "horizon_days": 30, "threshold_pct": 10, "price": 20.0, "p_up": 0.5, "p_down": 0.1}
+class OffSess2:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        if path == "/cards":
+            return PkResp({"data": [{"id": 5, "number": "1", "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        raise AssertionError("bij NM_REFRESH_PRICE=False hoort de prijs zelf niet te worden opgevraagd")
+config.NM_REFRESH_PRICE = False
+n_off_price = nm.run(store19, pkmnprices.PkmnPrices("pk", session=OffSess2()), "2026-09-21", log=quiet, limit=1)
+assert n_off_price == 0, "geen prijzen opgeslagen"
+assert store19.products("card")[0]["pk_id"] == "5", "koppelen gebeurt nog gewoon"
+config.NM_REFRESH_PRICE = True
 
 print("alle tests geslaagd")
