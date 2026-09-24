@@ -975,4 +975,37 @@ finally:
 saved15 = [k for k in fake15.t["prices"] if k[2] == "pkmnprices" and k[3] == "nm"]
 assert 0 < len(saved15) < 10, f"moet halverwege stoppen op de deadline, niet alles of niets: {saved15}"
 
+# ============ 25. Een muur van 429's: snel opgeven in plaats van uren blijven proberen ============
+class WallSess:
+    """Geeft altijd 429, alsof het dagbudget bij PkmnPrices al op is."""
+    headers = {}
+    def __init__(self):
+        self.calls = 0
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        return PkResp({"error": "rate limited"}, status=429)
+wall = WallSess()
+pk_wall = pkmnprices.PkmnPrices("pk", session=wall, budget=100000)
+tries = 0
+for _ in range(6):
+    try:
+        pk_wall.call("/cards", {"name": "x"})
+    except RuntimeError:
+        tries += 1
+    if pk_wall.over_budget():
+        break
+assert pk_wall.blocked, "na een paar 429's achter elkaar (verschillende kaarten) moet de client zichzelf blokkeren"
+assert tries <= 3, f"hoort na hooguit een paar mislukte pogingen te stoppen, niet {tries}"
+assert wall.calls <= 6, f"elke mislukte poging mag maar 2 verzoeken kosten (1 herhaling), niet meer: {wall.calls} verzoeken voor {tries} pogingen"
+
+# in nm.run() vertaalt dit zich naar: snel stoppen met de hele lijst, niet elke resterende kaart apart blijven proberen
+fake16, store16 = new_store()
+cards16 = [{"product_id": f"g-{i}", "kind": "card", "name": f"G{i}", "number": "1", "set_name": "S", "set_total": 1} for i in range(20)]
+store16.upsert_products(cards16)
+for i, pid in enumerate(c["product_id"] for c in cards16):
+    fake16.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
+wall2 = WallSess()
+nm.run(store16, pkmnprices.PkmnPrices("pk", session=wall2, budget=100000), "2026-09-21", log=quiet, limit=20)
+assert wall2.calls < 20 * 2, f"stopt ruim voor alle 20 kaarten apart geprobeerd zijn: {wall2.calls} verzoeken"
+
 print("alle tests geslaagd")

@@ -244,7 +244,7 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         log(f"! sealed-geschiedenis overgeslagen: {e}")
 
 
-def daily(store, tcg, ppt, sender, today, set_ids, log=print):
+def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=None):
     import alerts
     import features
     import fx as fxmod
@@ -267,7 +267,7 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print):
         build_forecasts(store, today, log=log, combos=config.LONG_GRID)
     else:
         log("Lange periodes (3-24 maanden) worden alleen op maandag herberekend; vandaag overgeslagen.")
-    spend_pkmn_credits(store, today, log=log)
+    spend_pkmn_credits(store, today, log=log, time_budget=pk_time_budget)
     trackrecord.resolve(store, today, log=log)
     if date.fromisoformat(today).weekday() == 0:   # maandag: ook de backtest bijwerken (dekt alle periodes, ook de lange)
         try:
@@ -297,6 +297,7 @@ def main():
     ap.add_argument("--probe-ppt", action="store_true", help="test de gegevensbronnen (Cardmarket en PokemonPriceTracker)")
     ap.add_argument("--credits-only", action="store_true",
                     help="alleen NM-prijzen en sealed-geschiedenis (PkmnPrices); voor een korte, late taak die overgebleven dagcredits nog benut")
+    ap.add_argument("--pk-minutes", type=int, help="tijdslimiet in minuten voor de PkmnPrices-onderdelen (standaard 4 uur); handig om snel te testen zonder er lang op te wachten")
     args = ap.parse_args()
 
     tcg = TCGdex()
@@ -340,7 +341,7 @@ def main():
     set_ids = args.sets or (newest_sets(tcg, store, args.recent) if args.recent else None)
     if not set_ids:
         ap.error("kies --sets of --recent")
-    daily(store, tcg, ppt, make_sender(), today, set_ids)
+    daily(store, tcg, ppt, make_sender(), today, set_ids, pk_time_budget=args.pk_minutes * 60 if args.pk_minutes else None)
 
 
 if __name__ == "__main__":

@@ -17,14 +17,20 @@ class PkmnPrices:
         self.s.headers.update({"X-API-Key": key, "User-Agent": "pokedeals/2.0"})
         self.credits = 0           # credits die deze run heeft verbruikt (er wordt per teruggegeven rij gerekend)
         self.budget = budget
+        self.blocked = False       # blijft 429 komen bij verschillende kaarten achter elkaar? Dan is het dagbudget
+                                    # bij PkmnPrices zelf waarschijnlijk op; verder aandringen heeft dan geen zin.
+        self._consecutive_429 = 0
         self._last = 0.0
 
     def over_budget(self):
-        return self.credits >= self.budget
+        return self.credits >= self.budget or self.blocked
 
     def call(self, path, params=None):
-        """Eén verzoek met wachttijd (60 per minuut), telt credits en probeert het opnieuw bij 429. Geeft de 'data' terug."""
-        for _ in range(4):
+        """Eén verzoek met wachttijd (60 per minuut). Bij een 429 wordt het na een korte pauze nog één keer
+        geprobeerd. Gebeurt dat een paar keer na elkaar, ook bij andere kaarten, dan is verder aandringen zinloos
+        (dagbudget op) en stopt de hele taak voor vandaag via 'blocked', in plaats van tegen een dichte deur aan
+        te blijven proberen totdat de tijd of het lokale creditbudget op is."""
+        for attempt in range(2):
             wait = MIN_INTERVAL - (time.time() - self._last)
             if wait > 0:
                 time.sleep(wait)
@@ -35,12 +41,17 @@ class PkmnPrices:
             except (TypeError, ValueError):
                 pass
             if status == 429:
-                time.sleep(15)
-                continue
+                if attempt == 0:
+                    time.sleep(5)
+                    continue
+                self._consecutive_429 += 1
+                if self._consecutive_429 >= 3:
+                    self.blocked = True
+                raise RuntimeError(f"PkmnPrices {path}: 429 (te snel, of het dagbudget bij PkmnPrices is op)")
+            self._consecutive_429 = 0
             if status >= 400:
                 raise RuntimeError(f"PkmnPrices {path}: {status} {str(body)[:160]}")
             return body
-        raise RuntimeError(f"PkmnPrices {path}: blijft 429 geven")
 
     def list_all(self, path, params=None, per_page=100, max_pages=200):
         """Alle pagina's van een lijst (kosten: één credit per teruggegeven rij)."""
