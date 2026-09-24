@@ -322,7 +322,7 @@ def main():
             pkmnprices.probe(pkmnprices.PkmnPrices(os.environ["PKMN_API_KEY"]), guide)
         else:
             print("\n(geen PKMN_API_KEY: PkmnPrices-test overgeslagen)")
-        if ppt and os.environ.get("PROBE_PPT") == "1":
+        if ppt:
             print()
             ppt.probe()
         return
