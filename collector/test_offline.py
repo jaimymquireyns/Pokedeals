@@ -1166,4 +1166,16 @@ first_kans = next(i for i, o in enumerate(prio.order) if "Kansenkaart" in o)
 assert first_col < first_kans, "de collectiekaart moet vóór de kansenkaart aan de beurt komen, over alle taken heen"
 assert ("col-1", "2026-08-01", "pkmnprices", "nm") in fake21.t["prices"], "de collectiekaart heeft ook echt geschiedenis gekregen"
 
+# ============ 32. "Eigen collectie eerst" logt altijd, ook als er niets bruikbaars overblijft ============
+fake22, store22 = new_store()
+os.environ["PKMN_API_KEY"] = "pk_diag"
+fake22.post("https://x/rest/v1/collection", json=[{"id": "cx", "user_id": "u1", "product_id": "cm:onbekend", "quantity": 1, "purchase_price": 5.0, "purchase_date": "2026-06-01"}])
+logged = []
+try:
+    run.spend_pkmn_credits(store22, "2026-09-21", log=logged.append)
+finally:
+    del os.environ["PKMN_API_KEY"]
+assert any("Eigen collectie eerst" in l for l in logged), "moet altijd loggen, ook als er niets overblijft (hier: een sealed product, geen kaart)"
+assert any("0 daarvan zijn kaarten" in l for l in logged), logged
+
 print("alle tests geslaagd")
