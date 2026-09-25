@@ -14,7 +14,7 @@ const stat = (k, v, s, cls = "") => h("div", { class: "stat" }, h("div", { class
 export async function detailView(root, pid, cid) {
   root.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
   const s = getSettings();
-  let p, c = null, fcRows = [], hist = [], al = null, nmRow = null, watchId = null, offerRows = [];
+  let p, c = null, fcRows = [], hist = [], nmHist = [], al = null, nmRow = null, watchId = null, offerRows = [];
   try {
     const owned = cid ? rest.get(`v_collection?select=*&id=eq.${enc(cid)}`).then((r) => r[0] || null) : Promise.resolve(null);
     [p, c, fcRows] = await Promise.all([
@@ -23,7 +23,10 @@ export async function detailView(root, pid, cid) {
     if (!p) throw new Error("onbekend product");
     const gk = c ? gradeKey(c) : "raw";
     hist = await rest.get(`prices?select=date,price,source&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&order=date.asc&limit=1000`);
-    if (gk === "raw") nmRow = (await rest.get(`prices?select=date,price&product_id=eq.${enc(pid)}&grade_key=eq.nm&order=date.desc&limit=1`).catch(() => []))[0] || null;
+    if (gk === "raw") {
+      nmRow = (await rest.get(`prices?select=date,price&product_id=eq.${enc(pid)}&grade_key=eq.nm&order=date.desc&limit=1`).catch(() => []))[0] || null;
+      nmHist = await rest.get(`prices?select=date,price,source&product_id=eq.${enc(pid)}&grade_key=eq.nm&order=date.asc&limit=1000`).catch(() => []);
+    }
     if (p.kind === "card" && gk === "raw") offerRows = await rest.get(`offers?select=*&product_id=eq.${enc(pid)}&order=rank.asc`).catch(() => []);
     if (isLoggedIn()) {
       al = (await rest.get(`alerts?select=*&product_id=eq.${enc(pid)}&grade_key=eq.${enc(gk)}&limit=1`))[0] || null;
@@ -148,16 +151,22 @@ export async function detailView(root, pid, cid) {
   drawChance();
 
   // ---- grafiek ----
-  const chartSec = h("div", { class: "sec" }, h("h3", { text: c ? "Prijs sinds aankoop" : "Prijsverloop" }));
-  const bySrc = {};
-  for (const r of hist) (bySrc[r.source] ||= []).push(r);
-  const src = (bySrc.tcgdex?.length || 0) >= 5 ? "tcgdex" : (Object.keys(bySrc).sort((a, b) => bySrc[b].length - bySrc[a].length)[0]);
-  let rows = (bySrc[src] || []);
-  if (c) { const from = c.purchase_date; const after = rows.filter((r) => r.date >= from); if (after.length >= 2) rows = after; }
+  const chartSec = h("div", { class: "sec" }, h("h3", { text: "Prijsverloop" }));
+  const useNm = nmHist.length >= 10;   // zelfde grens als het model: genoeg Near Mint-geschiedenis om als basis te gebruiken
+  let rows, src;
+  if (useNm) {
+    rows = nmHist; src = "pkmnprices";
+  } else {
+    const bySrc = {};
+    for (const r of hist) (bySrc[r.source] ||= []).push(r);
+    src = (bySrc.tcgdex?.length || 0) >= 5 ? "tcgdex" : (Object.keys(bySrc).sort((a, b) => bySrc[b].length - bySrc[a].length)[0]);
+    rows = bySrc[src] || [];
+  }
   if (rows.length >= 2) {
     chartSec.append(lineChart({ series: [{ pts: rows.map((r) => [new Date(r.date + "T00:00:00Z").getTime(), Number(r.price)]), stroke: "var(--up)" }],
       hlines: c ? [{ y: Number(c.purchase_price), label: `Aankoop ${eur(Number(c.purchase_price))}` }] : [], label: "Prijsverloop" }));
-    if (src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "Historie van TCGplayer (omgerekend naar euro). Onze eigen Cardmarket-metingen bouwen zich op." }));
+    if (useNm) chartSec.append(h("p", { class: "mini", text: "Op basis van de eigen Near Mint-prijsgeschiedenis van deze kaart, niet de gemengde Cardmarket-trend." }));
+    else if (src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "Historie van TCGplayer (omgerekend naar euro). Onze eigen Cardmarket-metingen bouwen zich op." }));
   } else chartSec.append(h("p", { class: "p14 muted", text: "Nog te weinig prijsgeschiedenis voor een grafiek." }));
 
   // ---- prijsmelding ----
