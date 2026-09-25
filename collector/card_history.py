@@ -72,8 +72,10 @@ def candidates(store):
     return order
 
 
-def run(store, pk, today, log=print, deadline=None):
-    order = candidates(store)
+def run(store, pk, today, log=print, deadline=None, only=None):
+    """only: als je maar een specifieke, kleine lijst kaarten wilt (bijv. alleen je collectie, als eerste
+    prioriteitsronde), geef die dan hier mee in plaats van de volledige prioriteitslijst te gebruiken."""
+    order = only if only is not None else candidates(store)
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
     order = [pid for pid in order if pid in products]
     done_already = already_backfilled(store, order, today)

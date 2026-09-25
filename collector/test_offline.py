@@ -1125,4 +1125,45 @@ assert (30, 10) in st_bt, "moet genoeg historie hebben om uitkomsten te geven"
 bucket = st_bt[(30, 10)].get("all") or st_bt[(30, 10)].get("koop")
 assert bucket and bucket["n"] > 0 and bucket["hits"] / bucket["n"] > 0.5, f"de NM-reeks stijgt duidelijk, dus de meeste voorspellingen zouden moeten uitkomen: {bucket}"
 
+# ============ 31. Eigen collectie krijgt echt voorrang op alle PkmnPrices-taken samen ============
+fake21, store21 = new_store()
+os.environ["PKMN_API_KEY"] = "pk_prio"
+store21.upsert_products([{"product_id": "col-1", "kind": "card", "name": "Collectiekaart", "number": "1", "set_name": "S", "set_total": 1},
+                         {"product_id": "kans-1", "kind": "card", "name": "Kansenkaart", "number": "2", "set_name": "S", "set_total": 1}])
+store21.upsert_collection = None  # (geen helper, direct via post)
+fake21.post("https://x/rest/v1/collection", json=[{"id": "c1", "user_id": "u1", "product_id": "col-1", "quantity": 1, "purchase_price": 10.0, "purchase_date": "2026-06-01"}])
+fake21.t["forecasts"][("kans-1", 30, 10)] = {"product_id": "kans-1", "horizon_days": 30, "threshold_pct": 10, "price": 20.0, "p_up": 0.9, "p_down": 0.05}
+
+class PrioSess:
+    headers = {}
+    def __init__(self):
+        self.order = []
+    def get(self, url, params=None, timeout=None):
+        path = url.replace(pkmnprices.BASE, "")
+        pid = (params or {}).get("name") or url
+        self.order.append(pid)
+        if path == "/cards":
+            num = "1" if "Collectie" in params["name"] else "2"
+            return PkResp({"data": [{"id": 1, "number": num, "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
+        if "prices/history" in path:
+            return PkResp({"data": [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 5.0}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": []}})
+prio = PrioSess()
+import importlib
+importlib.reload(run)
+import pkmnprices as pkmod
+real_pk = pkmod.PkmnPrices
+pkmod.PkmnPrices = lambda key, budget=None: real_pk(key, session=prio, budget=budget)
+try:
+    run.spend_pkmn_credits(store21, "2026-09-21", log=quiet)
+finally:
+    pkmod.PkmnPrices = real_pk
+    del os.environ["PKMN_API_KEY"]
+assert any("Collectiekaart" in o for o in prio.order), prio.order
+assert any("Kansenkaart" in o for o in prio.order)
+first_col = next(i for i, o in enumerate(prio.order) if "Collectiekaart" in o)
+first_kans = next(i for i, o in enumerate(prio.order) if "Kansenkaart" in o)
+assert first_col < first_kans, "de collectiekaart moet vóór de kansenkaart aan de beurt komen, over alle taken heen"
+assert ("col-1", "2026-08-01", "pkmnprices", "nm") in fake21.t["prices"], "de collectiekaart heeft ook echt geschiedenis gekregen"
+
 print("alle tests geslaagd")

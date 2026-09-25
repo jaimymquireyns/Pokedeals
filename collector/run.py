@@ -229,6 +229,19 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     pk_client = PkmnPrices(os.environ["PKMN_API_KEY"], budget=config.PK_BUDGET)
     try:
         import nm
+        import card_history
+        core = nm.core_ids(store)   # eigen collectie + prijsmeldingen: eerste, kleine prioriteitsronde vóór al het andere
+        if core:
+            core_products = {p["product_id"]: p for p in store.products("card") if p["product_id"] in set(core)}
+            core_cards = [pid for pid in core if pid in core_products]
+            if core_cards:
+                log(f"Eigen collectie eerst: {len(core_cards)} kaarten koppelen en van geschiedenis voorzien, vóór de rest.")
+                nm._map_and_refresh(store, pk_client, today, core_cards, core_products, log, deadline=deadline, refresh_price=config.NM_REFRESH_PRICE)
+                card_history.run(store, pk_client, today, log=log, deadline=deadline, only=core_cards)
+    except Exception as e:
+        log(f"! eigen collectie eerst overgeslagen: {e}")
+    try:
+        import nm
         nm.run(store, pk_client, today, log=log, deadline=deadline)
     except Exception as e:  # de actuele NM-prijs is het belangrijkst, dus die gaat als eerste
         log(f"! NM-prijzen overgeslagen: {e}")

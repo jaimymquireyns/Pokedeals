@@ -64,6 +64,24 @@ def find_card(pk, product):
     return str(hit["id"]) if hit else None
 
 
+def core_ids(store):
+    """Alleen collectie en prijsmeldingen, zonder de kansen/prijs-staart erachteraan. Voor een eerste, kleine
+    prioriteitsronde die vóór al het andere gaat: je eigen kaarten zijn als eerste aan de beurt, wat er ook nog
+    aan budget overblijft voor de rest."""
+    order, seen = [], set()
+
+    def add(pid):
+        if pid and ":" not in pid and pid not in seen:
+            seen.add(pid)
+            order.append(pid)
+
+    for c in store.select("collection", {"select": "product_id"}):
+        add(c["product_id"])
+    for a in store.select("alerts", {"select": "product_id", "active": "eq.true"}):
+        add(a["product_id"])
+    return order
+
+
 def pick_targets(store, limit, fc=None):
     """Volgorde: collectie en prijsmeldingen, dan de beste kansen, dan de duurste kaarten."""
     order, seen = [], set()
