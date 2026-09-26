@@ -67,8 +67,10 @@ def parse_offers(product_id, rows, today, limit=LIMIT):
     return out
 
 
-def run(store, pk, today, log=print, deadline=None):
-    cands = candidates(store)
+def run(store, pk, today, log=print, deadline=None, only=None):
+    """only: als je maar een specifieke, kleine lijst kaarten wilt (bijv. alleen je collectie, als eerste
+    prioriteitsronde), geef die dan hier mee in plaats van de volledige prioriteitslijst te gebruiken."""
+    cands = only if only is not None else candidates(store)
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
     cands = [pid for pid in cands if pid in products]
     todo = stale(store, cands, today)

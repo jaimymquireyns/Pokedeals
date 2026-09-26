@@ -935,7 +935,7 @@ spy = SpySess()
 nm.find_card(pkmnprices.PkmnPrices("pk", session=spy), {"name": "Charizard ex", "number": "125", "set_name": "S"})
 assert spy.seen[0]["number"] == "125" and spy.seen[0]["per_page"] == 15, spy.seen[0]
 assert len(spy.seen) == 1, "max_pages=1: er wordt geen 2e pagina meer opgehaald, ook al zijn er meer beschikbaar"
-assert config.PK_BUDGET >= 70000, "dagbudget hoort op het betaalde Pro-plan (75.000) afgestemd te zijn"
+assert config.PK_BUDGET <= 60000, "dagbudget van de geplande taken blijft bewust onder het echte Pro-plan (75.000), zodat er credits overblijven om zelf mee te testen"
 
 # ============ 22. extra_targets: een kaart met meerdere periodes komt maar 1x in de lijst ============
 fc_multi = [{"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0},
@@ -1147,6 +1147,8 @@ class PrioSess:
             return PkResp({"data": [{"id": 1, "number": num, "set": {"name": "S"}}], "pagination": {"page": 1, "total_pages": 1}})
         if "prices/history" in path:
             return PkResp({"data": [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 5.0}], "pagination": {"page": 1, "total_pages": 1}})
+        if "listings/cardmarket" in path:
+            return PkResp({"data": [{"price": 9.5, "condition": "Near Mint", "seller": "iemand", "quantity": 1, "language": "EN"}], "pagination": {"page": 1, "total_pages": 1}})
         return PkResp({"data": {"id": 1, "prices": []}})
 prio = PrioSess()
 import importlib
@@ -1165,6 +1167,7 @@ first_col = next(i for i, o in enumerate(prio.order) if "Collectiekaart" in o)
 first_kans = next(i for i, o in enumerate(prio.order) if "Kansenkaart" in o)
 assert first_col < first_kans, "de collectiekaart moet vóór de kansenkaart aan de beurt komen, over alle taken heen"
 assert ("col-1", "2026-08-01", "pkmnprices", "nm") in fake21.t["prices"], "de collectiekaart heeft ook echt geschiedenis gekregen"
+assert ("col-1", 1) in fake21.t["offers"], "de collectiekaart heeft in dezelfde eerste ronde ook laagste aanbiedingen gekregen"
 
 # ============ 32. "Eigen collectie eerst" logt altijd, ook als er niets bruikbaars overblijft ============
 fake22, store22 = new_store()

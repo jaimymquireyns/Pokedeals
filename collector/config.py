@@ -68,6 +68,6 @@ PK_MAP_PER_RUN = 300       # zoveel nieuwe kaarten per run aan PkmnPrices koppel
 NM_WIDEN_EXTRA = False     # tijdelijk uit: eerst de Near Mint-geschiedenis van de vaste lijst opbouwen, dan pas breder koppelen
 NM_REFRESH_PRICE = False   # tijdelijk uit: de dagelijkse actuele NM-prijs kan wachten; koppelen blijft wel aan, dat voedt de geschiedenis-opbouw
 HISTORY_PERIOD = "90d"     # hoever de eenmalige geschiedenis-opbouw terugkijkt: zonder limiet vraagt de API blijkbaar veel meer op dan nodig (en dus duurder/trager)
-PK_BUDGET = 72000          # maximaal aantal credits per dag (Pro-plan: 75.000; kleine marge ingebouwd)
+PK_BUDGET = 50000          # maximaal aantal credits per dag dat de geplande taken zelf gebruiken (Pro-plan: 75.000; de rest blijft bewust ongebruikt om zelf mee te kunnen testen)
 PK_TIME_BUDGET = 4 * 3600         # dagelijkse update: stopt zelf na 4 uur, ruim binnen de 5 uur die GitHub Actions daarvoor krijgt
 PK_CREDITS_ONLY_TIME_BUDGET = 50 * 60  # late 'credits opmaken'-taak: die heeft zelf maar 1 uur van GitHub, dus stopt na 50 minuten
