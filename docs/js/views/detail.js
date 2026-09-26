@@ -36,7 +36,11 @@ export async function detailView(root, pid, cid) {
 
   const gk = c ? gradeKey(c) : "raw";
   const num2 = (x) => (x == null ? null : Number(x));
-  const price = c ? num2(c.value_each) : num2(p.price);
+  const trendPrice = c ? num2(c.value_each) : num2(p.price);
+  const offerAvg = offerRows.length ? offerRows.reduce((s, o) => s + Number(o.price), 0) / offerRows.length : null;
+  // "Waarde nu"/"Winst" en de winstgrens gebruiken voortaan het gemiddelde van de laagste 5 actuele aanbiedingen
+  // als dat er is (realistischer dan de trendprijs, die bij weinig verkopen ver van de echte markt kan liggen).
+  const price = offerAvg ?? trendPrice;
   const graded = gk !== "raw";
   const fcByKey = new Map(fcRows.map((r) => [`${r.horizon_days}-${r.threshold_pct}`, r]));
   const toFx = (r) => r && { ...r, price: Number(r.price), p_up: Number(r.p_up), p_down: Number(r.p_down), exp: Number(r.exp_change), avg7: num2(r.avg7), avg30: num2(r.avg30), mom30: num2(r.mom30), sigma: num2(r.sigma) };
@@ -59,7 +63,8 @@ export async function detailView(root, pid, cid) {
   const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed"),
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null),
-      h("div", { class: "big num", text: price ? eur(price) : "Geen prijs" })));
+      h("div", { class: "big num", text: price ? eur(price) : "Geen prijs" }),
+      offerAvg != null ? h("p", { class: "mini", text: `Gemiddelde van de ${offerRows.length} laagste actuele aanbiedingen (Near Mint). Trendprijs ter vergelijking: ${eur(trendPrice)}.` }) : null));
 
   // ---- identificatie: zeldzaamheid, uitgiftedatum, taal ----
   const idBits = [p.kind === "card" && p.rarity ? ["Zeldzaamheid", p.rarity] : null,
@@ -75,7 +80,7 @@ export async function detailView(root, pid, cid) {
       stat("Waarde nu", price ? eur(price * c.quantity) : "–", price ? `${eur(price)} per stuk` : "prijs onbekend"),
       stat("Winst", total == null ? "–" : signedEur(total), price ? signed(price / Number(c.purchase_price) - 1, 1) : "", total != null && total < 0 ? "neg" : "pos"));
   } else {
-    stats = h("div", { class: "stats" }, stat("Trendprijs", price ? eur(price) : "–", "Cardmarket-gemiddelde"), stat("Gem. 7 dagen", fx?.avg7 ? eur(fx.avg7) : "–"), stat("Gem. 30 dagen", fx?.avg30 ? eur(fx.avg30) : "–"));
+    stats = h("div", { class: "stats" }, stat("Trendprijs", trendPrice ? eur(trendPrice) : "–", "Cardmarket-gemiddelde"), stat("Gem. 7 dagen", fx?.avg7 ? eur(fx.avg7) : "–"), stat("Gem. 30 dagen", fx?.avg30 ? eur(fx.avg30) : "–"));
   }
 
   // ---- winstgrens: welke verkoopprijs is nodig om quitte te spelen, na commissie en verzendkosten ----
