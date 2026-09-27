@@ -5,9 +5,40 @@ import { openScan } from "../scan.js";
 import { debounce, eur, h, icon, openSheet, closeSheet, segment, thumb, toast } from "../ui.js";
 
 let state = { q: "", kind: "alles" };
+let setsCache = null;   // {set_id, name}[], 1x opgehaald, klein genoeg om in het geheugen te houden
+
+const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const looksLikeNumber = (w) => /\d/.test(w) && /^[a-z]{0,3}\d{1,4}[a-z]{0,2}$/i.test(w);
+
+async function getSets() {
+  if (!setsCache) setsCache = await rest.get("sets?select=set_id,name").catch(() => []);
+  return setsCache;
+}
+
+/** Splitst de zoektekst in: kaartnummer (laatste woord, als het op een nummer lijkt), een setnaam (een stuk van de
+ * tekst dat overeenkomt met een echte set uit onze eigen sets-tabel — geen los lijstje afkortingen, dus dit werkt
+ * voor de hele catalogus, niet alleen recente sets), en de rest als naam. Typ je bijvoorbeeld "charizard 30th 4",
+ * dan wordt "30th" herkend als (deel van) de set "30th Celebration" en "4" als kaartnummer. Een verzonnen
+ * afkorting die nergens in de echte setnaam voorkomt, kan hierdoor niet worden herkend. */
+function parseQuery(raw, sets) {
+  const words = norm(raw).split(/\s+/).filter(Boolean);
+  let number = null;
+  if (words.length > 1 && looksLikeNumber(words[words.length - 1])) number = words.pop();
+
+  let setMatch = null, setStart = -1;
+  for (let start = 0; start < words.length && !setMatch; start++) {
+    for (let end = words.length; end > start; end--) {
+      const phrase = words.slice(start, end).join(" ");
+      if (phrase.length < 3) continue;
+      const hit = sets.find((s) => norm(s.set_id) === phrase || norm(s.name) === phrase || norm(s.name).includes(phrase));
+      if (hit) { setMatch = hit; setStart = start; words.splice(start, end - start); break; }
+    }
+  }
+  return { nameWords: words, number, setName: setMatch?.name || null };
+}
 
 export async function searchView(root) {
-  const input = h("input", { type: "search", placeholder: "Zoek kaart, sealed of set", value: state.q, "aria-label": "Zoeken", autocomplete: "off" });
+  const input = h("input", { type: "search", placeholder: "Zoek naam, set of nummer", value: state.q, "aria-label": "Zoeken", autocomplete: "off" });
   const list = h("ul", { class: "list" });
   const owned = new Map();
 
@@ -24,7 +55,7 @@ export async function searchView(root) {
 
   let rows = [];
   const draw = () => {
-    if (!state.q.trim()) { list.replaceChildren(emptyNote("Typ een naam of set. Of gebruik de camera om een kaart te scannen.")); return; }
+    if (!state.q.trim()) { list.replaceChildren(emptyNote("Typ een naam, set of nummer. Bijvoorbeeld \"charizard 30th 4\". Of gebruik de camera om een kaart te scannen.")); return; }
     list.replaceChildren(...(rows.length ? rows.map((r) => {
       const n = owned.get(r.product_id);
       return h("li", {}, h("div", { class: "resrow" },
@@ -37,13 +68,36 @@ export async function searchView(root) {
     }) : [emptyNote("Niets gevonden.")]));
   };
 
+  const score = (r, q) => {
+    const name = norm(r.name), wanted = q.nameWords.join(" ");
+    let n = 0;
+    if (wanted && name === wanted) n += 120;
+    else if (wanted && name.startsWith(wanted)) n += 60;
+    if (q.setName && norm(r.set_name) === norm(q.setName)) n += 40;
+    if (q.number && norm(r.number) === norm(q.number)) n += 30;
+    return n;
+  };
+
   const run = debounce(async () => {
-    const words = state.q.replace(/[*,()%]/g, " ").trim().split(/\s+/).filter(Boolean);
-    if (!words.length) { rows = []; draw(); return; }
-    const pat = encodeURIComponent(words.join("*"));
     const kind = state.kind === "alles" ? "" : `&kind=eq.${state.kind}`;
+    const raw = state.q.trim();
+    if (!raw) { rows = []; draw(); return; }
+    const sets = await getSets();
+    const q = parseQuery(raw, sets);
     try {
-      rows = await rest.get(`v_search?select=*&or=(name.ilike.*${pat}*,set_name.ilike.*${pat}*)${kind}&order=price.desc.nullslast&limit=40`);
+      const ors = [];
+      if (q.nameWords.length) ors.push(`name.ilike.*${encodeURIComponent(q.nameWords.join("*"))}*`);
+      if (q.setName) ors.push(`set_name.ilike.*${encodeURIComponent(q.setName)}*`);
+      if (!ors.length) ors.push(`name.ilike.*${encodeURIComponent(raw)}*`, `set_name.ilike.*${encodeURIComponent(raw)}*`);
+      let candidates = await rest.get(`v_search?select=*&or=(${ors.join(",")})${kind}&order=price.desc.nullslast&limit=200`);
+      if (q.number) candidates = candidates.filter((r) => norm(r.number) === q.number);
+      if (q.setName) candidates = candidates.filter((r) => norm(r.set_name).includes(norm(q.setName)));
+      rows = candidates.sort((a, b) => score(b, q) - score(a, q) || Number(b.price || 0) - Number(a.price || 0)).slice(0, 40);
+      if (!rows.length && (q.number || q.setName)) {
+        // niets gevonden met de gestructureerde uitleg van de zoektekst: val terug op een gewone, brede zoekopdracht
+        const pat = encodeURIComponent(norm(raw).split(/\s+/).join("*"));
+        rows = await rest.get(`v_search?select=*&or=(name.ilike.*${pat}*,set_name.ilike.*${pat}*)${kind}&order=price.desc.nullslast&limit=40`);
+      }
     } catch { rows = []; list.replaceChildren(emptyNote("Zoeken lukte niet. Controleer je verbinding.")); return; }
     draw();
   }, 250);

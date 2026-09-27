@@ -13,7 +13,7 @@ import { trackView } from "./views/track.js";
 
 const app = $("#app");
 const tabsEl = $("#tabs");
-const TABS = [["home", "Kansen", "home"], ["search", "Zoeken", "search"], ["watchlist", "Watchlist", "star"], ["collection", "Collectie", "cards"]];
+const TABS = [["home", "Home", "home"], ["search", "Zoeken", "search"], ["watchlist", "Watchlist", "star"], ["collection", "Collectie", "cards"]];
 
 function drawTabs(active) {
   tabsEl.hidden = !active;

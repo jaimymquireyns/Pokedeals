@@ -114,12 +114,12 @@ export async function detailView(root, pid, cid) {
 
   // ---- kans, met een periode-kiezer (los van de standaardperiode in Instellingen) ----
   const periodBar = h("div", { class: "seg periods" });
-  const chance = h("div", {});
+  const chance = h("div", { class: "chancesec" });
   const why = h("div", { class: "sec" }, h("h3", { text: "Waarom deze kans?" }));
 
   function drawPeriods() {
     periodBar.replaceChildren(...PERIODS.map((pr) => h("button", { type: "button", "aria-pressed": String(pr.key === period.key),
-      onclick: () => { period = pr; fx = toFx(fcByKey.get(`${pr.horizon}-${pr.pct}`)); drawPeriods(); drawChance(); }, text: pr.label })));
+      onclick: () => { period = pr; fx = toFx(fcByKey.get(`${pr.horizon}-${pr.pct}`)); drawPeriods(); drawChart(); drawChance(); }, text: pr.label })));
   }
 
   function drawChance() {
@@ -155,24 +155,33 @@ export async function detailView(root, pid, cid) {
   drawPeriods();
   drawChance();
 
-  // ---- grafiek ----
+  // ---- grafiek; volgt dezelfde periode als de periodeknoppen hierboven ----
   const chartSec = h("div", { class: "sec" }, h("h3", { text: "Prijsverloop" }));
-  const useNm = nmHist.length >= 10;   // zelfde grens als het model: genoeg Near Mint-geschiedenis om als basis te gebruiken
-  let rows, src;
-  if (useNm) {
-    rows = nmHist; src = "pkmnprices";
-  } else {
-    const bySrc = {};
-    for (const r of hist) (bySrc[r.source] ||= []).push(r);
-    src = (bySrc.tcgdex?.length || 0) >= 5 ? "tcgdex" : (Object.keys(bySrc).sort((a, b) => bySrc[b].length - bySrc[a].length)[0]);
-    rows = bySrc[src] || [];
+  function drawChart() {
+    chartSec.replaceChildren(h("h3", { text: "Prijsverloop" }));
+    const useNm = nmHist.length >= 10;
+    let allRows, src;
+    if (useNm) { allRows = nmHist; src = "pkmnprices"; }
+    else {
+      const bySrc = {};
+      for (const r of hist) (bySrc[r.source] ||= []).push(r);
+      src = (bySrc.tcgdex?.length || 0) >= 5 ? "tcgdex" : (Object.keys(bySrc).sort((a, b) => bySrc[b].length - bySrc[a].length)[0]);
+      allRows = bySrc[src] || [];
+    }
+    let rows = allRows;
+    if (allRows.length) {
+      const last = new Date(allRows[allRows.length - 1].date + "T00:00:00Z").getTime();
+      const cutoff = last - period.horizon * 864e5;
+      rows = allRows.filter((r) => new Date(r.date + "T00:00:00Z").getTime() >= cutoff);
+    }
+    if (rows.length >= 2) {
+      chartSec.append(lineChart({ series: [{ pts: rows.map((r) => [new Date(r.date + "T00:00:00Z").getTime(), Number(r.price)]), stroke: "var(--up)" }],
+        hlines: c ? [{ y: Number(c.purchase_price), label: `Aankoop ${eur(Number(c.purchase_price))}` }] : [], label: "Prijsverloop" }));
+      if (useNm) chartSec.append(h("p", { class: "mini", text: "Op basis van de eigen Near Mint-prijsgeschiedenis van deze kaart, niet de gemengde Cardmarket-trend." }));
+      else if (src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "Historie van TCGplayer (omgerekend naar euro). Onze eigen Cardmarket-metingen bouwen zich op." }));
+    } else chartSec.append(h("p", { class: "p14 muted", text: "Nog te weinig prijsgeschiedenis voor een grafiek in deze periode." }));
   }
-  if (rows.length >= 2) {
-    chartSec.append(lineChart({ series: [{ pts: rows.map((r) => [new Date(r.date + "T00:00:00Z").getTime(), Number(r.price)]), stroke: "var(--up)" }],
-      hlines: c ? [{ y: Number(c.purchase_price), label: `Aankoop ${eur(Number(c.purchase_price))}` }] : [], label: "Prijsverloop" }));
-    if (useNm) chartSec.append(h("p", { class: "mini", text: "Op basis van de eigen Near Mint-prijsgeschiedenis van deze kaart, niet de gemengde Cardmarket-trend." }));
-    else if (src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "Historie van TCGplayer (omgerekend naar euro). Onze eigen Cardmarket-metingen bouwen zich op." }));
-  } else chartSec.append(h("p", { class: "p14 muted", text: "Nog te weinig prijsgeschiedenis voor een grafiek." }));
+  drawChart();
 
   // ---- prijsmelding ----
   const alertSec = h("div", { class: "sec" });
@@ -248,5 +257,5 @@ export async function detailView(root, pid, cid) {
     head, idgrid, stats, nmBox,
     !c ? h("p", { class: "mini pad2", text: "De trendprijs is Cardmarkets gemiddelde voor alle talen en condities. Het goedkoopste aanbod (Near Mint) kan een stuk lager liggen, zeker bij dure kaarten met weinig verkopen." }) : null,
     graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
-    periodBar, chance, why, breakEvenBox, chartSec, offersSec, alertSec, btns));
+    periodBar, chartSec, chance, why, breakEvenBox, offersSec, alertSec, btns));
 }

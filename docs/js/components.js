@@ -29,14 +29,16 @@ export function chanceBar(pUp, pDown) {
     h("span", { class: "u num", text: pp(pUp) }));
 }
 
-export function oppRow(r, net) {
-  return h("li", {}, h("button", { class: "row", type: "button", onclick: () => go(detailHash(r.product_id)) },
+export function oppRow(r, net, watch = null) {
+  const main = h("button", { class: "row", type: "button", onclick: () => go(detailHash(r.product_id)) },
     thumb(r.image, "ph", r.kind === "sealed"),
     h("div", { class: "body" },
       h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: eur(r.price) })),
       h("div", { class: "l2" }, h("span", { class: "set", text: r.set_name || "" }, r.number && r.kind === "card" ? ` #${r.number}` : ""),
         h("span", { class: "tags" }, r.confidence === "laag" ? h("span", { class: "tag grof", title: "Weinig prijsgeschiedenis: grove schatting", text: "grof" }) : null, kindTag(r.kind))),
-      upBar(r.p_up, net))));
+      upBar(r.p_up, net)));
+  return h("li", {}, watch ? h("div", { class: "homeitem" }, main,
+    h("button", { class: "heartb" + (watch.on ? " on" : ""), type: "button", "aria-label": watch.on ? "Van watchlist halen" : "Aan watchlist toevoegen", onclick: watch.onclick }, icon("heart", watch.on ? "filled" : ""))) : main);
 }
 
 export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
