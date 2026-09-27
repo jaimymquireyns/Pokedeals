@@ -103,7 +103,7 @@ export async function homeView(root) {
       segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; state.shown = 60; draw(); }),
       h("button", { class: "gear", type: "button", text: "Instellingen", onclick: () => go("#/settings") })),
     dealsSec,
-    h("div", { class: "sec homechance" }, h("h3", { text: "Kansen" }), legend), list, more,
+    h("div", { class: "sec homechance" }, h("h3", { text: "Kansen" }), legend, list, more),
     h("p", { class: "fine muted", text: "Statistische schatting op basis van marktprijzen; geen financieel advies. Prijzen houden geen rekening met conditie, taal of marktplaatskosten (tenzij je die bij Instellingen invult). Controleer altijd de echte aanbiedingen." })));
 
   fetchDeals().then(async (deals) => {
