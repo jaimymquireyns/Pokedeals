@@ -101,6 +101,8 @@ class FakePostgrest:
                 cell = r.get(k)
                 if op == "in":
                     return str(cell) in val.strip("()").split(",")
+                if op == "is":
+                    return (cell is None) == (val == "null")
                 if cell is None:
                     return False
                 if isinstance(cell, bool) or val in ("true", "false"):
@@ -1180,5 +1182,33 @@ finally:
     del os.environ["PKMN_API_KEY"]
 assert any("Eigen collectie eerst" in l for l in logged), "moet altijd loggen, ook als er niets overblijft (hier: een sealed product, geen kaart)"
 assert any("0 daarvan zijn kaarten" in l for l in logged), logged
+
+# ============ 33. Foto's aanvullen bij kaarten die er nog geen hebben ============
+fake23, store23 = new_store()
+store23.upsert_products([
+    {"product_id": "img-1", "kind": "card", "name": "IMG1", "number": "1", "set_name": "S", "set_total": 1, "image": None},
+    {"product_id": "img-2", "kind": "card", "name": "IMG2", "number": "2", "set_name": "S", "set_total": 1, "image": None},
+    {"product_id": "img-3", "kind": "card", "name": "IMG3", "number": "3", "set_name": "S", "set_total": 1, "image": "https://al.een.foto"},
+])
+
+class ImgSess:
+    def get(self, url, params=None, timeout=None, headers=None):
+        cid = url.rstrip("/").rsplit("/", 1)[-1]
+        if cid == "img-1":
+            data = {"id": "img-1", "name": "IMG1", "image": "https://assets.tcgdex.net/en/s/s/1"}
+        elif cid == "img-2":
+            data = {"id": "img-2", "name": "IMG2"}   # TCGdex heeft deze zelf ook geen foto voor
+        else:
+            raise AssertionError(f"onverwacht opgehaald: {cid}")
+        return Resp(200, data)
+
+tcg23 = providers.TCGdex()
+tcg23.session = ImgSess()
+n_found = backfill.backfill_images(store23, tcg23, log=quiet)
+assert n_found == 1, "precies 1 van de 2 kaarten zonder foto kreeg er alsnog een"
+prods23 = {p["product_id"]: p for p in store23.products("card")}
+assert prods23["img-1"]["image"] == "https://assets.tcgdex.net/en/s/s/1/low.webp"
+assert prods23["img-2"]["image"] is None, "TCGdex had 'm zelf ook niet; blijft leeg, geen foutieve waarde verzinnen"
+assert prods23["img-3"]["image"] == "https://al.een.foto", "een kaart die al een foto had, wordt niet opnieuw opgehaald"
 
 print("alle tests geslaagd")

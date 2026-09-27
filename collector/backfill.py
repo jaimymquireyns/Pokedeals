@@ -2,6 +2,7 @@
 en het model testen. Sealed komt voortaan van Cardmarket en heeft hier geen historie.
 
     python backfill.py --cards-sets 12          # historie voor kaarten uit de 12 nieuwste sets
+    python backfill.py --images                 # kaarten zonder foto opnieuw bij TCGdex ophalen
     python backfill.py --backtest               # test het model op de historie en vul het trackrecord
 Alles is hervatbaar: draai het gerust opnieuw als het budget van een dag op is.
 """
@@ -68,9 +69,38 @@ def backfill_cards(ppt, store, today, fx, n_sets, days=None, log=print):
     return matched
 
 
+def backfill_images(store, provider, log=print, limit=None):
+    """Haalt specifiek de kaarten zonder foto opnieuw op bij TCGdex, los van de normale, prijsgestuurde volgorde
+    (die dit soort kaarten anders pas na een lange, willekeurige tijd opnieuw zou proberen). Vult het gat direct
+    aan waar TCGdex de foto inmiddels wel heeft, en laat met een getal zien hoeveel er bij TCGdex zelf nog steeds
+    ontbreekt (dat is dan geen bug bij ons, maar een gat in TCGdex' eigen scans)."""
+    missing = store.products("card", extra={"image": "is.null"})
+    if limit:
+        missing = missing[:limit]
+    log(f"Foto's aanvullen: {len(missing)} kaarten zonder foto gevonden.")
+    found, still_missing, updates = 0, 0, []
+    for i, p in enumerate(missing, 1):
+        card = provider.get_card(p["product_id"])
+        if card and card["product"].get("image"):
+            updates.append({"product_id": p["product_id"], "image": card["product"]["image"]})
+            found += 1
+        else:
+            still_missing += 1
+        if len(updates) >= 150:
+            store.upsert_products(updates)
+            updates.clear()
+        if i % 500 == 0:
+            log(f"  {i}/{len(missing)}")
+    if updates:
+        store.upsert_products(updates)
+    log(f"Foto's aanvullen: {found} kaarten kregen alsnog een foto, {still_missing} hebben er bij TCGdex zelf nog geen.")
+    return found
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sealed", action="store_true")
+    ap.add_argument("--images", action="store_true", help="kaarten zonder foto opnieuw bij TCGdex ophalen")
     ap.add_argument("--cards-sets", type=int)
     ap.add_argument("--backtest", action="store_true")
     ap.add_argument("--days", type=int, default=config.PPT_HISTORY_DAYS)
@@ -84,6 +114,8 @@ def main():
         else:
             import sealed_history
             sealed_history.run(store, PkmnPrices(os.environ["PKMN_API_KEY"]), today, limit=10_000)
+    if args.images:
+        backfill_images(store, TCGdex())
     if args.cards_sets:
         import fx as fxmod
         rate, _ = fxmod.usd_to_eur(TCGdex().session)
