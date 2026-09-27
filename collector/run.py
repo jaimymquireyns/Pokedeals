@@ -242,6 +242,18 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     except Exception as e:
         log(f"! eigen collectie eerst overgeslagen: {e}")
     try:
+        import offers
+        top_ids = offers.top_expensive_ids(store, config.DEALS_MAX_PRICE, config.DEALS_TOP_N)
+        if top_ids:
+            # eigen, gegarandeerd budget: dit mag niet verdrinken in wat de geschiedenis-opbouw daarna nog gebruikt
+            original_budget = pk_client.budget
+            pk_client.budget = min(original_budget, pk_client.credits + config.DEALS_BUDGET)
+            log(f"Aanbiedingen voor de {len(top_ids)} duurste kaarten onder €{config.DEALS_MAX_PRICE}: eigen budget van max {config.DEALS_BUDGET} credits.")
+            offers.run(store, pk_client, today, log=log, deadline=deadline, only=top_ids)
+            pk_client.budget = original_budget
+    except Exception as e:
+        log(f"! aanbiedingen voor duurdere kaarten overgeslagen: {e}")
+    try:
         import nm
         nm.run(store, pk_client, today, log=log, deadline=deadline)
     except Exception as e:  # de actuele NM-prijs is het belangrijkst, dus die gaat als eerste

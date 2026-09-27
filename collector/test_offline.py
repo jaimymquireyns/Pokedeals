@@ -937,7 +937,7 @@ spy = SpySess()
 nm.find_card(pkmnprices.PkmnPrices("pk", session=spy), {"name": "Charizard ex", "number": "125", "set_name": "S"})
 assert spy.seen[0]["number"] == "125" and spy.seen[0]["per_page"] == 15, spy.seen[0]
 assert len(spy.seen) == 1, "max_pages=1: er wordt geen 2e pagina meer opgehaald, ook al zijn er meer beschikbaar"
-assert config.PK_BUDGET <= 60000, "dagbudget van de geplande taken blijft bewust onder het echte Pro-plan (75.000), zodat er credits overblijven om zelf mee te testen"
+assert config.PK_BUDGET <= 70000, "dagbudget van de geplande taken blijft bewust onder het echte Pro-plan (75.000), zodat er credits overblijven om zelf mee te testen"
 
 # ============ 22. extra_targets: een kaart met meerdere periodes komt maar 1x in de lijst ============
 fc_multi = [{"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0},
@@ -1210,5 +1210,54 @@ prods23 = {p["product_id"]: p for p in store23.products("card")}
 assert prods23["img-1"]["image"] == "https://assets.tcgdex.net/en/s/s/1/low.webp"
 assert prods23["img-2"]["image"] is None, "TCGdex had 'm zelf ook niet; blijft leeg, geen foutieve waarde verzinnen"
 assert prods23["img-3"]["image"] == "https://al.een.foto", "een kaart die al een foto had, wordt niet opnieuw opgehaald"
+
+# ============ 34. Foto van PPT hergebruikt als TCGdex 'm nog mist (kost geen extra API-aanroepen) ============
+class ImgPPT(MockPPT):
+    def sets(self):
+        return [{"set_id": "t1-set", "name": "Testset", "release_date": "2026-01-01"}]
+    def cards_in_set(self, set_id, history_days=None):
+        return [{"ppt_id": "701", "name": "Up", "set_name": "Testset", "set_id": set_id, "number": "up", "rarity": None,
+                 "product_type": None, "image": "https://ppt.example/up.png", "price_usd": 65.0, "low_usd": None, "history": [], "graded": {}},
+                {"ppt_id": "702", "name": "Down", "set_name": "Testset", "set_id": set_id, "number": "down", "rarity": None,
+                 "product_type": None, "image": "https://ppt.example/down.png", "price_usd": 12.0, "low_usd": None, "history": [], "graded": {}}]
+
+fake24, store24 = new_store()
+store24.upsert_sets([{"set_id": "t1-set", "name": "Testset", "release_date": "2026-01-01"}])
+store24.upsert_products([{"product_id": "t1-up", "kind": "card", "name": "Up", "number": "up", "set_id": "t1-set", "set_name": "Testset", "set_total": 2, "image": None},
+                         {"product_id": "t1-down", "kind": "card", "name": "Down", "number": "down", "set_id": "t1-set", "set_name": "Testset", "set_total": 2, "image": "https://al.een.foto"}])
+backfill.backfill_cards(ImgPPT(), store24, "2026-09-21", 0.9, 5, log=quiet)
+prods24 = {p["product_id"]: p for p in store24.products("card")}
+assert prods24["t1-up"]["image"] == "https://ppt.example/up.png", "kreeg de PPT-foto omdat TCGdex 'm nog miste"
+assert prods24["t1-down"]["image"] == "https://al.een.foto", "had al een foto; niet overschreven door de PPT-versie"
+
+# ============ 35. Aanbiedingen voor de duurste kaarten krijgen een eigen, gegarandeerd budget ============
+fake25, store25 = new_store()
+os.environ["PKMN_API_KEY"] = "pk_deals"
+prods25 = [{"product_id": f"exp-{i}", "kind": "card", "name": f"Exp{i}", "number": str(i), "set_name": "S", "set_total": 50, "pk_id": str(1000 + i)} for i in range(30)]
+store25.upsert_products(prods25)
+for i in range(30):
+    fake25.t["forecasts"][(f"exp-{i}", 30, 10)] = {"product_id": f"exp-{i}", "horizon_days": 30, "threshold_pct": 10, "price": 400.0 - i, "p_up": 0.3, "p_down": 0.1}
+top25 = offers.top_expensive_ids(store25, max_price=500, limit=5)
+assert top25 == [f"exp-{i}" for i in range(5)], "de 5 duurste onder de 500 (hoogste prijs eerst)"
+
+class DealsSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        return PkResp({"data": [{"price": 9.0, "condition": "Near Mint", "seller": "x", "quantity": 1, "language": "EN"}], "pagination": {"page": 1, "total_pages": 1}})
+
+# simuleer een kleine (test-)config zodat we niet echt 700 kaarten/14000 credits nodig hebben om het mechanisme te testen
+orig_max_price, orig_top_n, orig_budget = config.DEALS_MAX_PRICE, config.DEALS_TOP_N, config.DEALS_BUDGET
+config.DEALS_MAX_PRICE, config.DEALS_TOP_N, config.DEALS_BUDGET = 500, 5, 60
+deals_sess = DealsSess()
+real_pk_cls = pkmnprices.PkmnPrices
+pkmnprices.PkmnPrices = lambda key, budget=None: real_pk_cls(key, session=deals_sess, budget=budget)
+try:
+    run.spend_pkmn_credits(store25, "2026-09-21", log=quiet)
+finally:
+    pkmnprices.PkmnPrices = real_pk_cls
+    config.DEALS_MAX_PRICE, config.DEALS_TOP_N, config.DEALS_BUDGET = orig_max_price, orig_top_n, orig_budget
+    del os.environ["PKMN_API_KEY"]
+done_pids = {k[0] for k in fake25.t["offers"]}
+assert all(f"exp-{i}" in done_pids for i in range(5)), f"de 5 duurste kaarten kregen sowieso hun aanbiedingen, in deze eigen, eerste ronde: {done_pids}"
 
 print("alle tests geslaagd")

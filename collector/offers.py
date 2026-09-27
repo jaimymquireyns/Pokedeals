@@ -22,6 +22,17 @@ def _chunks(xs, n):
         yield xs[i:i + n]
 
 
+def top_expensive_ids(store, max_price, limit):
+    """De duurste kaarten onder max_price, voor een aparte 'goedkope aanbiedingen'-ronde: dure kaarten waar een
+    opvallend lage aanbieding het meeste uitmaakt, en die anders vrijwel nooit in de 'beste kansen'-lijst
+    voorkomen (die selecteert op verwachte procentuele stijging, niet op prijs op zich)."""
+    fc = store.select("forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})
+    price_by_pid = {f["product_id"]: float(f["price"]) for f in fc if f.get("price") is not None and ":" not in f["product_id"]}
+    ids = [pid for pid, price in price_by_pid.items() if price <= max_price]
+    ids.sort(key=lambda pid: -price_by_pid[pid])
+    return ids[:limit]
+
+
 def candidates(store):
     """Collectie, prijsmeldingen, en de beste kansen — niet de zich uitbreidende 'extra'-lijst van nm.py."""
     order, seen = [], set()

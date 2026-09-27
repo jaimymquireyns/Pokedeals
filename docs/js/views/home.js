@@ -6,7 +6,8 @@ import { getSettings } from "../prefs.js";
 import { eur, fmtDate, h, icon, segment, store, thumb, toast } from "../ui.js";
 import { summarize } from "./track.js";
 
-const DEAL_MIN_DISCOUNT = 0.25;   // hoeveel de goedkoopste aanbieding minstens onder het gemiddelde van de andere moet liggen
+const DEAL_MIN_DISCOUNT = 0.20;   // hoeveel de goedkoopste aanbieding minstens onder het gemiddelde van de andere moet liggen...
+const DEAL_MIN_ABS = 25;          // ...óf, als dat percentage niet gehaald wordt, minstens dit bedrag eraf (voor dure kaarten waar 20% een hoge drempel is)
 
 /** Kaarten waar de laagste actuele aanbieding opvallend afwijkt van de rest — een toevallig lage prijs vinden,
  * los van de (soms onbetrouwbare) trend-gebaseerde kans hierboven. Alleen mogelijk voor kaarten waar we al
@@ -24,7 +25,7 @@ async function fetchDeals() {
     const cheapest = Number(rows[0].price);
     const refAvg = rows.slice(1).reduce((s, r) => s + Number(r.price), 0) / (rows.length - 1);
     const discount = 1 - cheapest / refAvg;
-    if (discount >= DEAL_MIN_DISCOUNT) deals.push({ product_id: pid, cheapest, market: refAvg, discount, seller: rows[0].seller });
+    if (discount >= DEAL_MIN_DISCOUNT || (refAvg - cheapest) >= DEAL_MIN_ABS) deals.push({ product_id: pid, cheapest, market: refAvg, discount, seller: rows[0].seller });
   }
   if (!deals.length) return [];
   deals.sort((a, b) => b.discount - a.discount);
@@ -94,6 +95,9 @@ export async function homeView(root) {
   const dealsList = h("ul", { class: "dealslist" });
 
   root.replaceChildren(h("div", { class: "page" },
+    h("div", { class: "brandmark" },
+      h("span", { class: "mark" }, h("img", { src: "icons/icon-192.png", alt: "" })),
+      h("span", { class: "wordmark" }, h("b", { text: "poké" }), h("i", { text: "deals" }))),
     h("div", { class: "head" }, h("h1", { text: "Home" }), status),
     h("div", { class: "bar" },
       segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; state.shown = 60; draw(); }),

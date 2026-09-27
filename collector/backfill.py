@@ -58,7 +58,10 @@ def backfill_cards(ppt, store, today, fx, n_sets, days=None, log=print):
                 unmatched += 1
                 continue
             matched += 1
-            prods.append({"product_id": p["product_id"], "kind": "card", "name": p["name"], "ppt_id": it["ppt_id"]})
+            row = {"product_id": p["product_id"], "kind": "card", "name": p["name"], "ppt_id": it["ppt_id"]}
+            if not p.get("image") and it.get("image"):   # TCGdex mist 'm soms nog bij hele nieuwe sets; PPT heeft vaak al wel een foto
+                row["image"] = it["image"]
+            prods.append(row)
             hist += history_rows(p["product_id"], it["history"], fx, "ppt_hist", today)
         if prods:
             store.upsert_products(prods)
