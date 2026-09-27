@@ -1,6 +1,6 @@
 import { isLoggedIn, rest } from "../api.js";
 import { addForm } from "../add.js";
-import { detailHash, emptyNote, go, kindTag } from "../components.js";
+import { brandmark, detailHash, emptyNote, go, kindTag } from "../components.js";
 import { openScan } from "../scan.js";
 import { debounce, eur, h, icon, openSheet, closeSheet, segment, thumb, toast } from "../ui.js";
 
@@ -144,6 +144,7 @@ export async function searchView(root) {
 
   input.oninput = () => { state.q = input.value; run(); };
   root.replaceChildren(h("div", { class: "page" },
+    brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Zoeken" })),
     h("div", { class: "searchrow" }, h("label", { class: "sbox" }, icon("search"), input),
       h("button", { class: "camb", type: "button", "aria-label": "Kaart scannen met de camera", onclick: () => { if (need()) openScan({ onAdded: () => run() }); } }, icon("camera"))),

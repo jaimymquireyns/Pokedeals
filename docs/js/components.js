@@ -9,6 +9,11 @@ export const kindTag = (kind) => h("span", { class: "tag" + (kind === "sealed" ?
 export const pill = (label) => h("span", { class: "pill " + (label.startsWith("koop") ? "koop" : label.startsWith("verkoop") ? "verkoop" : label.startsWith("winst") ? "winst" : ""), text: label });
 export const gradeTag = (c) => (gradeLabel(c) ? h("span", { class: "gr", text: gradeLabel(c) }) : null);
 
+/** Logo + naam, bovenaan elk scherm. */
+export const brandmark = () => h("div", { class: "brandmark" },
+  h("span", { class: "mark" }, h("img", { src: "icons/icon-192.png", alt: "" })),
+  h("span", { class: "wordmark" }, h("b", { text: "poké" }), h("i", { text: "deals" })));
+
 /** Enkelzijdige balk voor Home: kans op stijging + verwachte stijging na kosten. */
 export function upBar(pUp, net) {
   const fill = h("i"); fill.style.width = Math.min(pUp * 100, 100) + "%";

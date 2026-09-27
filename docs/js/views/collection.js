@@ -1,6 +1,6 @@
 import { isLoggedIn, rest } from "../api.js";
 import { lineChart, stepPoints } from "../chart.js";
-import { collRow, detailHash, emptyNote, go, gradeTag } from "../components.js";
+import { brandmark, collRow, detailHash, emptyNote, go, gradeTag } from "../components.js";
 import { attention, gradeKey } from "../model.js";
 import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store, thumb } from "../ui.js";
 
@@ -112,6 +112,7 @@ export async function collectionView(root) {
   };
 
   root.replaceChildren(h("div", { class: "page" },
+    brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Collectie" })),
     h("div", { class: "sum" },
       h("div", {}, h("div", { class: "lbl2", text: "Waarde nu" }), h("div", { class: "big num", text: eur(value) })),

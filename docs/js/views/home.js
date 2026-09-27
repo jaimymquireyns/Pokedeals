@@ -1,5 +1,5 @@
 import { getSession, rest } from "../api.js";
-import { detailHash, emptyNote, go, kindTag, note, oppRow } from "../components.js";
+import { brandmark, detailHash, emptyNote, go, kindTag, note, oppRow } from "../components.js";
 import { isOpportunity, netGain } from "../model.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
 import { getSettings } from "../prefs.js";
@@ -95,9 +95,7 @@ export async function homeView(root) {
   const dealsList = h("ul", { class: "dealslist" });
 
   root.replaceChildren(h("div", { class: "page" },
-    h("div", { class: "brandmark" },
-      h("span", { class: "mark" }, h("img", { src: "icons/icon-192.png", alt: "" })),
-      h("span", { class: "wordmark" }, h("b", { text: "poké" }), h("i", { text: "deals" }))),
+    brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Home" }), status),
     h("div", { class: "bar" },
       segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; state.shown = 60; draw(); }),

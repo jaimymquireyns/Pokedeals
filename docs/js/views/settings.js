@@ -1,5 +1,5 @@
 import { getSession, isLoggedIn, signOut, userEmail } from "../api.js";
-import { go } from "../components.js";
+import { brandmark, go } from "../components.js";
 import { getSettings, loadSettings, saveSettings } from "../prefs.js";
 import { disablePush, enablePush, hasSubscription, pushPermission, pushSupported } from "../push.js";
 import { debounce, h, icon, parseMoney, segment, toast, toggle } from "../ui.js";
@@ -32,6 +32,7 @@ export async function settingsView(root) {
 
   root.replaceChildren(h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
+    brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Instellingen" })),
     h("div", { class: "grp" }, h("h3", { text: "Kansen" }),
       h("div", { class: "lbl2", text: "Kijk vooruit" }), segment([[14, "14 dagen"], [30, "30 dagen"], [60, "60 dagen"]], s.horizon, (v) => set({ horizon: v })),

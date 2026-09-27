@@ -1,5 +1,5 @@
 import { rest } from "../api.js";
-import { go } from "../components.js";
+import { brandmark, go } from "../components.js";
 import { fmtDate, h, icon, pp, signed } from "../ui.js";
 
 /** Kiest live-uitkomsten als er genoeg zijn, anders de backtest. */
@@ -21,6 +21,7 @@ export async function trackView(root) {
 
   const page = h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
+    brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Trackrecord" }),
       h("p", { class: "muted", text: "Zo vaak kwamen eerdere koop-signalen uit. Alleen voorspellingen van meer dan 30 dagen geleden tellen mee." })));
 

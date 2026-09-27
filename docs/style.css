@@ -13,9 +13,9 @@ h2,h3{margin:0}
 .page{padding-top:max(env(safe-area-inset-top),12px)}
 .pad{padding:24px 16px}.small{font-size:13px}.gap{margin-top:14px}
 .brandmark{display:flex;align-items:center;gap:14px;padding:20px 16px 4px}
-.brandmark .mark{width:52px;height:52px;border-radius:15px;flex:none;overflow:hidden;box-shadow:0 6px 18px -4px rgba(225,29,60,.65)}
+.brandmark .mark{width:60px;height:60px;border-radius:17px;flex:none;overflow:hidden;box-shadow:0 6px 18px -4px rgba(225,29,60,.65)}
 .brandmark .mark img{width:100%;height:100%;display:block}
-.brandmark .wordmark{flex:1;font-size:27px;font-weight:800;letter-spacing:-0.025em}
+.brandmark .wordmark{flex:1;font-size:33px;font-weight:800;letter-spacing:-0.03em}
 .brandmark .wordmark b{color:var(--ink)}
 .brandmark .wordmark i{color:var(--brand);font-style:normal}
 .head{padding:10px 16px}

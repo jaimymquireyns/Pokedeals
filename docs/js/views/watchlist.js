@@ -1,6 +1,6 @@
 // Watchlist: kaarten en sealed producten die je volgt, met eigen mappen (een kaart mag in meerdere mappen staan).
 import { isLoggedIn, rest, userId } from "../api.js";
-import { chanceBar, detailHash, emptyNote, go, kindTag } from "../components.js";
+import { brandmark, chanceBar, detailHash, emptyNote, go, kindTag } from "../components.js";
 import { closeSheet, debounce, eur, h, icon, num, openSheet, pp, segment, signed, store, thumb, toast } from "../ui.js";
 
 let ui = { folder: "alles", sort: "az", ...store.get("pd:watch", {}) };
@@ -107,6 +107,7 @@ export async function watchlistView(root) {
   }
 
   root.replaceChildren(h("div", { class: "page" },
+    brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Watchlist" })),
     chips,
     h("div", { class: "bar" }, h("span", { class: "muted", text: `${items.length} ${items.length === 1 ? "kaart" : "kaarten"}` }), sortBtn),
