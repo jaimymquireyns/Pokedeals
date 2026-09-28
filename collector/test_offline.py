@@ -103,6 +103,8 @@ class FakePostgrest:
                     return str(cell) in val.strip("()").split(",")
                 if op == "is":
                     return (cell is None) == (val == "null")
+                if op == "ilike":
+                    return cell is not None and str(cell).lower() == val.lower().replace("*", "")
                 if cell is None:
                     return False
                 if isinstance(cell, bool) or val in ("true", "false"):
@@ -1259,5 +1261,141 @@ finally:
     del os.environ["PKMN_API_KEY"]
 done_pids = {k[0] for k in fake25.t["offers"]}
 assert all(f"exp-{i}" in done_pids for i in range(5)), f"de 5 duurste kaarten kregen sowieso hun aanbiedingen, in deze eigen, eerste ronde: {done_pids}"
+
+# ============ 36. Zoekinteresse-test (Scrape.do / Google Trends) ============
+import trends_probe as tp
+
+raw_google = {"default": {"timelineData": [
+    {"time": str(1700000000 + i * 604800), "formattedTime": f"week {i}", "value": [10 + i * 5], "hasData": [True], "formattedValue": [str(10 + i * 5)]}
+    for i in range(8)]}, "geo": [{"geoCode": "NL", "value": [100]}, {"geoCode": "BE", "value": [80]}]}
+pts_g = tp.extract_points(raw_google)
+assert len(pts_g) == 8 and pts_g[0][1] == 10.0 and pts_g[-1][1] == 45.0, pts_g
+assert pts_g[0][0] == "2023-11-14", "epoch-tijd wordt een datum"
+
+parsed = {"interest_over_time": {"timeline_data": [
+    {"date": f"Sep {i}", "values": [{"query": "x", "value": str(20 + i), "extracted_value": 20 + i}]} for i in range(1, 7)]},
+    "interest_by_region": [{"geo": "NL", "value": "100"}]}
+pts_p = tp.extract_points(parsed)
+assert [v for _, v in pts_p] == [21.0, 22.0, 23.0, 24.0, 25.0, 26.0], pts_p
+assert tp.extract_points({"error": "x", "message": "y"}) == [], "geen tijdreeks => leeg, geen crash"
+
+assert tp.sparkline([0, 50, 100]) == "▁▅█" and tp.sparkline([5, 5, 5]) == "▁▁▁"
+assert len(tp.resample(list(range(100)), 40)) == 40
+
+flat = [10.0] * 24
+assert abs(tp.interest_change(flat) - 1.0) < 1e-9
+rising = [10.0] * 12 + [10.0] * 6 + [40.0] * 6
+assert tp.interest_change(rising) == 4.0 and tp.interest_change([1, 2, 3]) is None
+
+# prijs springt bij stap 20; zoekinteresse steeg al vanaf stap 16 -> 'ervoor' is duidelijk hoger dan normaal
+interest = [10.0] * 16 + [50.0] * 24
+price = [22.0] * 20 + [205.0] * 20
+jc = tp.jump_context(interest, price)
+assert jc["at"] == 20 and jc["jump"] > 8 and jc["before"] > 20, jc
+assert "note" in tp.jump_context([1.0] * 40, [10.0] * 40), "vlakke prijs: geen sprong"
+
+class TrSess:
+    def __init__(self, statuses):
+        self.statuses, self.calls = list(statuses), []
+    def get(self, url, params=None, timeout=None):
+        self.calls.append(dict(params))
+        st = self.statuses.pop(0) if self.statuses else 200
+        return Resp(st, raw_google if st == 200 else {"error": "upstream"})
+tp.time.sleep = lambda s: None
+s502 = TrSess([502, 200])
+assert tp.fetch("tok", "Electivire", "today 3-m", session=s502, log=quiet) == raw_google and len(s502.calls) == 2, "502 -> opnieuw proberen"
+assert s502.calls[0]["data_type"] == "TIMESERIES" and s502.calls[0]["q"] == "Electivire" and s502.calls[0]["token"] == "tok"
+assert tp.fetch("tok", "x", "today 3-m", session=TrSess([401]), log=quiet) is None, "401 -> geen herhaling, geen crash"
+
+fake26, store26 = new_store()
+store26.upsert_products([{"product_id": "dp2-121", "kind": "card", "name": "Electivire", "number": "121", "set_name": "Mysterious Treasures", "set_total": 124}])
+for i in range(60):
+    fake26.t["prices"][("dp2-121", f"2026-08-{(i % 28) + 1:02d}-{i}", "tcgdex", "raw")] = {"product_id": "dp2-121", "date": f"2026-{7 + i // 28:02d}-{i % 28 + 1:02d}", "source": "tcgdex", "grade_key": "raw", "price": 22.0 if i < 40 else 205.0}
+assert len(tp.own_prices(store26, "electivire", "121")) >= 40, "kaart gevonden op naam (hoofdletterongevoelig) + nummer"
+assert len(tp.own_prices(store26, "electivire", "121", "mysterious treasures")) >= 40, "ook met setnaam"
+assert tp.own_prices(store26, "electivire", "121", "Andere set") == [], "verkeerde set => niet gevonden"
+assert tp.own_prices(store26, "Bestaat niet", "1") == [] and tp.own_prices(None, "x", "1") == []
+
+out26 = []
+tp.run("tok", cases=[{"term": "Electivire LV.X", "name": "Electivire", "number": "121", "set": "Mysterious Treasures"}], windows=["today 3-m"], store=store26, log=out26.append, session=TrSess([]))
+text26 = "\n".join(out26)
+assert "Electivire LV.X" in text26 and "zoekinteresse" in text26 and "ruwe structuur" in text26 and "prijs (eigen data" in text26, text26
+
+# ============ 37. Wilde prijsdata mag de kansberekening niet laten crashen (de crash van maandag 28 sep) ============
+wild = [{"date": (date(2026, 8, 1) + timedelta(days=i)).isoformat(), "trend": (15.0 if i % 2 else 590.0), "avg1": None, "avg7": None, "avg30": 300.0}
+        for i in range(60)]                      # elke dag 15 <-> 590: dagelijkse log-sprong van ~3,7
+for horizon in (7, 30, 180, 365, 730):
+    fw = analysis.forecast(wild, horizon, 0.10)
+    assert fw is not None, horizon
+    assert 0.02 <= fw["p_up"] <= 0.98 and 0.02 <= fw["p_down"] <= 0.98, (horizon, fw["p_up"], fw["p_down"])
+    assert fw["exp_up"] <= config.MAX_HORIZON_RETURN + 1e-9 and fw["exp_down"] >= -1.0, (horizon, fw["exp_up"], fw["exp_down"])
+# gewone kaarten blijven precies zoals ze waren (de bovengrens raakt alleen extreme gevallen)
+calm = [{"date": (date(2026, 8, 1) + timedelta(days=i)).isoformat(), "trend": 50.0 * math.exp(0.004 * i), "avg1": None, "avg7": None, "avg30": 50.0} for i in range(60)]
+fc30 = analysis.forecast(calm, 30, 0.10)
+assert 0.02 < fc30["p_up"] < 0.98 and fc30["exp_up"] < 1.0
+
+# build_forecasts: één kaart met onbruikbare data laat de rest niet vallen
+fake27, store27 = new_store()
+store27.upsert_products([{"product_id": "ok-1", "kind": "card", "name": "Ok", "number": "1", "set_name": "S", "set_total": 1},
+                         {"product_id": "bad-1", "kind": "card", "name": "Bad", "number": "2", "set_name": "S", "set_total": 1}])
+today27 = "2026-09-28"
+prices27 = []
+for i in range(60):
+    d27 = (date(2026, 8, 1) + timedelta(days=i)).isoformat()
+    prices27.append({"product_id": "ok-1", "date": d27, "source": "tcgdex", "grade_key": "raw", "price": 50.0 + i * 0.1, "avg1": 50.0, "avg7": 50.0, "avg30": 50.0})
+    prices27.append({"product_id": "bad-1", "date": d27, "source": "tcgdex", "grade_key": "raw", "price": 15.0 if i % 2 else 590.0, "avg1": 300.0, "avg7": 300.0, "avg30": 300.0})
+store27.upsert_prices(prices27)
+orig_forecast = analysis.forecast
+def exploding(rows, horizon=None, threshold=None):
+    if rows and rows[-1].get("trend") in (15.0, 590.0):
+        raise OverflowError("math range error")      # zoals in de echte crash
+    return orig_forecast(rows, horizon, threshold)
+analysis.forecast = exploding
+try:
+    logs27 = []
+    out27 = run.build_forecasts(store27, today27, log=logs27.append, combos=config.LONG_GRID)
+finally:
+    analysis.forecast = orig_forecast
+assert {r["product_id"] for r in out27} == {"ok-1"}, "de goede kaart is gewoon doorgerekend"
+assert any("overgeslagen door onbruikbare prijsdata" in l for l in logs27), logs27
+
+# daily(): een mislukte stap houdt de rest (vooral de credits) niet tegen, maar de taak meldt zich wel als mislukt
+import features as _features
+import trackrecord as _trackrecord
+import alerts as _alerts
+steps27 = []
+class _FX:  # noqa
+    pass
+fake28, store28 = new_store()
+orig = {n: getattr(run, n) for n in ("build_forecasts", "spend_pkmn_credits", "collect_cards", "scan_sealed", "prune")}
+run.collect_cards = lambda *a, **k: None
+run.scan_sealed = lambda *a, **k: None
+run.build_forecasts = lambda *a, **k: (_ for _ in ()).throw(OverflowError("math range error"))
+run.spend_pkmn_credits = lambda *a, **k: steps27.append("credits")
+run.prune = lambda *a, **k: steps27.append("prune")
+o_upd, o_pv, o_res, o_eval, o_dig = _features.update_static, _features.update_pageviews, _trackrecord.resolve, _alerts.evaluate, _alerts.send_digest
+_features.update_static = lambda *a, **k: None
+_features.update_pageviews = lambda *a, **k: None
+_trackrecord.resolve = lambda *a, **k: steps27.append("resolve")
+_alerts.evaluate = lambda *a, **k: steps27.append("evaluate")
+_alerts.send_digest = lambda *a, **k: steps27.append("digest")
+class _Tcg:
+    session = None
+import fx as _fxmod
+o_fx = _fxmod.usd_to_eur
+_fxmod.usd_to_eur = lambda s: (0.9, "test")
+raised = None
+try:
+    run.daily(store28, _Tcg(), None, None, "2026-09-29", [], log=quiet)     # dinsdag: alleen het dagelijkse rooster
+except RuntimeError as e:
+    raised = str(e)
+finally:
+    for n, f in orig.items():
+        setattr(run, n, f)
+    _features.update_static, _features.update_pageviews = o_upd, o_pv
+    _trackrecord.resolve, _alerts.evaluate, _alerts.send_digest = o_res, o_eval, o_dig
+    _fxmod.usd_to_eur = o_fx
+assert steps27 == ["credits", "resolve", "evaluate", "digest", "prune"], steps27
+assert raised and "kansen berekenen" in raised, raised
 
 print("alle tests geslaagd")

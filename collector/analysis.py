@@ -85,11 +85,11 @@ def _cond_expectation(m, sd_h, bound, tail):
         denom = norm_cdf(z1)
         if denom < 1e-6:
             return math.exp(bound) - 1     # bijna geen kans: neem de drempel zelf
-        return math.exp(m + sd_h ** 2 / 2) * norm_cdf(z2) / denom - 1
+        return math.exp(min(m + sd_h ** 2 / 2, 50.0)) * norm_cdf(z2) / denom - 1
     denom = 1 - norm_cdf(z1)
     if denom < 1e-6:
         return math.exp(bound) - 1
-    return math.exp(m + sd_h ** 2 / 2) * (1 - norm_cdf(z2)) / denom - 1
+    return math.exp(min(m + sd_h ** 2 / 2, 50.0)) * (1 - norm_cdf(z2)) / denom - 1
 
 
 def forecast(rows, horizon=None, threshold=None):
@@ -125,7 +125,7 @@ def forecast(rows, horizon=None, threshold=None):
         n = len(hist)
 
     mu = max(-config.MAX_DAILY_DRIFT, min(config.MAX_DAILY_DRIFT, mu))
-    sd_h = sigma * math.sqrt(horizon)
+    sd_h = min(sigma * math.sqrt(horizon), config.MAX_SD_H)
     # De dagelijkse drift is bedoeld voor korte periodes; zonder plafond op de totale periode zou een gewone trend
     # bij 24 maanden tot absurde duizenden procenten worden doorgetrokken. Dit begrenst alleen lange periodes.
     m = max(math.log(0.01), min(mu * horizon, math.log(1 + config.MAX_HORIZON_RETURN)))
@@ -139,7 +139,7 @@ def forecast(rows, horizon=None, threshold=None):
     # Verwachte omvang ALS de drempel wordt gehaald (voorwaardelijke verwachting van een afgeknotte lognormale verdeling).
     exp_up = _cond_expectation(m, sd_h, ln_up, "up")
     exp_down = _cond_expectation(m, sd_h, ln_down, "down")
-    exp_up = max(exp_up, threshold)
+    exp_up = min(max(exp_up, threshold), config.MAX_HORIZON_RETURN)   # nooit gekker dan de doorgetrokken trend zelf
     exp_down = min(exp_down, -min(threshold, 0.99))
 
     if mode == "historie":

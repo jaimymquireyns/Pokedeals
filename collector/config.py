@@ -32,6 +32,7 @@ FAST_SPIKE = 0.30          # prijs >30% van het 30-daags gemiddelde af = sprong;
 SHRINK_K = 30
 MAX_DAILY_DRIFT = 0.02
 MAX_HORIZON_RETURN = 3.0   # ook bij lange periodes (tot 24 maanden): de doorgetrokken trend wordt nooit gekker dan +300% of -99%
+MAX_SD_H = 3.0               # bovengrens op de spreiding over de hele periode (in ln-eenheden): daarboven weten we toch niets meer, en het rekent anders door tot getallen buiten bereik (uitschieters in de prijsdata)
 HORIZON_DAYS = 30
 MOVE_THRESHOLD = 0.10
 CALIBRATE_MIN_N = 50       # pas kalibreren als een kansklasse minstens zoveel uitkomsten heeft

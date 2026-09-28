@@ -159,7 +159,7 @@ def build_forecasts(store, today, log=print, combos=None):
         nm_by_pid.setdefault(r["product_id"], []).append({**r, "price": float(r["price"]) if r.get("price") is not None else None})
     for pid in nm_by_pid:
         nm_by_pid[pid].sort(key=lambda r: r["date"])
-    out, history, nm_used = [], [], 0
+    out, history, nm_used, bad = [], [], 0, set()
     for pid, grp in groupby(rows, key=lambda r: r["product_id"]):
         by_source = {}
         for r in grp:
@@ -173,7 +173,11 @@ def build_forecasts(store, today, log=print, combos=None):
         if not series or series[-1]["avg30"] is None:
             continue    # geen verkopen in de laatste 30 dagen: te dunne markt voor een betrouwbare kans
         for horizon, pct in combos:
-            f = analysis.forecast(series, horizon, pct / 100)
+            try:
+                f = analysis.forecast(series, horizon, pct / 100)
+            except (ArithmeticError, ValueError):   # onbruikbare prijsdata (bijv. een uitschieter): deze kaart overslaan, de rest gewoon doorrekenen
+                bad.add(pid)
+                continue
             if not f or f["price"] < config.MIN_PRICE:
                 continue
             p_raw = f["p_up"]
@@ -198,6 +202,8 @@ def build_forecasts(store, today, log=print, combos=None):
         store.delete("forecasts", {"horizon_days": f"in.({','.join(map(str, horizons))})", "computed_on": f"lt.{today}"})
     if history:
         store.upsert("forecast_history", history, "product_id,date,horizon_days,threshold_pct")
+    if bad:
+        log(f"  ({len(bad)} kaarten overgeslagen door onbruikbare prijsdata, bijvoorbeeld {sorted(bad)[:3]})")
     log(f"Kansen berekend: {len(out)} rijen voor {len({r['product_id'] for r in out})} producten"
         f"{' (gekalibreerd voor ' + str(len(stats_all)) + ' periodes)' if stats_all else ''}, "
         f"waarvan {nm_used} kaarten op basis van eigen Near Mint-geschiedenis")
@@ -293,21 +299,34 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=Non
         features.update_pageviews(store, today, log=log)
     except Exception as e:  # context-data is niet essentieel
         log(f"pageviews overgeslagen: {e}")
-    build_forecasts(store, today, log=log)
+    failures = []
+
+    def step(label, fn):
+        """Eén mislukte stap mag de rest niet tegenhouden (vooral het uitgeven van de PkmnPrices-credits niet: die vervallen
+        elke dag). De taak meldt zich aan het eind wel als mislukt, zodat je het merkt."""
+        try:
+            return fn()
+        except Exception as e:
+            failures.append(label)
+            log(f"! {label} mislukt: {type(e).__name__}: {e}")
+
+    step("kansen berekenen", lambda: build_forecasts(store, today, log=log))
     if date.fromisoformat(today).weekday() == 0:
-        build_forecasts(store, today, log=log, combos=config.LONG_GRID)
+        step("lange periodes berekenen", lambda: build_forecasts(store, today, log=log, combos=config.LONG_GRID))
     else:
         log("Lange periodes (3-24 maanden) worden alleen op maandag herberekend; vandaag overgeslagen.")
-    spend_pkmn_credits(store, today, log=log, time_budget=pk_time_budget)
-    trackrecord.resolve(store, today, log=log)
+    step("PkmnPrices-credits uitgeven", lambda: spend_pkmn_credits(store, today, log=log, time_budget=pk_time_budget))
+    step("trackrecord bijwerken", lambda: trackrecord.resolve(store, today, log=log))
     if date.fromisoformat(today).weekday() == 0:   # maandag: ook de backtest bijwerken (dekt alle periodes, ook de lange)
         try:
             trackrecord.backtest(store, today, log=log)
         except Exception as e:
             log(f"! backtest overgeslagen: {e}")
-    alerts.evaluate(store, sender, today, log=log)
-    alerts.send_digest(store, sender, today, log=log)
-    prune(store, today, log=log)
+    step("prijsmeldingen", lambda: alerts.evaluate(store, sender, today, log=log))
+    step("dagelijkse samenvatting", lambda: alerts.send_digest(store, sender, today, log=log))
+    step("opruimen", lambda: prune(store, today, log=log))
+    if failures:
+        raise RuntimeError("Niet alles is gelukt: " + ", ".join(failures) + " (de overige stappen zijn wel uitgevoerd)")
 
 
 def make_sender(log=print):
