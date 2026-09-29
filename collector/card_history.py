@@ -72,6 +72,9 @@ def candidates(store):
     return order
 
 
+MAX_SAVE_FAILS = 5   # zoveel keer achter elkaar opslaan mislukken = de database is echt weg: stoppen
+
+
 def run(store, pk, today, log=print, deadline=None, only=None):
     """only: als je maar een specifieke, kleine lijst kaarten wilt (bijv. alleen je collectie, als eerste
     prioriteitsronde), geef die dan hier mee in plaats van de volledige prioriteitslijst te gebruiken."""
@@ -82,7 +85,7 @@ def run(store, pk, today, log=print, deadline=None, only=None):
     todo = [pid for pid in order if pid not in done_already]
     log(f"Kaartgeschiedenis: {len(order)} gekoppelde kaarten, {len(done_already)} hebben al genoeg oude Near Mint-historie")
 
-    done, rows_total = 0, 0
+    done, rows_total, save_fails = 0, 0, 0
     for pid in todo:
         if pk.over_budget():
             log(f"Credit-budget bereikt ({pk.credits}). Morgen gaat het verder waar het nu stopt.")
@@ -98,7 +101,16 @@ def run(store, pk, today, log=print, deadline=None, only=None):
             continue
         rows = parse_rows(pid, data, today)
         if rows:
-            store.upsert_prices(rows)
+            try:
+                store.upsert_prices(rows)
+            except Exception as e:   # bijv. een time-out bij Supabase: deze kaart slaan we over (de volgende run pakt 'm weer op), de rest gaat door
+                save_fails += 1
+                log(f"  {p['name']}: opslaan mislukt ({type(e).__name__}); de volgende run probeert deze kaart opnieuw")
+                if save_fails >= MAX_SAVE_FAILS:
+                    log(f"Database reageert niet meer ({MAX_SAVE_FAILS}x achter elkaar); gestopt om geen credits te verspillen. Morgen gaat het verder.")
+                    break
+                continue
+            save_fails = 0
             rows_total += len(rows)
         done += 1
     log(f"Kaartgeschiedenis: {done} kaarten bijgewerkt, {rows_total} prijspunten toegevoegd ({pk.credits} credits tot nu toe)")

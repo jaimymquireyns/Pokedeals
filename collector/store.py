@@ -26,6 +26,22 @@ class SupabaseStore:
         r.raise_for_status()
         return r
 
+    def _send(self, method, url, tries=3, **kw):
+        """Schrijfverzoek dat bij een time-out of tijdelijke serverfout (502/503/504) opnieuw wordt geprobeerd.
+        Alleen voor verzoeken die veilig herhaald kunnen worden (upsert, patch, delete), nooit voor een gewone insert."""
+        for attempt in range(tries):
+            try:
+                r = getattr(self.s, method)(url, **kw)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if attempt == tries - 1:
+                    raise
+                time.sleep(2 + 3 * attempt)
+                continue
+            if r.status_code in (502, 503, 504) and attempt < tries - 1:
+                time.sleep(2 + 3 * attempt)
+                continue
+            return r
+
     def select(self, table, params=None):
         rows, offset = [], 0
         while True:
@@ -44,9 +60,9 @@ class SupabaseStore:
         cols = on_conflict.split(",")
         rows = list({tuple(r.get(c) for c in cols): r for r in rows}.values())
         for i in range(0, len(rows), chunk):
-            r = self.s.post(f"{self.base}/{table}", params={"on_conflict": on_conflict},
-                            headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
-                            json=rows[i:i + chunk], timeout=90)
+            r = self._send("post", f"{self.base}/{table}", params={"on_conflict": on_conflict},
+                           headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                           json=rows[i:i + chunk], timeout=90)
             if not r.ok:
                 raise RuntimeError(f"Supabase {table}: {r.status_code} {r.text[:300]}")
 
@@ -57,12 +73,12 @@ class SupabaseStore:
                 raise RuntimeError(f"Supabase {table}: {r.status_code} {r.text[:300]}")
 
     def patch(self, table, params, data):
-        r = self.s.patch(f"{self.base}/{table}", params=params, headers={"Prefer": "return=minimal"}, json=data, timeout=60)
+        r = self._send("patch", f"{self.base}/{table}", params=params, headers={"Prefer": "return=minimal"}, json=data, timeout=60)
         if not r.ok:
             raise RuntimeError(f"Supabase {table}: {r.status_code} {r.text[:300]}")
 
     def delete(self, table, params):
-        r = self.s.delete(f"{self.base}/{table}", params=params, timeout=90)
+        r = self._send("delete", f"{self.base}/{table}", params=params, timeout=90)
         if not r.ok:
             raise RuntimeError(f"Supabase {table}: {r.status_code} {r.text[:300]}")
 

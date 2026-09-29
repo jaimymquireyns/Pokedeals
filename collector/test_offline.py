@@ -1398,4 +1398,83 @@ finally:
 assert steps27 == ["credits", "resolve", "evaluate", "digest", "prune"], steps27
 assert raised and "kansen berekenen" in raised, raised
 
+# ============ 38. Een time-out bij Supabase mag de geschiedenis-opbouw niet stilleggen (de storing van 28 sep) ============
+import requests as _rq
+
+class FlakyPost:
+    def __init__(self, seq):
+        self.seq, self.calls, self.headers = list(seq), 0, {}
+    def post(self, url, **kw):
+        self.calls += 1
+        x = self.seq.pop(0)
+        if isinstance(x, Exception):
+            raise x
+        return Resp(x, None)
+
+sess_a = FlakyPost([_rq.exceptions.ReadTimeout("x"), _rq.exceptions.ReadTimeout("x"), 201])
+SupabaseStore("https://x.supabase.co", "sb_secret_test", session=sess_a).upsert("offers", [{"product_id": "a", "rank": 1}], "product_id,rank")
+assert sess_a.calls == 3, "twee time-outs, derde poging lukt"
+sess_b = FlakyPost([503, 201])
+SupabaseStore("https://x.supabase.co", "sb_secret_test", session=sess_b).upsert("offers", [{"product_id": "a", "rank": 1}], "product_id,rank")
+assert sess_b.calls == 2, "503 -> opnieuw proberen"
+sess_c = FlakyPost([_rq.exceptions.ReadTimeout("x")] * 3)
+try:
+    SupabaseStore("https://x.supabase.co", "sb_secret_test", session=sess_c).upsert("offers", [{"product_id": "a", "rank": 1}], "product_id,rank")
+    raise AssertionError("hoort na 3 pogingen op te geven")
+except _rq.exceptions.ReadTimeout:
+    assert sess_c.calls == 3
+
+class FlakyStore(SupabaseStore):
+    fail_ids = set()
+    def upsert_prices(self, rows):
+        if rows[0]["product_id"] in self.fail_ids:
+            raise _rq.exceptions.ReadTimeout("Read timed out. (read timeout=90)")
+        return super().upsert_prices(rows)
+    def upsert(self, table, rows, on_conflict, chunk=500):
+        if table == "offers" and rows and rows[0]["product_id"] in self.fail_ids:
+            raise _rq.exceptions.ReadTimeout("Read timed out. (read timeout=90)")
+        return super().upsert(table, rows, on_conflict, chunk)
+
+class HistSess:
+    headers = {}
+    def __init__(self):
+        self.calls = 0
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        if "listings/cardmarket" in url:
+            return PkResp({"data": [{"price": 9.0, "condition": "Near Mint", "seller": "x", "quantity": 1, "language": "EN"}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 5.0}], "pagination": {"page": 1, "total_pages": 1}})
+
+def flaky_setup(n, fail):
+    fk, _ = new_store()
+    st = FlakyStore("https://x.supabase.co", "sb_secret_test", session=fk)
+    st.fail_ids = set(fail)
+    st.upsert_products([{"product_id": f"cf-{i}", "kind": "card", "name": f"CF{i}", "number": str(i), "set_name": "S", "set_total": 9, "pk_id": str(800 + i)} for i in range(n)])
+    for i in range(n):
+        fk.t["forecasts"][(f"cf-{i}", 30, 10)] = {"product_id": f"cf-{i}", "horizon_days": 30, "threshold_pct": 10, "price": 50.0 - i, "p_up": 0.9 - i * 0.01, "p_down": 0.05}
+    return fk, st
+
+# a) één kaart kan niet worden opgeslagen: de rest gaat gewoon door, en die ene wordt de volgende keer opnieuw geprobeerd
+fk1, st1 = flaky_setup(4, {"cf-1"})
+logs38 = []
+card_history.run(st1, pkmnprices.PkmnPrices("pk", session=HistSess()), "2026-09-21", log=logs38.append)
+saved38 = {k[0] for k in fk1.t["prices"]}
+assert saved38 == {"cf-0", "cf-2", "cf-3"}, saved38
+assert any("opslaan mislukt" in l for l in logs38), logs38
+
+# b) de database is echt weg: na 5 keer achter elkaar stoppen, in plaats van 50 keer credits verspillen
+fk2, st2 = flaky_setup(12, {f"cf-{i}" for i in range(12)})
+hs2 = HistSess()
+logs38b = []
+card_history.run(st2, pkmnprices.PkmnPrices("pk", session=hs2), "2026-09-21", log=logs38b.append)
+assert hs2.calls <= card_history.MAX_SAVE_FAILS + 1, f"gestopt na {hs2.calls} verzoeken"
+assert any("Database reageert niet meer" in l for l in logs38b), logs38b
+
+# c) hetzelfde vangnet bij de aanbiedingen
+fk3, st3 = flaky_setup(4, {"cf-0"})
+logs38c = []
+offers.run(st3, pkmnprices.PkmnPrices("pk", session=HistSess()), "2026-09-21", log=logs38c.append)
+assert {k[0] for k in fk3.t["offers"]} == {"cf-1", "cf-2", "cf-3"}, {k[0] for k in fk3.t["offers"]}
+assert any("opslaan mislukt" in l for l in logs38c)
+
 print("alle tests geslaagd")

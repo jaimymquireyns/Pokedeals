@@ -15,6 +15,7 @@ from store import SupabaseStore
 REFRESH_DAYS = 3   # een kaart wordt pas opnieuw ververst als het langer dan dit geleden is
 TOP_N = 300         # 'de beste kansen': zelfde top als bij het koppelen van Near Mint-prijzen
 LIMIT = 5            # zoveel aanbiedingen bewaren we per kaart
+MAX_SAVE_FAILS = 5   # zoveel keer achter elkaar opslaan mislukken = de database is echt weg: stoppen
 
 
 def _chunks(xs, n):
@@ -87,7 +88,7 @@ def run(store, pk, today, log=print, deadline=None, only=None):
     todo = stale(store, cands, today)
     log(f"Laagste aanbiedingen: {len(cands)} kaarten in aanmerking, {len(todo)} zijn aan de beurt (ouder dan {REFRESH_DAYS} dagen of nog nooit opgehaald)")
 
-    done, rows_total = 0, 0
+    done, rows_total, save_fails = 0, 0, 0
     for pid in todo:
         if pk.over_budget():
             log(f"Credit-budget bereikt ({pk.credits}). Morgen gaat het verder waar het nu stopt.")
@@ -102,9 +103,18 @@ def run(store, pk, today, log=print, deadline=None, only=None):
             log(f"  {p['name']}: {e}")
             continue
         rows = parse_offers(pid, data, today)
-        store.delete("offers", {"product_id": f"eq.{pid}"})
-        if rows:
-            store.upsert("offers", rows, "product_id,rank")
+        try:
+            if rows:
+                store.upsert("offers", rows, "product_id,rank")
+            store.delete("offers", {"product_id": f"eq.{pid}", "rank": f"gt.{len(rows)}"})   # pas ná het opslaan: oude, niet meer bestaande regels opruimen
+        except Exception as e:
+            save_fails += 1
+            log(f"  {p['name']}: opslaan mislukt ({type(e).__name__}); de volgende run probeert deze kaart opnieuw")
+            if save_fails >= MAX_SAVE_FAILS:
+                log(f"Database reageert niet meer ({MAX_SAVE_FAILS}x achter elkaar); gestopt om geen credits te verspillen.")
+                break
+            continue
+        save_fails = 0
         done += 1
         rows_total += len(rows)
     log(f"Laagste aanbiedingen: {done} kaarten ververst, {rows_total} aanbiedingen opgeslagen ({pk.credits} credits tot nu toe)")
