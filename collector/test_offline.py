@@ -681,6 +681,7 @@ assert f730["exp_change"] < 20, f730   # geen duizenden procenten meer
 # ============ 15. Sealed-geschiedenis (PkmnPrices, Cardmarket-bron) ============
 import sealed_history
 import graded_history
+import famous_analysis
 raw_hist = [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": None, "variant": None, "avg": 140.0, "low": 138.0},
             {"date": "2026-08-02", "source": "cardmarket", "currency": "EUR", "avg": 141.0, "low": 139.0},
             {"date": "2026-08-03", "source": "tcgplayer", "currency": "USD", "market_price": 150.0},   # andere bron: overslaan
@@ -1515,5 +1516,78 @@ assert not any("9003" in url for url, g, gr in seen_grades), "de niet-beroemde k
 grades_requested = {gr for url, g, gr in seen_grades if "9002" in url and g == "PSA"}
 assert grades_requested == {"1", "7", "8", "9", "10"}, f"PSA: alleen 1 en 7-tot-max: {grades_requested}"
 assert "10-BlackLabel" not in {gr for _, _, gr in seen_grades} and not any("pristine" in str(gr).lower() for _, _, gr in seen_grades), "bijzondere labels bewust nog niet opgevraagd"
+
+# ============ 41. Backtest: write=False raakt de echte kalibratie niet aan, product_ids beperkt de kaarten ============
+fake31, store31 = new_store()
+base31 = date(2026, 3, 1)
+def stijgende_reeks(pid, n=80, mu=0.012):
+    return [{"product_id": pid, "date": (base31 + timedelta(days=i)).isoformat(), "source": "tcgdex", "grade_key": "raw",
+             "price": 30.0 * math.exp(mu * i), "avg1": None, "avg7": None, "avg30": None} for i in range(n)]
+store31.upsert_products([{"product_id": "beroemd-1", "kind": "card", "name": "Beroemd"},
+                         {"product_id": "onbekend-1", "kind": "card", "name": "Onbekend"}])
+store31.upsert_prices(stijgende_reeks("beroemd-1") + stijgende_reeks("onbekend-1"))
+
+# bestaande kalibratie alvast zetten, om te checken dat write=False die met rust laat
+fake31.t["trackrecord_stats"][("backtest", 30, 10, "all")] = {"source": "backtest", "horizon_days": 30, "threshold_pct": 10, "bucket": "all", "n": 999, "hits": 500, "sum_p": 500.0}
+today31 = (base31 + timedelta(days=79)).isoformat()
+
+stats_scoped = trackrecord.backtest(store31, today31, combos=[(30, 10)], product_ids=["beroemd-1"], write=False, log=quiet)
+assert (30, 10) in stats_scoped and sum(d["n"] for d in stats_scoped[(30, 10)].values()) > 0, "de beroemde kaart is wel meegenomen"
+assert fake31.t["trackrecord_stats"][("backtest", 30, 10, "all")]["n"] == 999, "write=False: de echte kalibratie is niet overschreven"
+
+stats_full = trackrecord.backtest(store31, today31, combos=[(30, 10)], write=False, log=quiet)
+n_scoped = sum(d["n"] for d in stats_scoped[(30, 10)].values())
+n_full = sum(d["n"] for d in stats_full[(30, 10)].values())
+assert n_scoped < n_full, f"met product_ids zijn er minder metingen dan zonder (alleen 'onbekend-1' extra): {n_scoped} vs {n_full}"
+
+# ============ 42. famous_analysis: backtest + zoekinteresse rond de grootste sprong, zonder de echte kalibratie te raken ============
+fake32, store32 = new_store()
+famous_dex32 = sorted(config.FAMOUS_DEX_IDS)[0]
+base32 = date(2026, 3, 1)
+n32 = 80
+prijzen_stijgend = [30.0 * math.exp(0.012 * i) for i in range(n32)]
+prijzen_sprong = [22.0] * 40 + [205.0] * (n32 - 40)   # zoals Electivire, ter vergelijking
+store32.upsert_products([{"product_id": "beroemd-stijgend", "kind": "card", "name": "Stijgende Ster", "dex_id": famous_dex32},
+                         {"product_id": "beroemd-sprong", "kind": "card", "name": "Sprong Ster", "dex_id": famous_dex32},
+                         {"product_id": "onbekend", "kind": "card", "name": "Onbekende Kaart"}])
+for pid, prijzen in (("beroemd-stijgend", prijzen_stijgend), ("beroemd-sprong", prijzen_sprong), ("onbekend", prijzen_stijgend)):
+    store32.upsert_prices([{"product_id": pid, "date": (base32 + timedelta(days=i)).isoformat(), "source": "tcgdex", "grade_key": "raw",
+                            "price": prijzen[i], "avg1": None, "avg7": None, "avg30": None} for i in range(n32)])
+fake32.t["trackrecord_stats"][("backtest", 30, 10, "all")] = {"source": "backtest", "horizon_days": 30, "threshold_pct": 10, "bucket": "all", "n": 777, "hits": 300, "sum_p": 300.0}
+today32 = (base32 + timedelta(days=n32 - 1)).isoformat()
+
+# zonder SCRAPEDO_API_KEY: alleen stap 1, netjes gestopt, geen crash
+logs32 = []
+famous_analysis.run(store32, today32, n=3, log=logs32.append)
+assert any("Backtest" in l or "beroemde Pokémon" in l for l in logs32), logs32
+assert any("SCRAPEDO_API_KEY ontbreekt" in l for l in logs32), logs32
+assert fake32.t["trackrecord_stats"][("backtest", 30, 10, "all")]["n"] == 777, "de echte kalibratie is niet aangeraakt"
+
+series_fam, prods_fam = famous_analysis.famous_series(store32, today32)
+assert set(series_fam) == {"beroemd-stijgend", "beroemd-sprong"}, "alleen de beroemde kaarten, 'onbekend' niet"
+jumps = famous_analysis.biggest_jumps(series_fam, prods_fam, 3)
+assert jumps and jumps[0]["product_id"] == "beroemd-sprong", f"de grote sprong staat bovenaan: {jumps}"
+
+class TrendsStub:
+    def get(self, url, params=None, timeout=None):
+        return Resp(200, {"search_metadata": {}, "search_parameters": {}, "interest_over_time": {"timeline_data": [
+            {"time": str(1700000000 + i * 604800), "value": [80 if i > 40 else 5]} for i in range(53)]}})
+
+os.environ["SCRAPEDO_API_KEY"] = "sd_test"
+orig_session = tp.requests
+class FakeRequests:
+    @staticmethod
+    def get(url, params=None, timeout=None):
+        return TrendsStub().get(url, params, timeout)
+tp.requests = FakeRequests
+try:
+    logs32b = []
+    famous_analysis.run(store32, today32, n=2, log=logs32b.append)
+finally:
+    tp.requests = orig_session
+    del os.environ["SCRAPEDO_API_KEY"]
+text32b = "\n".join(logs32b)
+assert "Sprong Ster" in text32b and "zoekinteresse (12 mnd" in text32b, text32b
+assert "interesse voor de sprong" in text32b or "te weinig meetpunten" in text32b
 
 print("alle tests geslaagd")

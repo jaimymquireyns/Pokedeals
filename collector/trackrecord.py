@@ -74,7 +74,11 @@ def resolve(store, today, log=print):
     return len(done)
 
 
-def backtest(store, today, days=200, step=5, combos=None, log=print):
+def backtest(store, today, days=200, step=5, combos=None, log=print, product_ids=None, write=True):
+    """product_ids: optioneel, beperk de backtest tot deze kaarten (bijv. alleen de beroemde Pokémon).
+    write=False: alleen berekenen en loggen, niets naar trackrecord_stats schrijven (voor verkennende,
+    afgebakende runs zoals 'alleen de beroemde Pokémon' — dat zou anders de echte kalibratie, die op de
+    volledige catalogus hoort te draaien, overschrijven met een veel kleinere steekproef)."""
     """Speelt het model na op historische data: voor elke (product, dag, periode) de kans voorspellen met alleen
     de data tot dan, en vergelijken met wat er echt gebeurde. Dit is de enige praktische manier om lange periodes
     (3-24 maanden) te controleren zonder daadwerkelijk jaren te wachten.
@@ -98,6 +102,9 @@ def backtest(store, today, days=200, step=5, combos=None, log=print):
                 {**r, "price": float(r["price"]) if r.get("price") is not None else None,
                  "avg1": None, "avg7": None, "avg30": None})
         series_by_pid[pid] = analysis.series_for(pid, by_source, nm_rows=nm_by_pid.get(pid))
+    if product_ids is not None:
+        wanted = set(product_ids)
+        series_by_pid = {pid: s for pid, s in series_by_pid.items() if pid in wanted}
 
     all_stats = {}
     for horizon, pct in combos:
@@ -119,12 +126,13 @@ def backtest(store, today, days=200, step=5, combos=None, log=print):
         if stats:
             all_stats[(horizon, pct)] = stats
 
-    for horizon, pct in combos:
-        store.delete("trackrecord_stats", {"source": "eq.backtest", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}"})
+    if write:
+        for horizon, pct in combos:
+            store.delete("trackrecord_stats", {"source": "eq.backtest", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}"})
     out_rows = [{"source": "backtest", "horizon_days": h, "threshold_pct": p, "bucket": b,
                 "n": d["n"], "hits": d["hits"], "sum_p": round(d["sum_p"], 4)}
                 for (h, p), stats in all_stats.items() for b, d in stats.items()]
-    if out_rows:
+    if out_rows and write:
         store.insert("trackrecord_stats", out_rows)
     for (h, p), stats in sorted(all_stats.items()):
         log(f"Backtest {h}d/{p}%: " + ", ".join(f"{b}: {d['hits']}/{d['n']}" for b, d in sorted(stats.items())))
