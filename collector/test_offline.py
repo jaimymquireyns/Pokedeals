@@ -680,6 +680,7 @@ assert f730["exp_change"] < 20, f730   # geen duizenden procenten meer
 
 # ============ 15. Sealed-geschiedenis (PkmnPrices, Cardmarket-bron) ============
 import sealed_history
+import graded_history
 raw_hist = [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": None, "variant": None, "avg": 140.0, "low": 138.0},
             {"date": "2026-08-02", "source": "cardmarket", "currency": "EUR", "avg": 141.0, "low": 139.0},
             {"date": "2026-08-03", "source": "tcgplayer", "currency": "USD", "market_price": 150.0},   # andere bron: overslaan
@@ -1161,9 +1162,11 @@ import pkmnprices as pkmod
 real_pk = pkmod.PkmnPrices
 pkmod.PkmnPrices = lambda key, budget=None: real_pk(key, session=prio, budget=budget)
 try:
+    config.OFFERS_ENABLED = True   # standaard nu uit (zie test 39); hier expliciet aan om het mechanisme zelf te testen
     run.spend_pkmn_credits(store21, "2026-09-21", log=quiet)
 finally:
     pkmod.PkmnPrices = real_pk
+    config.OFFERS_ENABLED = False
     del os.environ["PKMN_API_KEY"]
 assert any("Collectiekaart" in o for o in prio.order), prio.order
 assert any("Kansenkaart" in o for o in prio.order)
@@ -1231,36 +1234,6 @@ backfill.backfill_cards(ImgPPT(), store24, "2026-09-21", 0.9, 5, log=quiet)
 prods24 = {p["product_id"]: p for p in store24.products("card")}
 assert prods24["t1-up"]["image"] == "https://ppt.example/up.png", "kreeg de PPT-foto omdat TCGdex 'm nog miste"
 assert prods24["t1-down"]["image"] == "https://al.een.foto", "had al een foto; niet overschreven door de PPT-versie"
-
-# ============ 35. Aanbiedingen voor de duurste kaarten krijgen een eigen, gegarandeerd budget ============
-fake25, store25 = new_store()
-os.environ["PKMN_API_KEY"] = "pk_deals"
-prods25 = [{"product_id": f"exp-{i}", "kind": "card", "name": f"Exp{i}", "number": str(i), "set_name": "S", "set_total": 50, "pk_id": str(1000 + i)} for i in range(30)]
-store25.upsert_products(prods25)
-for i in range(30):
-    fake25.t["forecasts"][(f"exp-{i}", 30, 10)] = {"product_id": f"exp-{i}", "horizon_days": 30, "threshold_pct": 10, "price": 400.0 - i, "p_up": 0.3, "p_down": 0.1}
-top25 = offers.top_expensive_ids(store25, max_price=500, limit=5)
-assert top25 == [f"exp-{i}" for i in range(5)], "de 5 duurste onder de 500 (hoogste prijs eerst)"
-
-class DealsSess:
-    headers = {}
-    def get(self, url, params=None, timeout=None):
-        return PkResp({"data": [{"price": 9.0, "condition": "Near Mint", "seller": "x", "quantity": 1, "language": "EN"}], "pagination": {"page": 1, "total_pages": 1}})
-
-# simuleer een kleine (test-)config zodat we niet echt 700 kaarten/14000 credits nodig hebben om het mechanisme te testen
-orig_max_price, orig_top_n, orig_budget = config.DEALS_MAX_PRICE, config.DEALS_TOP_N, config.DEALS_BUDGET
-config.DEALS_MAX_PRICE, config.DEALS_TOP_N, config.DEALS_BUDGET = 500, 5, 60
-deals_sess = DealsSess()
-real_pk_cls = pkmnprices.PkmnPrices
-pkmnprices.PkmnPrices = lambda key, budget=None: real_pk_cls(key, session=deals_sess, budget=budget)
-try:
-    run.spend_pkmn_credits(store25, "2026-09-21", log=quiet)
-finally:
-    pkmnprices.PkmnPrices = real_pk_cls
-    config.DEALS_MAX_PRICE, config.DEALS_TOP_N, config.DEALS_BUDGET = orig_max_price, orig_top_n, orig_budget
-    del os.environ["PKMN_API_KEY"]
-done_pids = {k[0] for k in fake25.t["offers"]}
-assert all(f"exp-{i}" in done_pids for i in range(5)), f"de 5 duurste kaarten kregen sowieso hun aanbiedingen, in deze eigen, eerste ronde: {done_pids}"
 
 # ============ 36. Zoekinteresse-test (Scrape.do / Google Trends) ============
 import trends_probe as tp
@@ -1476,5 +1449,71 @@ logs38c = []
 offers.run(st3, pkmnprices.PkmnPrices("pk", session=HistSess()), "2026-09-21", log=logs38c.append)
 assert {k[0] for k in fk3.t["offers"]} == {"cf-1", "cf-2", "cf-3"}, {k[0] for k in fk3.t["offers"]}
 assert any("opslaan mislukt" in l for l in logs38c)
+
+# ============ 39. Beroemde Pokémon krijgen voorrang, met diepere geschiedenis, en 'Goedkope aanbiedingen' staat stil ============
+assert config.OFFERS_ENABLED is False, "aanbiedingen staan standaard stil, zoals afgesproken"
+
+fake29, store29 = new_store()
+os.environ["PKMN_API_KEY"] = "pk_famous"
+famous_dex = sorted(config.FAMOUS_DEX_IDS)[0]   # Mewtwo (150) in de echte lijst
+store29.upsert_products([
+    {"product_id": "fam-1", "kind": "card", "name": "Beroemd", "number": "1", "set_name": "S", "set_total": 5, "dex_id": famous_dex, "pk_id": "9001"},
+    {"product_id": "gew-1", "kind": "card", "name": "Gewoon", "number": "2", "set_name": "S", "set_total": 5},
+])
+for pid in ("fam-1", "gew-1"):
+    fake29.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 20.0, "p_up": 0.5, "p_down": 0.1}
+
+class FamousSess:
+    headers = {}
+    def __init__(self):
+        self.order, self.periods = [], []
+    def get(self, url, params=None, timeout=None):
+        self.order.append(url)
+        self.periods.append((params or {}).get("period"))
+        if "listings/ebay" in url:
+            return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})
+        if "prices/history" in url:
+            return PkResp({"data": [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 5.0}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": {"id": 1, "prices": []}})
+
+famous_sess = FamousSess()
+real_pk29 = pkmnprices.PkmnPrices
+pkmnprices.PkmnPrices = lambda key, budget=None: real_pk29(key, session=famous_sess, budget=budget)
+try:
+    run.spend_pkmn_credits(store29, "2026-09-21", log=quiet)
+finally:
+    pkmnprices.PkmnPrices = real_pk29
+    del os.environ["PKMN_API_KEY"]
+
+# de gewone geschiedenis van de beroemde kaart moet 180 dagen hebben gevraagd, niet de standaard 90
+hist_periods = [p for u, p in zip(famous_sess.order, famous_sess.periods) if "fam-1" not in u and "prices/history" in u]
+assert "180d" in famous_sess.periods, famous_sess.periods
+# na afloop staat de instelling weer terug op de standaard (geen blijvende bijwerking)
+assert config.HISTORY_PERIOD == "90d", config.HISTORY_PERIOD
+# en er ging geen enkel verzoek naar 'aanbiedingen' (die staan uit)
+assert not any("listings/cardmarket" in u for u in famous_sess.order), "geen aanbiedingen-verzoeken; die staan uit"
+assert fake29.t["offers"] == {}, "geen aanbiedingen opgeslagen"
+
+# ============ 40. Gegradeerde geschiedenis: alleen beroemde Pokémon, graad 1 en 7-tot-max per bedrijf ============
+fake30, store30 = new_store()
+store30.upsert_products([{"product_id": "fam-g1", "kind": "card", "name": "Gradeer Mij", "number": "9", "set_name": "S", "set_total": 5, "dex_id": famous_dex, "pk_id": "9002"},
+                         {"product_id": "gew-g1", "kind": "card", "name": "Niet gradeer", "number": "10", "set_name": "S", "set_total": 5, "dex_id": 99999, "pk_id": "9003"}])
+seen_grades = []
+class GradedSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        seen_grades.append((url, (params or {}).get("grader"), (params or {}).get("grade")))
+        if "fam-g1" in url or "9002" in url:
+            return PkResp({"data": [{"date": "2026-07-01", "price": 500.0}, {"date": "2026-07-02", "price": 520.0}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})
+
+n_graded = graded_history.run(store30, pkmnprices.PkmnPrices("pk", session=GradedSess()), "2026-09-21", log=quiet)
+assert n_graded > 0
+assert ("fam-g1", "2026-07-01", "pkmnprices_ebay", "PSA-10") in fake30.t["prices"]
+assert ("fam-g1", "2026-07-01", "pkmnprices_ebay", "BGS-9.5") in fake30.t["prices"]
+assert not any("9003" in url for url, g, gr in seen_grades), "de niet-beroemde kaart wordt helemaal niet opgevraagd"
+grades_requested = {gr for url, g, gr in seen_grades if "9002" in url and g == "PSA"}
+assert grades_requested == {"1", "7", "8", "9", "10"}, f"PSA: alleen 1 en 7-tot-max: {grades_requested}"
+assert "10-BlackLabel" not in {gr for _, _, gr in seen_grades} and not any("pristine" in str(gr).lower() for _, _, gr in seen_grades), "bijzondere labels bewust nog niet opgevraagd"
 
 print("alle tests geslaagd")

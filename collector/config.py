@@ -73,5 +73,16 @@ PK_BUDGET = 64000          # maximaal aantal credits per dag dat de geplande tak
 DEALS_MAX_PRICE = 500      # 'goedkope aanbiedingen' voor kaarten duurder dan dit worden niet apart opgehaald
 DEALS_TOP_N = 700          # ...voor de zoveel duurste kaarten onder die grens
 DEALS_BUDGET = 14000       # eigen, gegarandeerd budget hiervoor, los van wat de geschiedenis-opbouw gebruikt
+OFFERS_ENABLED = False     # 'Goedkope aanbiedingen' staat tijdelijk stil (op verzoek): het budget gaat nu naar de beroemde Pokémon hieronder. Het blokje in de app blijft gewoon staan, met steeds oudere gegevens.
+
+# 65 beroemde Pokémon (dex-nummers), samen met de gebruiker vastgesteld op basis van aantal kaarten x gemiddelde
+# prijs in onze eigen data. Krijgen voorrang op geschiedenis, net als de eigen collectie, en mogen dieper terug
+# (180 dagen i.p.v. 90) en ook gegradeerd (PSA/BGS/CGC) worden opgebouwd.
+FAMOUS_DEX_IDS = {
+    150, 6, 151, 25, 94, 197, 384, 249, 149, 380, 381, 130, 248, 9, 8, 7, 4, 5, 1, 2, 3, 131, 196, 251, 258, 658,
+    144, 229, 382, 487, 484, 483, 208, 383, 26, 143, 146, 134, 643, 644, 250, 145, 65, 282, 135, 243, 136, 59,
+    133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
+}
+FAMOUS_HISTORY_DAYS = 180   # beroemde Pokémon: geschiedenis (ongegradeerd én gegradeerd) mag dieper terug dan de standaard 90 dagen
 PK_TIME_BUDGET = 4 * 3600         # dagelijkse update: stopt zelf na 4 uur, ruim binnen de 5 uur die GitHub Actions daarvoor krijgt
 PK_CREDITS_ONLY_TIME_BUDGET = 50 * 60  # late 'credits opmaken'-taak: die heeft zelf maar 1 uur van GitHub, dus stopt na 50 minuten

@@ -236,7 +236,6 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     try:
         import nm
         import card_history
-        import offers
         core = nm.core_ids(store)   # eigen collectie + prijsmeldingen: eerste, kleine prioriteitsronde vóór al het andere
         core_products = {p["product_id"]: p for p in store.products("card") if p["product_id"] in set(core)}
         core_cards = [pid for pid in core if pid in core_products]
@@ -244,21 +243,33 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         if core_cards:
             nm._map_and_refresh(store, pk_client, today, core_cards, core_products, log, deadline=deadline, refresh_price=config.NM_REFRESH_PRICE)
             card_history.run(store, pk_client, today, log=log, deadline=deadline, only=core_cards)
-            offers.run(store, pk_client, today, log=log, deadline=deadline, only=core_cards)
+            if config.OFFERS_ENABLED:
+                import offers
+                offers.run(store, pk_client, today, log=log, deadline=deadline, only=core_cards)
     except Exception as e:
         log(f"! eigen collectie eerst overgeslagen: {e}")
     try:
-        import offers
-        top_ids = offers.top_expensive_ids(store, config.DEALS_MAX_PRICE, config.DEALS_TOP_N)
-        if top_ids:
-            # eigen, gegarandeerd budget: dit mag niet verdrinken in wat de geschiedenis-opbouw daarna nog gebruikt
-            original_budget = pk_client.budget
-            pk_client.budget = min(original_budget, pk_client.credits + config.DEALS_BUDGET)
-            log(f"Aanbiedingen voor de {len(top_ids)} duurste kaarten onder €{config.DEALS_MAX_PRICE}: eigen budget van max {config.DEALS_BUDGET} credits.")
-            offers.run(store, pk_client, today, log=log, deadline=deadline, only=top_ids)
-            pk_client.budget = original_budget
+        import nm
+        import card_history
+        famous_products = [p for p in store.products("card") if p.get("dex_id") in config.FAMOUS_DEX_IDS]
+        famous_ids = [p["product_id"] for p in famous_products]
+        log(f"Beroemde Pokémon eerst: {len(famous_ids)} kaarten (van {len(config.FAMOUS_DEX_IDS)} Pokémon), tot {config.FAMOUS_HISTORY_DAYS} dagen geschiedenis.")
+        if famous_ids:
+            famous_by_id = {p["product_id"]: p for p in famous_products}
+            nm._map_and_refresh(store, pk_client, today, famous_ids, famous_by_id, log, deadline=deadline, refresh_price=config.NM_REFRESH_PRICE)
+            original_period = config.HISTORY_PERIOD
+            config.HISTORY_PERIOD = f"{config.FAMOUS_HISTORY_DAYS}d"   # tijdelijk dieper dan de standaard 90 dagen, alleen voor deze kaarten
+            try:
+                card_history.run(store, pk_client, today, log=log, deadline=deadline, only=famous_ids)
+            finally:
+                config.HISTORY_PERIOD = original_period
     except Exception as e:
-        log(f"! aanbiedingen voor duurdere kaarten overgeslagen: {e}")
+        log(f"! beroemde Pokémon (gewone geschiedenis) overgeslagen: {e}")
+    try:
+        import graded_history
+        graded_history.run(store, pk_client, today, log=log, deadline=deadline, target_days=config.FAMOUS_HISTORY_DAYS)
+    except Exception as e:
+        log(f"! beroemde Pokémon (gegradeerde geschiedenis) overgeslagen: {e}")
     try:
         import nm
         nm.run(store, pk_client, today, log=log, deadline=deadline)
@@ -274,11 +285,12 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         sealed_history.run(store, pk_client, today, log=log, deadline=deadline)   # krijgt wat de twee taken hierboven nog overlaten
     except Exception as e:
         log(f"! sealed-geschiedenis overgeslagen: {e}")
-    try:
-        import offers
-        offers.run(store, pk_client, today, log=log, deadline=deadline)   # laagste aanbiedingen: helemaal achteraan, profiteert van budget dat vrijkomt
-    except Exception as e:
-        log(f"! laagste aanbiedingen overgeslagen: {e}")
+    if config.OFFERS_ENABLED:
+        try:
+            import offers
+            offers.run(store, pk_client, today, log=log, deadline=deadline)   # laagste aanbiedingen: helemaal achteraan, profiteert van budget dat vrijkomt
+        except Exception as e:
+            log(f"! laagste aanbiedingen overgeslagen: {e}")
 
 
 def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=None):
