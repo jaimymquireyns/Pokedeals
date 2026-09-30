@@ -18,12 +18,45 @@ def _add(stats, bucket, p, hit):
     s["sum_p"] += p
 
 
+RESOLVE_LAG_DAYS = 35      # zo ver na het verstrijken van de periode proberen we een voorspelling nog na te kijken (vangt gemiste dagen op)
+RESOLVE_WINDOW_DAYS = 7    # per verzoek zoveel dagen tegelijk: kleine, snelle verzoeken in plaats van één gigantische tabel doorbladeren
+
+
+def fetch_due(store, today, combos=None, log=print):
+    """Alleen de voorspellingen ophalen waarvan de periode al voorbij is, per periode en in kleine datumvensters.
+    Voorheen werd de hele tabel met onbeoordeelde voorspellingen doorgebladerd (tienduizenden regels, met een
+    steeds grotere 'offset'), en bij regel ~35.000 gaf Supabase een time-out. Voorspellingen die zelfs na
+    RESOLVE_LAG_DAYS nog niet beoordeeld zijn (bijv. door weken zonder prijs), worden opgeruimd zodat de tabel
+    niet eindeloos blijft groeien."""
+    combos = combos or (config.GRID + config.LONG_GRID)
+    t = date.fromisoformat(today)
+    out = []
+    for horizon, pct in combos:
+        cutoff = t - timedelta(days=horizon)
+        oldest = cutoff - timedelta(days=RESOLVE_LAG_DAYS)
+        start = oldest
+        while start <= cutoff:
+            end = min(start + timedelta(days=RESOLVE_WINDOW_DAYS - 1), cutoff)
+            out += store.select("forecast_history", {
+                "select": "*", "resolved": "eq.false", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}",
+                "and": f"(date.gte.{start.isoformat()},date.lte.{end.isoformat()})", "order": "product_id.asc,date.asc"})
+            start = end + timedelta(days=1)
+        try:
+            store.delete("forecast_history", {"resolved": "eq.false", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}",
+                                              "date": f"lt.{oldest.isoformat()}"})
+        except Exception as e:   # opruimen is een bijzaak; mag het nakijken niet tegenhouden
+            log(f"  (opruimen van oude onbeoordeelde voorspellingen {horizon}d/{pct}% mislukt: {type(e).__name__})")
+    out.sort(key=lambda r: (r["horizon_days"], r["threshold_pct"], r["product_id"], r["date"]))
+    return out
+
+
 def resolve(store, today, log=print):
     """Beoordeelt voorspellingen die oud genoeg zijn om na te kijken: steeg de prijs minstens de drempel?
     Doet dit per periode apart (7/14/30/60 dagen); lange periodes (3-24 maanden) duren te lang om hier op te wachten,
     daarvoor is de backtest de enige praktische bron."""
-    pending = store.select("forecast_history", {"select": "*", "resolved": "eq.false", "order": "horizon_days.asc,product_id.asc,date.asc"})
+    pending = fetch_due(store, today, log=log)
     if not pending:
+        log("Trackrecord: nog geen voorspellingen die oud genoeg zijn om na te kijken")
         return 0
     latest = store.latest_prices()
     names = {}

@@ -13,7 +13,18 @@ import nm
 from pkmnprices import PkmnPrices
 from store import SupabaseStore
 
-BACKFILLED_ENOUGH_DAYS = 60   # ruim onder de 90 dagen die we opvragen, anders blijft een kaart net-niet 'genoeg' hebben en wordt hij steeds opnieuw opgehaald
+BACKFILLED_ENOUGH_DAYS = 60   # bij de standaard 90 dagen: ruim eronder, anders blijft een kaart net-niet 'genoeg' hebben en wordt hij steeds opnieuw opgehaald
+
+
+def period_days(period=None):
+    return int(str(period or config.HISTORY_PERIOD).rstrip("d"))
+
+
+def enough_days(period=None):
+    """Vanaf hoeveel dagen oude historie een kaart 'klaar' is, afhankelijk van hoe ver we terugvragen: dezelfde
+    verhouding als de beproefde 60 bij 90 dagen (2/3), dus 120 bij 180 dagen. Zo telt een kaart met 90 dagen
+    niet meer als klaar zodra hij 180 dagen hoort te krijgen (de fout van 30 sep bij de beroemde Pokémon)."""
+    return max(1, round(period_days(period) * 2 / 3))
 
 
 def _chunks(xs, n):
@@ -49,11 +60,14 @@ def parse_rows(product_id, data, today):
     return out
 
 
-def already_backfilled(store, product_ids, today):
-    """Kaarten die al oude (60+ dagen) Near Mint-historie hebben, hoeven niet opnieuw. Eén blik per stapel
-    kaarten in plaats van per kaart, om het aantal databaseverzoeken laag te houden."""
-    cutoff = (date.fromisoformat(today) - timedelta(days=BACKFILLED_ENOUGH_DAYS)).isoformat()
-    done = set()
+def already_backfilled(store, product_ids, today, products=None):
+    """Kaarten die al oud genoeg Near Mint-historie hebben (zie enough_days), of die al eens tot de gevraagde
+    diepte zijn opgehaald (products[..]['nm_hist_days']), hoeven niet opnieuw. Dat laatste voorkomt dat een
+    kaart met weinig verkopen, waarvan domweg geen oudere prijzen bestaan, elke nacht opnieuw credits kost.
+    Eén blik per stapel kaarten in plaats van per kaart, om het aantal databaseverzoeken laag te houden."""
+    cutoff = (date.fromisoformat(today) - timedelta(days=enough_days())).isoformat()
+    want = period_days()
+    done = {pid for pid in product_ids if products and (products.get(pid) or {}).get("nm_hist_days") and int(products[pid]["nm_hist_days"]) >= want}
     try:
         for ch in _chunks(sorted(product_ids), 150):
             rows = store.select("prices", {"select": "product_id", "product_id": f"in.({','.join(ch)})",
@@ -81,11 +95,11 @@ def run(store, pk, today, log=print, deadline=None, only=None):
     order = only if only is not None else candidates(store)
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
     order = [pid for pid in order if pid in products]
-    done_already = already_backfilled(store, order, today)
+    done_already = already_backfilled(store, order, today, products)
     todo = [pid for pid in order if pid not in done_already]
     log(f"Kaartgeschiedenis: {len(order)} gekoppelde kaarten, {len(done_already)} hebben al genoeg oude Near Mint-historie")
 
-    done, rows_total, save_fails = 0, 0, 0
+    done, rows_total, save_fails, marker_ok = 0, 0, 0, True
     for pid in todo:
         if pk.over_budget():
             log(f"Credit-budget bereikt ({pk.credits}). Morgen gaat het verder waar het nu stopt.")
@@ -112,6 +126,12 @@ def run(store, pk, today, log=print, deadline=None, only=None):
                 continue
             save_fails = 0
             rows_total += len(rows)
+        if marker_ok:   # onthouden tot hoe ver deze kaart is opgehaald, ook als er (nog) geen oude verkopen bestaan
+            try:
+                store.patch("products", {"product_id": f"eq.{pid}"}, {"nm_hist_days": period_days()})
+            except Exception as e:
+                marker_ok = False
+                log(f"  (kon de opgehaalde diepte niet onthouden, draai supabase/schema.sql opnieuw: {type(e).__name__})")
         done += 1
     log(f"Kaartgeschiedenis: {done} kaarten bijgewerkt, {rows_total} prijspunten toegevoegd ({pk.credits} credits tot nu toe)")
     return rows_total

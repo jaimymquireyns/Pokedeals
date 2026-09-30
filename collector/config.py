@@ -83,6 +83,16 @@ FAMOUS_DEX_IDS = {
     144, 229, 382, 487, 484, 483, 208, 383, 26, 143, 146, 134, 643, 644, 250, 145, 65, 282, 135, 243, 136, 59,
     133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
 }
-FAMOUS_HISTORY_DAYS = 180   # beroemde Pokémon: geschiedenis (ongegradeerd én gegradeerd) mag dieper terug dan de standaard 90 dagen
+FAMOUS_HISTORY_DAYS = 180
+SNAPSHOT_PPT_BUDGET = 12000   # PokemonPriceTracker-credits per dag voor de marktmomentopname (plan: 20.000; verder gebruikt de dagelijkse taak PPT niet)
+SNAPSHOT_MAX_MINUTES = 40     # de aparte signalentaak krijgt 60 minuten van GitHub; de momentopname stopt ruim daarvoor
+# Meersignalenplan, stap 2: grenzen per signaal (zie signals.py)
+SIG_BELOW_AVG = 0.15          # >= 15% onder het 6-maandsgemiddelde = positief; >= 15% erboven = negatief
+SIG_MOM_MAX = 0.10            # momentum 14 dagen tussen 0% en +10% = begint te herstellen (positief)
+SIG_MOM_SPIKE = 0.25          # meer dan +25% in 14 dagen = piek, zakt vaak terug (negatief)
+SIG_MOM_FALLING = -0.10       # meer dan 10% gedaald in 14 dagen = valt nog (negatief)
+SIG_STABLE_CV = 0.05          # schommeling laatste 14 dagen onder 5% = gestabiliseerd
+SIG_MIN_SELLERS = 3           # minder verkopers = dunne markt (zoals Lapras op EUR1.450): negatief
+SIG_MIN_SNAPSHOT_DAYS = 14    # aanbod/vraag-trend pas meetellen na zoveel dagen momentopnames   # beroemde Pokémon: geschiedenis (ongegradeerd én gegradeerd) mag dieper terug dan de standaard 90 dagen
 PK_TIME_BUDGET = 4 * 3600         # dagelijkse update: stopt zelf na 4 uur, ruim binnen de 5 uur die GitHub Actions daarvoor krijgt
 PK_CREDITS_ONLY_TIME_BUDGET = 50 * 60  # late 'credits opmaken'-taak: die heeft zelf maar 1 uur van GitHub, dus stopt na 50 minuten

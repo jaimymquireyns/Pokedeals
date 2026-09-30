@@ -35,7 +35,7 @@ class Resp:
 PK = {"sets": ["set_id"], "products": ["product_id"], "prices": ["product_id", "date", "source", "grade_key"],
       "forecasts": ["product_id", "horizon_days", "threshold_pct"], "pokemon_interest": ["dex_id", "date"],
       "forecast_history": ["product_id", "date", "horizon_days", "threshold_pct"], "trackrecord_stats": ["source", "horizon_days", "threshold_pct", "bucket"], "trackrecord_signals": [],
-      "collection": [], "alerts": [], "user_settings": ["user_id"], "push_subscriptions": [], "offers": ["product_id", "rank"]}
+      "collection": [], "alerts": [], "user_settings": ["user_id"], "push_subscriptions": [], "offers": ["product_id", "rank"], "market_snapshots": ["product_id", "date"], "card_signals": ["product_id", "date"]}
 NOT_NULL = {"products": ["name"]}
 FK = {"prices", "forecasts", "forecast_history", "collection", "alerts"}
 
@@ -94,6 +94,13 @@ class FakePostgrest:
     def _filter(self, rows, params):
         for k, v in (params or {}).items():
             if k in ("select", "order", "limit", "offset", "on_conflict"):
+                continue
+            if k == "and":   # PostgREST: and=(kolom.op.waarde,kolom.op.waarde)
+                for part in v.strip("()").split(","):
+                    col, op2, val2 = part.split(".", 2)
+                    rows = [r for r in rows if r.get(col) is not None and
+                            {"eq": str(r.get(col)) == val2, "gte": str(r.get(col)) >= val2, "lte": str(r.get(col)) <= val2,
+                             "lt": str(r.get(col)) < val2, "gt": str(r.get(col)) > val2}[op2]]
                 continue
             op, val = v.split(".", 1)
 
@@ -682,6 +689,8 @@ assert f730["exp_change"] < 20, f730   # geen duizenden procenten meer
 import sealed_history
 import graded_history
 import famous_analysis
+import market_snapshot
+import signals
 raw_hist = [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": None, "variant": None, "avg": 140.0, "low": 138.0},
             {"date": "2026-08-02", "source": "cardmarket", "currency": "EUR", "avg": 141.0, "low": 139.0},
             {"date": "2026-08-03", "source": "tcgplayer", "currency": "USD", "market_price": 150.0},   # andere bron: overslaan
@@ -1589,5 +1598,180 @@ finally:
 text32b = "\n".join(logs32b)
 assert "Sprong Ster" in text32b and "zoekinteresse (12 mnd" in text32b, text32b
 assert "interesse voor de sprong" in text32b or "te weinig meetpunten" in text32b
+
+# ============ 43. check_card: koppeling naar PkmnPrices controleren ============
+import check_card
+
+fake33, store33 = new_store()
+store33.upsert_products([{"product_id": "ecard3-71", "kind": "card", "name": "Lapras", "set_name": "Skyridge", "number": "71", "pk_id": "777"},
+                         {"product_id": "geen-koppeling", "kind": "card", "name": "Los Kaartje", "set_name": "S", "number": "1"}])
+
+class CheckSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        if "/cards/777" in url:
+            return PkResp({"name": "Lapras", "set": {"name": "Skyridge"}, "number": "71"})
+        return PkResp({}, status=404)
+
+logs33 = []
+check_card.check(store33, pkmnprices.PkmnPrices("pk", session=CheckSess()), "ecard3-71", log=logs33.append)
+text33 = "\n".join(logs33)
+assert "bij ons:" in text33 and "bij PkmnPrices:" in text33 and "KLOPPEN" in text33 and "NIET" not in text33.split("-->")[1], text33
+
+logs33b = []
+check_card.check(store33, pkmnprices.PkmnPrices("pk", session=CheckSess()), "geen-koppeling", log=logs33b.append)
+assert any("nog niet gekoppeld" in l for l in logs33b), logs33b
+
+# een kaart die WEL gekoppeld is, maar aan een andere naam bij PkmnPrices (de eigenlijke verdachte situatie)
+store33.upsert_products([{"product_id": "verkeerd-gekoppeld", "kind": "card", "name": "Lapras", "set_name": "Skyridge", "number": "71", "pk_id": "888"}])
+class WrongSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        return PkResp({"name": "Charizard ex", "set": {"name": "Obsidian Flames"}, "number": "125"})
+logs33c = []
+check_card.check(store33, pkmnprices.PkmnPrices("pk", session=WrongSess()), "verkeerd-gekoppeld", log=logs33c.append)
+assert any("LIJKT NIET TE KLOPPEN" in l for l in logs33c), logs33c
+
+# ============ 44. Trackrecord haalt alleen voorspellingen op die al na te kijken zijn (de time-out van 30 sep) ============
+fake34, store34 = new_store()
+store34.upsert_products([{"product_id": "tr-1", "kind": "card", "name": "TR"}])
+today34 = date(2026, 9, 30)
+fh = fake34.t["forecast_history"]
+for back in range(0, 200):   # elke dag een voorspelling, 200 dagen terug
+    d34 = (today34 - timedelta(days=back)).isoformat()
+    fh[("tr-1", d34, 30, 10)] = {"product_id": "tr-1", "date": d34, "horizon_days": 30, "threshold_pct": 10, "p_up": 0.6, "price": 10.0, "signal": "koop", "resolved": False}
+store34.upsert_prices([{"product_id": "tr-1", "date": today34.isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 12.0}])
+due = trackrecord.fetch_due(store34, today34.isoformat(), combos=[(30, 10)], log=quiet)
+due_dates = sorted(r["date"] for r in due)
+cutoff34 = (today34 - timedelta(days=30)).isoformat()
+oldest34 = (today34 - timedelta(days=30 + trackrecord.RESOLVE_LAG_DAYS)).isoformat()
+assert due_dates and due_dates[-1] == cutoff34 and due_dates[0] == oldest34, (due_dates[:1], due_dates[-1:])
+assert len(due) == trackrecord.RESOLVE_LAG_DAYS + 1, len(due)
+assert not any(k[1] < oldest34 for k in fh), "te oude, nooit nagekeken voorspellingen zijn opgeruimd"
+assert any(k[1] > cutoff34 for k in fh), "recente voorspellingen (periode nog niet voorbij) blijven staan"
+n34 = trackrecord.resolve(store34, today34.isoformat(), log=quiet)
+assert n34 == len(due), n34
+assert all(v["resolved"] for k, v in fh.items() if oldest34 <= k[1] <= cutoff34)
+
+# ============ 45. Beroemde Pokémon: een kaart met 90 dagen telt niet als klaar bij 180 dagen (de fout van 30 sep) ============
+assert card_history.enough_days("90d") == 60 and card_history.enough_days("180d") == 120
+fake35, store35 = new_store()
+today35 = date(2026, 9, 30)
+store35.upsert_products([{"product_id": "diep-1", "kind": "card", "name": "Diep", "number": "1", "set_name": "S", "set_total": 1, "pk_id": "501"},
+                         {"product_id": "dun-1", "kind": "card", "name": "Dun", "number": "2", "set_name": "S", "set_total": 1, "pk_id": "502"}])
+# beide kaarten hebben al 90 dagen geschiedenis (zoals de 1.416 kaarten)
+for pid in ("diep-1", "dun-1"):
+    store35.upsert_prices([{"product_id": pid, "date": (today35 - timedelta(days=d)).isoformat(), "source": "pkmnprices", "grade_key": "nm", "price": 10.0}
+                           for d in range(1, 91)])
+
+class DeepSess:
+    headers = {}
+    def __init__(self):
+        self.calls = []
+    def get(self, url, params=None, timeout=None):
+        self.calls.append((url, (params or {}).get("period")))
+        if "/cards/501/" in url:   # veel verkopen: 180 dagen terug beschikbaar
+            data = [{"date": (today35 - timedelta(days=d)).isoformat(), "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 10.0} for d in range(1, 181)]
+        else:                       # weinig verkopen: er bestaat niets ouder dan 100 dagen
+            data = [{"date": (today35 - timedelta(days=d)).isoformat(), "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 10.0} for d in range(1, 101)]
+        return PkResp({"data": data, "pagination": {"page": 1, "total_pages": 1}})
+
+# standaard (90 dagen): allebei al klaar, geen enkel verzoek
+s90 = DeepSess()
+card_history.run(store35, pkmnprices.PkmnPrices("pk", session=s90), today35.isoformat(), log=quiet, only=["diep-1", "dun-1"])
+assert s90.calls == [], s90.calls
+
+# beroemd (180 dagen): allebei opnieuw opgehaald, met period=180d
+config.HISTORY_PERIOD = "180d"
+try:
+    s180 = DeepSess()
+    card_history.run(store35, pkmnprices.PkmnPrices("pk", session=s180), today35.isoformat(), log=quiet, only=["diep-1", "dun-1"])
+    assert len(s180.calls) == 2 and all(p == "180d" for _, p in s180.calls), s180.calls
+    prods35 = {p["product_id"]: p for p in store35.products("card")}
+    assert prods35["diep-1"].get("nm_hist_days") == 180 and prods35["dun-1"].get("nm_hist_days") == 180, "opgehaalde diepte onthouden"
+    # volgende nacht: de dunne kaart heeft nog steeds niets ouder dan 120 dagen, maar wordt NIET opnieuw opgehaald (geen credits verspillen)
+    s180b = DeepSess()
+    card_history.run(store35, pkmnprices.PkmnPrices("pk", session=s180b), today35.isoformat(), log=quiet, only=["diep-1", "dun-1"])
+    assert s180b.calls == [], s180b.calls
+finally:
+    config.HISTORY_PERIOD = "90d"
+
+# ============ 46. Marktmomentopname: gekoppelde kaarten per stuk, nieuwe koppelen per set, eigen budget ============
+fake36, store36 = new_store()
+fd36 = sorted(config.FAMOUS_DEX_IDS)[0]
+store36.upsert_sets([{"set_id": "sk", "name": "Skyridge", "release_date": "2003-05-12"}])
+store36.upsert_products([
+    {"product_id": "sk-1", "kind": "card", "name": "Lapras", "number": "1", "set_id": "sk", "set_name": "Skyridge", "set_total": 9, "dex_id": fd36, "ppt_id": "p-1"},
+    {"product_id": "sk-2", "kind": "card", "name": "Snorlax", "number": "2", "set_id": "sk", "set_name": "Skyridge", "set_total": 9, "dex_id": fd36},
+    {"product_id": "sk-3", "kind": "card", "name": "Weedle", "number": "3", "set_id": "sk", "set_name": "Skyridge", "set_total": 9, "dex_id": 13},
+])
+class FakePPT:
+    def __init__(self):
+        self.credits, self.blocked, self.calls = 0, False, []
+    def over_budget(self):
+        return False
+    def card(self, ppt_id, history_days=None, ebay=False):
+        self.calls.append(("card", ppt_id)); self.credits += 1
+        return {"ppt_id": ppt_id, "name": "Lapras", "number": "1", "listings": 40, "sellers": 12, "recent_sales": 5, "price_usd": 10.0}
+    def sets(self):
+        self.calls.append(("sets",)); self.credits += 1
+        return [{"set_id": "ppt-sk", "name": "Skyridge"}]
+    def cards_in_set(self, set_id, history_days=None):
+        self.calls.append(("set", set_id)); self.credits += 3
+        return [{"ppt_id": "p-2", "name": "Snorlax", "number": "2", "listings": 8, "sellers": 2, "recent_sales": 1, "price_usd": 30.0},
+                {"ppt_id": "p-3", "name": "Weedle", "number": "3", "listings": 99, "sellers": 50, "recent_sales": 20, "price_usd": 0.1}]
+fppt = FakePPT()
+n36 = market_snapshot.run(store36, fppt, "2026-09-30", log=quiet)
+assert n36 == 2, n36
+snap36 = fake36.t["market_snapshots"]
+assert ("sk-1", "2026-09-30") in snap36 and ("sk-2", "2026-09-30") in snap36 and ("sk-3", "2026-09-30") not in snap36, "alleen beroemde Pokémon"
+prod36 = {p["product_id"]: p for p in store36.products("card")}
+assert prod36["sk-2"]["ppt_id"] == "p-2" and not prod36["sk-3"].get("ppt_id"), "nieuw gekoppeld; niet-beroemde kaart niet"
+fppt2 = FakePPT()
+market_snapshot.run(store36, fppt2, "2026-09-30", log=quiet)
+assert fppt2.calls == [], f"vandaag al gedaan: niets opnieuw opvragen ({fppt2.calls})"
+assert market_snapshot.run(store36, None, "2026-10-01", log=quiet) == 0, "zonder PPT-sleutel: netjes overslaan"
+
+# ============ 47. Signalen: prijsvoorbeeld van de gebruiker (18% onder gemiddelde, stabiliserend) ============
+d47 = date(2026, 4, 1)
+def pts_from(prices):
+    return [((d47 + timedelta(days=i)).isoformat(), p) for i, p in enumerate(prices)]
+# 150 dagen rond de 100, daarna gezakt naar ~80 en de laatste 20 dagen rustig rond 80-81
+herstel = [100.0] * 150 + [100 - i for i in range(1, 21)] + [80.0 + (i % 2) * 0.8 for i in range(20)]
+ps = signals.price_signals(pts_from(herstel))
+assert ps["signals"]["onder_gemiddelde"] == 1, ps
+assert ps["signals"]["stabiliseert"] == 1, ps
+assert ps["signals"]["momentum"] == 1, ps
+piek = [50.0] * 150 + [50.0 + i * 2 for i in range(1, 15)]          # +56% in 14 dagen
+pk_ = signals.price_signals(pts_from(piek))
+assert pk_["signals"]["momentum"] == -1 and pk_["signals"]["onder_gemiddelde"] == -1, pk_
+assert signals.price_signals(pts_from([10.0] * 10)) is None, "te weinig geschiedenis"
+
+# markt: dunne markt = negatief; aanbod/vraag pas na 14 dagen
+assert signals.market_signals([{"sellers": 1, "listings": 1, "recent_sales": 0}]) == {"liquiditeit": -1}
+snaps47 = [{"date": f"d{i}", "sellers": 20, "listings": 100 - i * 3, "recent_sales": 5 + i} for i in range(14)]
+m47 = signals.market_signals(snaps47)
+assert m47 == {"liquiditeit": 1, "aanbod": 1, "vraag": 1}, m47
+c47 = signals.combine(ps, {"newer_printing": True}, snaps47)
+assert c47["signals"]["reprint"] == -1 and c47["n_positive"] == 6 and c47["n_negative"] == 1, c47
+
+# dagelijks opslaan
+fake37, store37 = new_store()
+store37.upsert_products([{"product_id": "h-1", "kind": "card", "name": "Herstel", "dex_id": fd36}, {"product_id": "x-1", "kind": "card", "name": "Anders", "dex_id": 13}])
+today37 = (d47 + timedelta(days=len(herstel) - 1)).isoformat()
+for pid in ("h-1", "x-1"):
+    store37.upsert_prices([{"product_id": pid, "date": d, "source": "tcgdex", "grade_key": "raw", "price": p} for d, p in pts_from(herstel)])
+logs37 = []
+assert signals.compute_today(store37, today37, log=logs37.append) == 1
+row37 = fake37.t["card_signals"][("h-1", today37)]
+assert row37["s_onder_gemiddelde"] == 1 and row37["n_positive"] >= 3 and row37["s_aanbod"] is None, row37
+assert any("3+ positieve" in l for l in logs37)
+
+# backtest per signaal: een reeks die telkens na een daling herstelt, moet 'onder_gemiddelde +' boven gemiddeld laten scoren
+golf = [100 + 25 * math.sin(i / 20) for i in range(400)]
+bt = signals.backtest(None, "2027-01-01", series={"g": pts_from(golf)}, log=quiet)
+assert "alle momenten" in bt and "onder_gemiddelde +" in bt, sorted(bt)
+rate = lambda k: bt[k][1] / bt[k][0]
+assert rate("onder_gemiddelde +") > rate("alle momenten"), (rate("onder_gemiddelde +"), rate("alle momenten"))
 
 print("alle tests geslaagd")
