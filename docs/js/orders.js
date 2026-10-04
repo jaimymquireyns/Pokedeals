@@ -2,6 +2,7 @@
 // je kiest de kaarten, vult de gegevens van de bestelling in, en de app verdeelt gedeelde bedragen (verzending,
 // kosten, of bij verkopen de totaalprijs) over de kaarten.
 import { rest, userId } from "./api.js";
+import { searchCards } from "./cardsearch.js";
 import { allocate, costEach, saleProfit } from "./model.js";
 import { getSettings } from "./prefs.js";
 import { closeSheet, debounce, eur, h, icon, openSheet, parseMoney, segment, signedEur, thumb, toast } from "./ui.js";
@@ -25,10 +26,10 @@ function stepper(get, set, max = Infinity, onChange = () => {}) {
  * verhouding van prijs x aantal. Gegradeerde kaarten voeg je (voorlopig) los toe via de +-knop bij Zoeken. */
 export function openPurchaseOrder({ onDone } = {}) {
   const lines = [];
-  const seller = h("input", { type: "text", "aria-label": "Gekocht van", placeholder: "Naam of Cardmarket-gebruiker" });
-  const date = h("input", { type: "date", "aria-label": "Datum", value: today(), max: today() });
-  const ship = money("Verzending betaald");
-  const costs = money("Overige kosten");
+  const seller = h("input", { type: "text", "aria-label": "Naam verkoper", placeholder: "Naam of Cardmarket-gebruiker" });
+  const date = h("input", { type: "date", "aria-label": "Datum aankoop", value: today(), max: today() });
+  const ship = money("Verzendkosten");
+  const costs = money("Trustee fee");
   const linesBox = h("div", { class: "olines" });
   const summary = h("div", { class: "osum" });
   const err = h("p", { class: "err", role: "alert" });
@@ -42,7 +43,7 @@ export function openPurchaseOrder({ onDone } = {}) {
       h("div", { class: "body" },
         h("div", { class: "name", text: l.p.name }),
         h("div", { class: "set", text: [l.p.set_name, l.p.number ? `#${l.p.number}` : ""].filter(Boolean).join(" · ") }),
-        h("div", { class: "orow" }, l.price, stepper(() => l.qty, (v) => { l.qty = v; }, Infinity, drawSum),
+        h("div", { class: "orow" }, h("span", { class: "mini", text: "Prijs" }), l.price, stepper(() => l.qty, (v) => { l.qty = v; }, Infinity, drawSum),
           l.p.kind === "card" ? segment([["NM", "NM"], ["LP", "LP"], ["MP", "MP"], ["HP", "HP"]], l.condition, (v) => { l.condition = v; }, "small") : null)),
       h("button", { type: "button", class: "ox", "aria-label": `${l.p.name} verwijderen`, onclick: () => { lines.splice(i, 1); draw(); } }, icon("x"))))
       : [h("p", { class: "p14 muted", text: "Nog geen kaarten. Zoek hierboven een kaart en tik erop." })]));
@@ -50,15 +51,19 @@ export function openPurchaseOrder({ onDone } = {}) {
   };
   const drawSum = () => {
     const extra = (parseMoney(ship.value) || 0) + (parseMoney(costs.value) || 0);
-    summary.textContent = lines.length ? `${lines.reduce((s, l) => s + l.qty, 0)} kaarten · ${eur(total())} + ${eur(extra)} verzending en kosten = ${eur(total() + extra)}` : "";
+    summary.textContent = lines.length ? `${lines.reduce((s, l) => s + l.qty, 0)} kaarten · ${eur(total())} + ${eur(extra)} verzending en trustee fee = ${eur(total() + extra)}` : "";
   };
   ship.oninput = drawSum; costs.oninput = drawSum;
 
+  let seq = 0;   // alleen het antwoord op de laatste zoekopdracht tonen
   const search = debounce(async () => {
     const term = q.value.trim();
     if (term.length < 2) { results.replaceChildren(); return; }
+    const mine = ++seq;
     try {
-      const rows = await rest.get(`v_search?select=product_id,name,set_name,number,image,kind,price&name=ilike.*${encodeURIComponent(term.split(/\s+/).join("*"))}*&order=price.desc.nullslast&limit=15`);
+      const rows = await searchCards(term, { limit: 30 });
+      if (mine !== seq) return;
+      if (!rows.length) { results.replaceChildren(h("li", { class: "p14 muted", text: "Niets gevonden. Probeer naam + setafkorting + nummer, bijv. 'charizard obf 125'." })); return; }
       results.replaceChildren(...rows.map((p) => h("li", {}, h("button", { type: "button", class: "opickrow", onclick: () => {
         const price = money("Prijs per stuk", fmtIn(Number(p.price) || 0));
         price.oninput = drawSum;
@@ -69,7 +74,10 @@ export function openPurchaseOrder({ onDone } = {}) {
         h("span", { class: "num", text: p.price ? eur(Number(p.price)) : "" })))));
     } catch { results.replaceChildren(h("li", { class: "p14 muted", text: "Zoeken lukte niet." })); }
   }, 250);
-  q.oninput = search;
+  q.oninput = () => {   // oude resultaten meteen weg, zodat je nooit per ongeluk een kaart van de vorige zoekopdracht aantikt
+    results.replaceChildren(q.value.trim().length >= 2 ? h("li", { class: "p14 muted", text: "Zoeken…" }) : "");
+    search();
+  };
 
   const save = h("button", { class: "cta", type: "button", text: "Aankoop opslaan", onclick: async () => {
     err.textContent = "";
@@ -94,9 +102,10 @@ export function openPurchaseOrder({ onDone } = {}) {
 
   openSheet(h("div", { class: "sheetin orderform" }, h("div", { class: "handle" }),
     h("h3", { text: "Nieuwe aankoop" }),
-    h("div", { class: "two eq" }, field("Gekocht van", seller), field("Datum", date)),
-    h("div", { class: "two eq" }, field("Verzending betaald", ship), field("Overige kosten", costs)),
-    h("p", { class: "mini", text: "Verzending en overige kosten (bijv. grading of toploaders) worden verdeeld over de kaarten, naar verhouding van hun prijs." }),
+    h("div", { class: "two eq" }, field("Naam verkoper", seller), field("Datum aankoop", date)),
+    h("div", { class: "two eq" }, field("Verzendkosten", ship), field("Trustee fee", costs)),
+    h("p", { class: "mini", text: "Verzendkosten en trustee fee worden verdeeld over de kaarten, naar verhouding van hun prijs. De prijs vul je per kaart in." }),
+    h("div", { class: "lbl2", text: "Kaarten" }),
     h("label", { class: "sbox" }, icon("search"), q), results,
     linesBox, summary, err, save));
   draw();

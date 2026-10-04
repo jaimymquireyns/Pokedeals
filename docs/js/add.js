@@ -23,11 +23,11 @@ export function addForm(product, { onDone, editing } = {}) {
   const price = h("input", { type: "text", inputmode: "decimal", "aria-label": "Aankoopprijs per stuk", value: (e.purchase_price ?? product.price ?? "") === "" ? "" : String(e.purchase_price ?? product.price).replace(".", ",") });
   const date = h("input", { type: "date", "aria-label": "Gekocht op", value: e.purchase_date || today(), max: today() });
   // verzending die je als koper betaalde, eventueel voor meerdere kaarten uit dezelfde bestelling
-  const ship = h("input", { type: "text", inputmode: "decimal", "aria-label": "Verzending betaald", placeholder: "0,00",
+  const ship = h("input", { type: "text", inputmode: "decimal", "aria-label": "Verzendkosten", placeholder: "0,00",
     value: Number(e.purchase_shipping) > 0 ? String(e.purchase_shipping).replace(".", ",") : "" });
   const orderCards = h("input", { type: "number", min: "1", inputmode: "numeric", "aria-label": "Kaarten in die bestelling", value: String(e.quantity || 1) });
-  const seller = h("input", { type: "text", "aria-label": "Gekocht van", placeholder: "Naam of Cardmarket-gebruiker", value: e.purchase_seller || "" });
-  const costs = h("input", { type: "text", inputmode: "decimal", "aria-label": "Overige kosten", placeholder: "0,00",
+  const seller = h("input", { type: "text", "aria-label": "Naam verkoper", placeholder: "Naam of Cardmarket-gebruiker", value: e.purchase_seller || "" });
+  const costs = h("input", { type: "text", inputmode: "decimal", "aria-label": "Trustee fee", placeholder: "0,00",
     value: Number(e.purchase_costs) > 0 ? String(e.purchase_costs).replace(".", ",") : "" });
   const shipHint = h("div", { class: "mini" });
   const shipShare = () => {
@@ -112,11 +112,11 @@ export function addForm(product, { onDone, editing } = {}) {
       h("div", {}, h("div", { class: "lbl2", text: "Aankoopprijs" }), price),
       h("div", {}, h("div", { class: "lbl2", text: "Gekocht op" }), date)),
     h("div", { class: "two eq" },
-      h("div", {}, h("div", { class: "lbl2", text: "Verzending betaald" }), ship),
+      h("div", {}, h("div", { class: "lbl2", text: "Verzendkosten" }), ship),
       h("div", {}, h("div", { class: "lbl2", text: "Kaarten in die bestelling" }), orderCards)),
     shipHint,
     h("div", { class: "two eq" },
-      h("div", {}, h("div", { class: "lbl2", text: "Gekocht van" }), seller),
-      h("div", {}, h("div", { class: "lbl2", text: "Overige kosten" }), costs)),
+      h("div", {}, h("div", { class: "lbl2", text: "Naam verkoper" }), seller),
+      h("div", {}, h("div", { class: "lbl2", text: "Trustee fee" }), costs)),
     hint, err, save);
 }
