@@ -55,15 +55,27 @@ async function getSets() {
  * "charizard celebration 63". Een setcode die nergens voorkomt (verzonnen, of een nieuwe set die nog niet in de
  * lijst staat) wordt gewoon als een naamwoord behandeld. */
 function parseQuery(raw, sets) {
-  const words = norm(raw).split(/\s+/).filter(Boolean);
+  // Cardmarket-schrijfwijze opvangen: "Blissey Lv.44 (MT 5)", "Blissey Lv. 44 MT5", "Charizard 4/102".
+  const cleaned = String(raw).replace(/(\d+)\s*\/\s*\d+/g, "$1");          // 4/102 -> 4 (nummer zonder settotaal)
+  let words = norm(cleaned).split(/\s+/).filter(Boolean);
+  const out = [];
+  for (let i = 0; i < words.length; i++) {                                   // level weglaten: in onze database heet de kaart gewoon "Blissey"
+    if ((words[i] === "lv" || words[i] === "level") && i + 1 < words.length && /^(\d+|x)$/.test(words[i + 1])) { i++; continue; }
+    if (/^lv\d+$/.test(words[i]) || words[i] === "lv") continue;
+    const m = words[i].match(/^([a-z]+)(\d+[a-z]?)$/);                         // setcode en nummer aan elkaar: MT5, OBF125
+    if (m && SET_ALIASES[m[1]]) { out.push(m[1], m[2]); continue; }
+    out.push(words[i]);
+  }
+  words = out;
   let number = null;
   if (words.length > 1 && looksLikeNumber(words[words.length - 1])) number = words.pop();
 
   let setMatch = null;
   for (let start = 0; start < words.length && !setMatch; start++) {
     const alias = SET_ALIASES[words[start]];
-    if (alias) { setMatch = alias; words.splice(start, 1); break; }
+    if (alias && start > 0) { setMatch = alias; words.splice(start, 1); break; }   // het eerste woord is de naam, geen setcode
     for (let end = words.length; end > start; end--) {
+      if (start === 0) break;
       const phrase = words.slice(start, end).join(" ");
       if (phrase.length < 3) continue;
       const hit = sets.find((s) => norm(s.set_id) === phrase || norm(s.name) === phrase || norm(s.name).includes(phrase));
@@ -72,7 +84,6 @@ function parseQuery(raw, sets) {
   }
   return { nameWords: words, number, setName: setMatch };
 }
-
 
 /** Zoekt kaarten op naam, set (ook community-afkortingen zoals '30c' of 'dri') en kaartnummer. De database filtert op
  * alles tegelijk, zodat ook goedkopere kaarten van een Pokémon met honderden kaarten gevonden worden (voorheen werden
@@ -83,17 +94,31 @@ export async function searchCards(raw, { kind = "alles", limit = 40 } = {}) {
   const kindF = kind === "alles" ? "" : `&kind=eq.${kind}`;
   const sets = await getSets();
   const q = parseQuery(raw, sets);
-  const f = [];
-  if (q.nameWords.length) f.push(`name=ilike.*${encodeURIComponent(q.nameWords.join("*"))}*`);
-  if (q.setName) f.push(`set_name=ilike.*${encodeURIComponent(q.setName)}*`);
-  if (q.number) f.push(`number=ilike.${encodeURIComponent(q.number)}`);
+  const nameF = (w) => (w.length ? [`name=ilike.*${encodeURIComponent(w.join("*"))}*`] : []);
+  const setF = q.setName ? [`set_name=ilike.*${encodeURIComponent(q.setName)}*`] : [];
+  // het nummer zoals getypt, zonder voorloopnullen ('005' -> '5'), en met voorloopnullen ('5' -> '05', '005'): sommige sets
+  // (bijv. Scarlet & Violet) nummeren hun kaarten gevuld
+  const nums = !q.number ? [] : [...new Set([q.number, q.number.replace(/^0+(?=\d)/, ""),
+    ...(/^\d{1,2}$/.test(q.number.replace(/^0+(?=\d)/, "")) ? [q.number.replace(/^0+(?=\d)/, "").padStart(2, "0"), q.number.replace(/^0+(?=\d)/, "").padStart(3, "0")] : [])])];
+  const numF = (n) => (n ? [`number=ilike.${encodeURIComponent(n)}`] : []);
+  const first = q.nameWords.slice(0, 1);
+  // Van precies naar breed: zodra een poging iets oplevert, stoppen. Zo vind je de kaart ook als een deel van wat je
+  // typte (een setcode, een level, een extra woord) niet in onze database staat.
+  const attempts = [];
+  for (const n of nums.length ? nums : [null]) {
+    attempts.push([...nameF(q.nameWords), ...setF, ...numF(n)]);
+    if (setF.length) attempts.push([...nameF(q.nameWords), ...numF(n)]);
+    if (q.nameWords.length > 1) attempts.push([...nameF(first), ...setF, ...numF(n)], [...nameF(first), ...numF(n)]);
+  }
+  attempts.push([...nameF(q.nameWords), ...setF], [...nameF(q.nameWords)], [...nameF(first)]);
   let rows = [];
-  if (f.length) {
-    rows = await rest.get(`v_search?select=*&${f.join("&")}${kindF}&order=price.desc.nullslast&limit=300`);
-    if (!rows.length && q.number && /^0+\d/.test(q.number)) {   // '025' tegenover '25'
-      const g = f.map((x) => (x.startsWith("number=") ? `number=ilike.${q.number.replace(/^0+/, "")}` : x));
-      rows = await rest.get(`v_search?select=*&${g.join("&")}${kindF}&order=price.desc.nullslast&limit=300`);
-    }
+  const tried = new Set();
+  for (const f of attempts) {
+    const key = f.join("&");
+    if (!f.length || tried.has(key)) continue;
+    tried.add(key);
+    rows = await rest.get(`v_search?select=*&${key}${kindF}&order=price.desc.nullslast&limit=300`);
+    if (rows.length) break;
   }
   if (!rows.length) {
     const pat = encodeURIComponent(norm(raw).split(/\s+/).join("*"));
