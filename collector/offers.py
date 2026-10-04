@@ -34,6 +34,23 @@ def top_expensive_ids(store, max_price, limit):
     return ids[:limit]
 
 
+def deal_targets(store):
+    """Kaarten voor 'Goedkope aanbiedingen' op Home: de beroemde Pokémon vanaf config.DEALS_FAMOUS_MIN_PRICE (goedkoper
+    heeft geen zin: na commissie en verzending blijft er niets over), plus de config.DEALS_TOP_N duurste kaarten onder
+    config.DEALS_MAX_PRICE. Duurste eerst, zonder dubbels."""
+    fc = store.select("forecasts", {"select": "product_id,price", "horizon_days": f"eq.{config.STANDARD[0]}", "threshold_pct": f"eq.{config.STANDARD[1]}"})
+    price = {f["product_id"]: float(f["price"]) for f in fc if f.get("price") is not None and ":" not in f["product_id"]}
+    famous = {p["product_id"] for p in store.products("card") if p.get("dex_id") in config.FAMOUS_DEX_IDS}
+    fam = sorted((pid for pid in famous if price.get(pid, 0) >= config.DEALS_FAMOUS_MIN_PRICE), key=lambda pid: -price[pid])
+    top = top_expensive_ids(store, config.DEALS_MAX_PRICE, config.DEALS_TOP_N)
+    seen, out = set(), []
+    for pid in sorted(set(fam) | set(top), key=lambda pid: -price.get(pid, 0)):
+        if pid not in seen:
+            seen.add(pid)
+            out.append(pid)
+    return out
+
+
 def candidates(store):
     """Collectie, prijsmeldingen, en de beste kansen — niet de zich uitbreidende 'extra'-lijst van nm.py."""
     order, seen = [], set()

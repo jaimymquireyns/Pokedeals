@@ -1,7 +1,11 @@
 // Berekeningen aan de kant van de app: netto winst, uitleg bij de kans en 'aandacht nodig'.
 import { days, eur, pp, signed } from "./ui.js";
 
-export const DEFAULT_SETTINGS = { fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10 };
+export const DEFAULT_SETTINGS = { fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10, attn_pct: 15 };
+
+// De kansberekening klopt nog niet goed genoeg (zie de backtest): verborgen in de app tot ze beter is. Op de achtergrond
+// blijft ze gewoon draaien. Op true zetten om alles weer te tonen.
+export const SHOW_PREDICTIONS = false;
 
 // Periodes op de kaartdetailpagina, los van de Instellingen-standaard. Bij lange periodes ligt de drempel hoger,
 // anders is bijna alles "kans op stijging én kans op daling" tegelijk (over 2 jaar beweegt bijna elke prijs 10%).
@@ -15,36 +19,67 @@ export const PERIODS = [
   { key: "24m", label: "24m", horizon: 730, pct: 100 },
 ];
 
-/** Verwachte winst na verkoopkosten en verzending, als fractie van de huidige prijs. */
-// Verzendkosten lopen op met de verkoopprijs (Cardmarkets eigen tarieven zijn niet automatisch op te halen).
+// Verzending bij een Cardmarket-aankoop, geschat op de prijs van de kaart (de koper betaalt de verzending; de verkoper
+// koopt daar de postzegel van). Alleen nodig voor kaarten die je nog niet hebt: bij je eigen aankopen vul je de echte
+// verzending in. Cardmarkets eigen tarieven zijn niet automatisch op te halen.
 export const SHIP_TIERS = [[5, 1.5], [20, 4], [50, 7], [150, 10], [Infinity, 15]];
 export const shipCost = (price) => SHIP_TIERS.find(([limit]) => price <= limit)[1];
+export const PACKAGING = 0.5;   // hoesje, toploader en envelop per verkoop
+
+/** Echte kostprijs per stuk: aankoopprijs plus jouw deel van de verzending en overige kosten bij het kopen. */
+export const costEach = (c) => Number(c.purchase_price) + (Number(c.purchase_shipping || 0) + Number(c.purchase_costs || 0)) / Math.max(Number(c.quantity) || 1, 1);
+
+/** Verdeelt een bedrag over regels naar verhouding van hun gewicht, afgerond op centen; het afrondingsverschil gaat
+ * naar de laatste regel, zodat de delen altijd precies optellen tot het totaal. Geen gewicht: gelijk verdelen. */
+export function allocate(total, weights) {
+  const n = weights.length;
+  if (!n) return [];
+  const sum = weights.reduce((s, w) => s + Math.max(Number(w) || 0, 0), 0);
+  const raw = weights.map((w) => (sum > 0 ? (Math.max(Number(w) || 0, 0) / sum) * total : total / n));
+  const out = raw.map((x) => Math.round(x * 100) / 100);
+  out[n - 1] = Math.round((total - out.slice(0, -1).reduce((s, x) => s + x, 0)) * 100) / 100;
+  return out;
+}
+
+/** Winst van een verkoopbestelling, in totaal en per regel. lines: [{price_share, cost_total}]. */
+export function saleProfit(sale, lines) {
+  const extra = Number(sale.shipping_received || 0) - Number(sale.shipping_paid || 0) - Number(sale.commission || 0) - Number(sale.other_costs || 0);
+  const extraShares = allocate(extra, lines.map((l) => l.price_share));
+  const per = lines.map((l, i) => Math.round((Number(l.price_share) + extraShares[i] - Number(l.cost_total)) * 100) / 100);
+  return { total: Math.round(per.reduce((s, x) => s + x, 0) * 100) / 100, per, extraShares };
+}
+
+/** Verwachte winst als fractie van wat je betaalt, als je nu koopt (prijs + geschatte verzending) en na de
+ * verwachte stijging verkoopt (min commissie en verpakking; de verzending bij verkopen betaalt de koper). */
 export const netGain = (price, exp, s) => {
-  const sellPrice = price * (1 + exp);
-  return (1 + exp) * (1 - s.fee_pct / 100) - shipCost(sellPrice) / price - 1;
+  const cost = price + shipCost(price);
+  const net = price * (1 + exp) * (1 - s.fee_pct / 100) - PACKAGING;
+  return net / cost - 1;
 };
 
 export const isOpportunity = (r, s) => !s.net_only || netGain(r.price, r.exp, s) * 100 >= s.net_min_pct;
 
-// Verkoopprijs die nodig is om quitte te spelen op 'costPrice' (aankoopprijs of, als je 'm nog niet hebt, de huidige
-// prijs), na commissie en de oplopende verzendtabel. De verzendtrap hangt af van de verkoopprijs zelf, dus een
-// paar keer benaderen tot het stabiel is (de tabel heeft maar een paar treden, dit convergeert vrijwel meteen).
-export function breakEven(costPrice, feePct) {
-  let sell = costPrice;
-  for (let i = 0; i < 5; i++) sell = (costPrice + shipCost(sell)) / (1 - feePct / 100);
-  return sell;
+// Verkoopprijs die nodig is om quitte te spelen: alles wat je betaalde (kaart + verzending bij aankoop) plus
+// verpakking, gedeeld door wat je na commissie overhoudt.
+export function breakEven(costPrice, feePct, buyShipping = 0) {
+  return (costPrice + buyShipping + PACKAGING) / (1 - feePct / 100);
 }
 
 export const ATTN = { minDown: 0.35, profit: 0.30, maxUp: 0.25 };
 
-export function attention(items) {
+/** 'Aandacht nodig': kaarten die de laatste 30 dagen sterk in waarde zijn gestegen of gedaald (vanaf s.attn_pct).
+ * Gebaseerd op wat er echt gebeurde, niet op de (nog verborgen) voorspellingen. */
+export function attention(items, s = DEFAULT_SETTINGS) {
+  const limit = (Number(s.attn_pct) || DEFAULT_SETTINGS.attn_pct) / 100;
   const out = [];
   for (const it of items) {
-    const value = it.value_each ?? null, buy = it.purchase_price;
-    if (it.p_down != null && it.p_down >= ATTN.minDown) out.push({ it, kind: "daling", chip: `${pp(it.p_down)} kans op daling` });
-    else if (value && buy && value / buy - 1 >= ATTN.profit && it.p_up != null && it.p_up <= ATTN.maxUp) out.push({ it, kind: "winst", chip: "Winst nemen?" });
+    const now = it.value_each ?? null, before = it.value_30d_ago ?? null;
+    if (!now || !before) continue;
+    const ch = now / before - 1;
+    if (ch >= limit) out.push({ it, kind: "winst", chip: `▲ ${signed(ch, 0)} in 30 dagen` });
+    else if (ch <= -limit) out.push({ it, kind: "daling", chip: `▼ ${signed(ch, 0)} in 30 dagen` });
   }
-  return out;
+  return out.sort((a, b) => Math.abs(b.it.value_each / b.it.value_30d_ago - 1) - Math.abs(a.it.value_each / a.it.value_30d_ago - 1));
 }
 
 const LABELS = { g: "Positief", r: "Negatief", n: "Matig" };
@@ -87,7 +122,7 @@ export const SIGNAL_TEXT = {
 export function ownedSignal(f, item) {
   if (!f || f.p_up == null) return { label: "houden", text: "Nog te weinig gegevens voor een advies." };
   if (f.p_down >= ATTN.minDown) return { label: "verkopen overwegen", text: "De kans op daling is groot." };
-  const gain = item.value_each && item.purchase_price ? item.value_each / item.purchase_price - 1 : 0;
+  const gain = item.value_each && item.purchase_price ? item.value_each / costEach(item) - 1 : 0;
   if (gain >= ATTN.profit && f.p_up <= ATTN.maxUp) return { label: "winst nemen?", text: "Je zit goed in de winst en de kans op meer stijging is klein." };
   return { label: "houden", text: f.p_up >= 0.4 ? "De verwachting is positief, maar de extra winst is nog niet zeker." : "Geen reden om nu iets te doen." };
 }

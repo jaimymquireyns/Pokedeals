@@ -1,6 +1,6 @@
 // Herbruikbare stukjes: labels, kansbalken en lijstrijen.
 import { eur, h, icon, pp, signed, thumb } from "./ui.js";
-import { gradeLabel } from "./model.js";
+import { costEach, gradeLabel } from "./model.js";
 
 export const go = (hash) => { location.hash = hash; };
 export const detailHash = (pid, cid) => `#/detail/${encodeURIComponent(pid)}${cid ? `?c=${cid}` : ""}`;
@@ -47,8 +47,8 @@ export function oppRow(r, net, watch = null) {
 }
 
 export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
-  const total = (valueEach ?? c.purchase_price) * c.quantity;
-  const gain = gainOverride !== undefined ? gainOverride : valueEach ? valueEach / c.purchase_price - 1 : null;
+  const total = (valueEach ?? costEach(c)) * c.quantity;
+  const gain = gainOverride !== undefined ? gainOverride : valueEach ? valueEach / costEach(c) - 1 : null;
   const cls = gain == null ? "" : gain < 0 ? " neg" : "";
   return h("li", {}, h("button", { class: "rowc", type: "button", onclick: () => go(detailHash(c.product_id, c.id)) },
     thumb(c.image, "ph", c.kind === "sealed"),

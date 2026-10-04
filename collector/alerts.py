@@ -22,11 +22,11 @@ def eur(x):
 
 
 def net_change(price, exp, fee_pct):
-    """Verwachte winst na verkoopkosten en verzending, als fractie van de huidige prijs. De verzendkosten schalen
-    mee met de verwachte verkoopprijs (duurdere kaarten hebben duurdere, verzekerde verzending nodig)."""
-    sell_price = price * (1 + exp)
-    ship = config.ship_cost(sell_price)
-    return ((1 + exp) * (1 - fee_pct / 100) - ship / price) - 1
+    """Verwachte winst als fractie van wat je betaalt: nu kopen (prijs + geschatte verzending als koper) en na de
+    verwachte stijging verkopen (min commissie en verpakking; de verzending bij verkopen betaalt de koper)."""
+    cost = price + config.ship_cost(price)
+    net = price * (1 + exp) * (1 - fee_pct / 100) - config.PACKAGING
+    return net / cost - 1
 
 
 def latest_map(store, keys, today, days=10):

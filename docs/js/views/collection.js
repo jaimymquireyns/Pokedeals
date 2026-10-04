@@ -1,15 +1,19 @@
 import { isLoggedIn, rest } from "../api.js";
 import { lineChart, stepPoints } from "../chart.js";
 import { brandmark, collRow, detailHash, emptyNote, go, gradeTag } from "../components.js";
-import { attention, gradeKey } from "../model.js";
+import { attention, costEach, gradeKey } from "../model.js";
+import { getSettings } from "../prefs.js";
+import { openPurchaseOrder, openSaleOrder } from "../orders.js";
+import { renderSales } from "./sales.js";
 import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store, thumb } from "../ui.js";
 
-let ui = { kind: "alles", sort: "up", measure: "buy", range: "1M", attentionOpen: false, expanded: {}, ...store.get("pd:coll", {}) };
+let ui = { tab: "bezit", kind: "alles", sort: "up", measure: "buy", range: "1M", attentionOpen: false, expanded: {}, ...store.get("pd:coll", {}) };
 const saveUi = () => store.set("pd:coll", ui);
 
 const SORTS = [["az", "A–Z"], ["set", "Set en nummer"], ["low", "Laagste waarde"], ["high", "Hoogste waarde"], ["up", "Grootste stijging"], ["down", "Grootste daling"]];
 const RANGES = [["1M", "1M"], ["3M", "3M"], ["1J", "1J"], ["MAX", "Max"]];
 const numCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "nl", { numeric: true });
+
 
 export async function collectionView(root) {
   root.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Collectie" }), h("p", { class: "muted", text: "Laden…" }))));
@@ -21,10 +25,10 @@ export async function collectionView(root) {
     ]);
   } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Kon je collectie niet laden. Controleer je verbinding." })); console.error(e); return; }
   items = items.map((c) => ({ ...c, value_each: c.value_each == null ? null : Number(c.value_each), value_30d_ago: c.value_30d_ago == null ? null : Number(c.value_30d_ago),
-    purchase_price: Number(c.purchase_price), p_up: c.p_up == null ? null : Number(c.p_up), p_down: c.p_down == null ? null : Number(c.p_down) }));
+    purchase_price: Number(c.purchase_price), purchase_shipping: Number(c.purchase_shipping || 0), purchase_costs: Number(c.purchase_costs || 0), p_up: c.p_up == null ? null : Number(c.p_up), p_down: c.p_down == null ? null : Number(c.p_down) }));
 
-  const val = (c) => (c.value_each ?? c.purchase_price) * c.quantity;
-  const gain = (c) => (ui.measure === "30d" ? (c.value_each && c.value_30d_ago ? c.value_each / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / c.purchase_price - 1 : null));
+  const val = (c) => (c.value_each ?? costEach(c)) * c.quantity;
+  const gain = (c) => (ui.measure === "30d" ? (c.value_each && c.value_30d_ago ? c.value_each / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / costEach(c) - 1 : null));
   const cmp = {
     az: (a, b) => a.name.localeCompare(b.name, "nl"),
     set: (a, b) => (a.set_name || "").localeCompare(b.set_name || "", "nl") || numCmp(a.number, b.number),
@@ -33,20 +37,20 @@ export async function collectionView(root) {
   };
 
   const value = items.reduce((s, c) => s + val(c), 0);
-  const invested = items.reduce((s, c) => s + c.purchase_price * c.quantity, 0);
+  const invested = items.reduce((s, c) => s + costEach(c) * c.quantity, 0);
   const profit = value - invested;
-  const attn = attention(items);
+  const attn = attention(items, getSettings());
   const groupKey = (c) => `${c.product_id}|${gradeKey(c)}`;
   const groups = () => {
     const m = new Map();
     for (const c of items) { const k = groupKey(c); if (!m.has(k)) m.set(k, []); m.get(k).push(c); }
     return [...m.entries()].map(([key, copies]) => {
       const first = copies[0], quantity = copies.reduce((n, c) => n + Number(c.quantity || 0), 0);
-      const investedTotal = copies.reduce((n, c) => n + c.purchase_price * c.quantity, 0);
-      const currentTotal = copies.reduce((n, c) => n + (c.value_each ?? c.purchase_price) * c.quantity, 0);
+      const investedTotal = copies.reduce((n, c) => n + costEach(c) * c.quantity, 0);
+      const currentTotal = copies.reduce((n, c) => n + (c.value_each ?? costEach(c)) * c.quantity, 0);
       const purchase_price = quantity ? investedTotal / quantity : first.purchase_price;
       const value_each = quantity ? currentTotal / quantity : first.value_each;
-      return { key, copies, ...first, quantity, purchase_price, value_each, _invested: investedTotal, _value: currentTotal };
+      return { key, copies, ...first, quantity, purchase_price, purchase_shipping: 0, value_each, _invested: investedTotal, _value: currentTotal };
     });
   };
   const chartBox = h("div", { class: "chartbox" });
@@ -79,7 +83,7 @@ export async function collectionView(root) {
       if (!multi || !ui.expanded[g.key]) return h("li", {}, head);
       const copyRows = g.copies.map((c, i) => h("button", { class: "copyrow", type: "button", onclick: () => go(detailHash(c.product_id, c.id)) },
         h("span", {}, h("b", { text: `Aankoop ${i + 1}` }), h("small", { text: `${c.quantity > 1 ? c.quantity + " stuks · " : ""}${c.purchase_date || ""}` })),
-        h("span", { class: "num", text: eur(c.purchase_price) })));
+        h("span", { class: "num", text: eur(costEach(c)) })));
       return h("li", { class: "collgroup" }, head, h("div", { class: "copies" }, ...copyRows));
     };
     list.replaceChildren(...(vis.length ? vis.map(groupRow) : [emptyNote(items.length ? "Niets in deze selectie." : "Je collectie is leeg. Voeg kaarten toe via Zoeken of de camera.")]));
@@ -111,9 +115,19 @@ export async function collectionView(root) {
       segment([["buy", "Sinds aankoop"], ["30d", "Afgelopen 30 dagen"]], ui.measure, (m) => { ui.measure = m; saveUi(); drawList(); })));
   };
 
+  const owned = ui.tab !== "verkocht";
+  const salesBox = h("div", { class: "salesbox" });
+  const reload = () => collectionView(root);
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Collectie" })),
+    h("div", { class: "colltop" },
+      segment([["bezit", "In bezit"], ["verkocht", "Verkocht"]], owned ? "bezit" : "verkocht", (t) => { ui.tab = t; saveUi(); reload(); }),
+      h("div", { class: "collacts" },
+        h("button", { type: "button", class: "btn act", onclick: () => openPurchaseOrder({ onDone: reload }) }, icon("plus"), " Aankoop"),
+        h("button", { type: "button", class: "btn act", disabled: !items.length, onclick: () => openSaleOrder(items, { onDone: () => { ui.tab = "verkocht"; saveUi(); reload(); } }) }, "Verkopen"))),
+    owned ? null : salesBox,
+    h("div", { class: "ownedbox", hidden: !owned },
     h("div", { class: "sum" },
       h("div", {}, h("div", { class: "lbl2", text: "Waarde nu" }), h("div", { class: "big num", text: eur(value) })),
       h("div", { class: "r" }, h("div", { class: "lbl2", text: "Winst" }), h("div", { class: "prof num" + (profit < 0 ? " neg" : ""), text: `${signedEur(profit)} · ${invested ? signed(profit / invested, 1) : "–"}` })),
@@ -139,7 +153,7 @@ export async function collectionView(root) {
           if (multi && open) {
             const copyRows = arr.map(({ it }, i) => h("button", { class: "copyrow", type: "button", onclick: () => go(detailHash(it.product_id, it.id)) },
               h("span", {}, h("b", { text: `Aankoop ${i + 1}` })),
-              h("span", { class: "num", text: eur(it.purchase_price) })));
+              h("span", { class: "num", text: eur(costEach(it)) })));
             wrap.append(h("div", { class: "copies" }, ...copyRows));
           }
           return wrap;
@@ -150,7 +164,8 @@ export async function collectionView(root) {
     })() : null,
     h("div", { class: "chartcard" }, segment(RANGES, ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"), chartBox),
     h("div", { class: "stick" }, segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], ui.kind, (k) => { ui.kind = k; saveUi(); drawList(); }), sortBtn),
-    list));
+    list)));
+  if (!owned) renderSales(salesBox, { onChange: reload });
   drawList();
   if (items.length) drawChart(); else chartBox.parentElement.hidden = true;
 }

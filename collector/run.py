@@ -248,6 +248,19 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
                 offers.run(store, pk_client, today, log=log, deadline=deadline, only=core_cards)
     except Exception as e:
         log(f"! eigen collectie eerst overgeslagen: {e}")
+    if config.OFFERS_ENABLED:
+        try:
+            import offers
+            targets = offers.deal_targets(store)
+            original_budget = pk_client.budget
+            pk_client.budget = min(original_budget, pk_client.credits + config.DEALS_BUDGET)   # eigen, gegarandeerd budget
+            log(f"Goedkope aanbiedingen: {len(targets)} kaarten (beroemde Pokémon vanaf EUR{config.DEALS_FAMOUS_MIN_PRICE} + {config.DEALS_TOP_N} duurste onder EUR{config.DEALS_MAX_PRICE}), budget max {config.DEALS_BUDGET}.")
+            try:
+                offers.run(store, pk_client, today, log=log, deadline=deadline, only=targets)
+            finally:
+                pk_client.budget = original_budget
+        except Exception as e:
+            log(f"! goedkope aanbiedingen overgeslagen: {e}")
     try:
         import nm
         import card_history
@@ -285,12 +298,7 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         sealed_history.run(store, pk_client, today, log=log, deadline=deadline)   # krijgt wat de twee taken hierboven nog overlaten
     except Exception as e:
         log(f"! sealed-geschiedenis overgeslagen: {e}")
-    if config.OFFERS_ENABLED:
-        try:
-            import offers
-            offers.run(store, pk_client, today, log=log, deadline=deadline)   # laagste aanbiedingen: helemaal achteraan, profiteert van budget dat vrijkomt
-        except Exception as e:
-            log(f"! laagste aanbiedingen overgeslagen: {e}")
+    # (de oude, op kansen gebaseerde aanbiedingenronde achteraan is vervallen: de kansen zijn verborgen tot ze beter kloppen)
 
 
 def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=None):

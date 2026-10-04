@@ -2,7 +2,7 @@ import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
 import { chanceBar, gradeTag, go, kindTag, pill } from "../components.js";
-import { PERIODS, SIGNAL_TEXT, breakEven, gradeKey, netGain, ownedSignal, whyBullets } from "../model.js";
+import { PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, breakEven, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
@@ -75,31 +75,37 @@ export async function detailView(root, pid, cid) {
   // ---- cijfers ----
   let stats;
   if (c) {
-    const total = price ? (price - c.purchase_price) * c.quantity : null;
-    stats = h("div", { class: "stats" }, stat("Aankoop", eur(Number(c.purchase_price)), `${c.quantity > 1 ? c.quantity + "x, " : ""}${fmtDateLong(c.purchase_date)}`),
+    const cost = costEach(c);
+    const total = price ? (price - cost) * c.quantity : null;
+    const extraEach = (Number(c.purchase_shipping || 0) + Number(c.purchase_costs || 0)) / c.quantity;
+    const shipNote = extraEach > 0 ? `incl. ${eur(extraEach)} verzending/kosten, ` : "";
+    stats = h("div", { class: "stats" }, stat("Aankoop", eur(cost), `${shipNote}${c.quantity > 1 ? c.quantity + "x, " : ""}${fmtDateLong(c.purchase_date)}`),
       stat("Waarde nu", price ? eur(price * c.quantity) : "–", price ? `${eur(price)} per stuk` : "prijs onbekend"),
-      stat("Winst", total == null ? "–" : signedEur(total), price ? signed(price / Number(c.purchase_price) - 1, 1) : "", total != null && total < 0 ? "neg" : "pos"));
+      stat("Winst", total == null ? "–" : signedEur(total), price ? signed(price / cost - 1, 1) : "", total != null && total < 0 ? "neg" : "pos"));
   } else {
     stats = h("div", { class: "stats" }, stat("Trendprijs", trendPrice ? eur(trendPrice) : "–", "Cardmarket-gemiddelde"), stat("Gem. 7 dagen", fx?.avg7 ? eur(fx.avg7) : "–"), stat("Gem. 30 dagen", fx?.avg30 ? eur(fx.avg30) : "–"));
   }
 
-  // ---- winstgrens: welke verkoopprijs is nodig om quitte te spelen, na commissie en verzendkosten ----
+  // ---- winstgrens: welke verkoopprijs is nodig om quitte te spelen ----
+  // De verzending bij verkopen betaalt de koper; wat telt is de verzending die jij bij het kopen betaalde.
   let breakEvenBox = null;
   if (price) {
-    const costPrice = c ? Number(c.purchase_price) : price;
-    const be = breakEven(costPrice, s.fee_pct);
+    const cardPrice = c ? Number(c.purchase_price) : price;
+    const buyShip = c ? (Number(c.purchase_shipping || 0) + Number(c.purchase_costs || 0)) / Math.max(c.quantity, 1) : shipCost(price);
+    const be = breakEven(cardPrice, s.fee_pct, buyShip);
     const fee = be * (s.fee_pct / 100);
-    const ship = be - costPrice - fee > 0 ? be - costPrice - fee : 0;
     const rows = [
-      [c ? "Aankoopprijs" : "Huidige prijs (als aankoopprijs)", eur(costPrice)],
+      [c ? "Aankoopprijs" : "Huidige prijs (als aankoopprijs)", eur(cardPrice)],
+      [c ? "Verzending en kosten bij aankoop" : "Geschatte verzending bij aankoop", `+ ${eur(buyShip)}`],
       [`Cardmarket-commissie (${s.fee_pct}%)`, `+ ${eur(fee)}`],
-      ["Geschatte verzendkosten", `+ ${eur(ship)}`],
+      ["Verpakking", `+ ${eur(PACKAGING)}`],
     ];
     const diff = price / be - 1;
     breakEvenBox = h("div", { class: "sec" }, h("h3", { text: c ? "Winstgrens (dit exemplaar)" : "Winstgrens (bij aankoop tegen de huidige prijs)" }),
       ...rows.map(([k, v]) => h("div", { class: "berow" }, h("span", { text: k }), h("b", { text: v }))),
       h("div", { class: "beline" }),
       h("div", { class: "betotal" }, h("span", { class: "k", text: "Verkoopprijs om quitte te spelen" }), h("span", { class: "v", text: eur(be) })),
+      h("p", { class: "mini", text: "De verzending bij het verkopen betaalt de koper op Cardmarket, die zit hier dus niet in." }),
       c
         ? h("div", { class: "bestatus " + (diff >= 0 ? "good" : "bad"), text: diff >= 0
             ? `✓ Nu al ${eur(price - be)} winst (+${(diff * 100).toFixed(0)}% boven de winstgrens)`
@@ -257,5 +263,5 @@ export async function detailView(root, pid, cid) {
     head, idgrid, stats, nmBox,
     !c ? h("p", { class: "mini pad2", text: "De trendprijs is Cardmarkets gemiddelde voor alle talen en condities. Het goedkoopste aanbod (Near Mint) kan een stuk lager liggen, zeker bij dure kaarten met weinig verkopen." }) : null,
     graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
-    periodBar, chartSec, chance, why, breakEvenBox, offersSec, alertSec, btns));
+    periodBar, chartSec, SHOW_PREDICTIONS ? chance : null, SHOW_PREDICTIONS ? why : null, breakEvenBox, offersSec, alertSec, btns));
 }

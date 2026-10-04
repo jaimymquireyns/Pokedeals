@@ -298,3 +298,34 @@ dialog#scan{margin:0;width:100%;height:100%;max-width:none;max-height:none;backg
 .copyrow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;padding:9px 0;border-top:1px solid var(--line);font-size:13px;text-align:left}
 .copyrow small{display:block;color:var(--muted);margin-top:2px}.grouphead .icw{margin-top:4px}.gthumb{width:46px;height:64px;display:grid;place-items:center;overflow:hidden;border-radius:4px;background:var(--bg)}
 .gthumb img{max-width:100%;max-height:100%;object-fit:contain}
+/* ---- Collectie: In bezit / Verkocht, kopen en verkopen als bestelling ---- */
+.colltop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:6px 16px 0}
+.collacts{display:flex;gap:8px}
+.btn.act{width:auto;height:auto;min-height:40px;padding:8px 14px;font-size:13.5px;display:inline-flex;align-items:center;gap:4px}
+.btn.act .icw,.btn.act svg{width:16px;height:16px}
+.orderform{max-height:88vh;overflow-y:auto}
+.orderform .sbox{margin:10px 0 0}
+.olines{display:grid;gap:8px;margin:12px 0}
+.oline{display:grid;grid-template-columns:auto 40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.oline:not(:has(input[type=checkbox])){grid-template-columns:40px minmax(0,1fr) auto}
+.oline.on{border-color:var(--brand)}
+.oline .ph{width:40px;height:56px}
+.oline .name{font-weight:700;font-size:14px}
+.oline .set{color:var(--muted);font-size:12px;margin-top:1px}
+.orow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.orow input[type=text]{width:96px}
+.ox{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface2)}
+.opick{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.opickrow{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:8px;border-radius:10px;background:var(--surface2);text-align:left}
+.opickrow .ph{width:32px;height:44px}
+.opickrow small{color:var(--muted)}
+.osum{font-size:13.5px;color:var(--muted);margin:4px 0 8px}
+.bigline{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin:6px 0}
+.bigline b{font-size:20px}
+.num.pos{color:var(--up)}.num.neg{color:var(--down)}
+.salelist{display:grid}
+.salecard{display:grid;gap:8px}
+.salehead{display:flex;justify-content:space-between;align-items:flex-start}
+.salehead b.num{font-size:18px}
+.salelines{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13.5px}
+.salelines li{display:flex;justify-content:space-between;gap:10px}

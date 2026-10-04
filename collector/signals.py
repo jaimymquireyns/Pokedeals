@@ -6,14 +6,15 @@ vaker uitkomt dan gemiddeld.
 Signalen uit de prijsgeschiedenis (ook terug in de tijd te testen):
   onder_gemiddelde   prijs t.o.v. het gemiddelde van de laatste 180 dagen (eronder = positief, ver erboven = negatief;
                      de backtest liet al zien dat net gestegen kaarten vaker terugzakken dan doorstijgen)
-  momentum           verandering over 14 dagen: licht herstel = positief, piek of nog vallend = negatief
   stabiliseert       onder het gemiddelde en de laatste 14 dagen rustig = de daling lijkt voorbij
+  piek               meer dan +25% in 14 dagen = negatief (zakt vaak terug)
+  valt_nog           meer dan 10% gedaald in 14 dagen = negatief (de daling is nog niet voorbij)
 Uit de kaartgegevens:
   reprint            er bestaat een nieuwere druk van dezelfde kaart = negatief
-Uit de dagelijkse marktmomentopname (market_snapshot.py), pas na SIG_MIN_SNAPSHOT_DAYS dagen:
-  aanbod             aantal listings neemt af = positief, neemt toe = negatief
-  vraag              recente verkopen nemen toe = positief, nemen af = negatief
-  liquiditeit        te weinig verkopers = negatief (dunne markt, prijs kan door 1 verkoper bepaald worden)
+Uit de dagelijkse marktmomentopname (market_snapshot.py, via PkmnPrices, alleen voor kandidaten):
+  liquiditeit        te weinig verkopers = negatief (dunne markt, prijs kan door 1 verkoper bepaald worden); meteen
+  aanbod             aantal listings neemt af = positief, neemt toe = negatief; pas na SIG_MIN_SNAPSHOT_DAYS dagen
+  vraag              (nog) geen bron: PkmnPrices geeft geen recente verkopen, deze blijft leeg
 
     python signals.py                 # momentopname + signalen van vandaag berekenen en opslaan (de dagelijkse taak)
     python signals.py --backtest      # per signaal nagaan hoe vaak een +10% stijging binnen 30 dagen volgde
@@ -29,7 +30,7 @@ import analysis
 import config
 from store import SupabaseStore
 
-PRICE_SIGNALS = ("onder_gemiddelde", "momentum", "stabiliseert")
+PRICE_SIGNALS = ("onder_gemiddelde", "stabiliseert", "piek", "valt_nog")
 MARKET_SIGNALS = ("aanbod", "vraag", "liquiditeit")
 
 
@@ -103,8 +104,11 @@ def price_signals(points):
 
     s = {}
     s["onder_gemiddelde"] = 1 if vs_avg <= -config.SIG_BELOW_AVG else (-1 if vs_avg >= config.SIG_BELOW_AVG else 0)
-    s["momentum"] = 1 if 0 <= m14 <= config.SIG_MOM_MAX else (-1 if m14 > config.SIG_MOM_SPIKE or m14 < config.SIG_MOM_FALLING else 0)
     s["stabiliseert"] = 1 if (vs_avg <= -0.10 and cv14 is not None and cv14 <= config.SIG_STABLE_CV and m14 >= -0.03) else 0
+    # momentum alleen nog als waarschuwing: de backtest van 30 sep liet zien dat 'licht herstel' geen voorspellende
+    # waarde had (slechter dan gemiddeld), dus telt het niet meer als positief signaal
+    s["piek"] = -1 if m14 > config.SIG_MOM_SPIKE else 0
+    s["valt_nog"] = -1 if m14 < config.SIG_MOM_FALLING else 0
     return {"signals": s, "vs_avg": round(vs_avg, 4), "momentum_14d": round(m14, 4), "cv_14d": round(cv14, 4) if cv14 is not None else None, "price": p}
 
 
@@ -158,64 +162,96 @@ def compute_today(store, today, log=print):
         c = combine(pp, products[pid], snaps.get(pid))
         sig = c["signals"]
         rows.append({"product_id": pid, "date": today, "price": pp["price"], "vs_avg": pp["vs_avg"], "momentum_14d": pp["momentum_14d"],
-                     "cv_14d": pp["cv_14d"], **{f"s_{k}": sig.get(k) for k in PRICE_SIGNALS + ("reprint",) + MARKET_SIGNALS},
+                     "cv_14d": pp["cv_14d"], "s_onder_gemiddelde": sig.get("onder_gemiddelde"), "s_stabiliseert": sig.get("stabiliseert"),
+                     "s_momentum": min(sig.get("piek", 0), sig.get("valt_nog", 0)),   # -1 = piek of valt nog
+                     "s_reprint": sig.get("reprint"), **{f"s_{k}": sig.get(k) for k in MARKET_SIGNALS},
                      "n_positive": c["n_positive"], "n_negative": c["n_negative"], "score": c["score"]})
     if rows:
         store.upsert("card_signals", rows, "product_id,date")
-    n_multi = sum(1 for r in rows if r["n_positive"] >= 3 and r["n_negative"] == 0)
+    n_cand = sum(1 for r in rows if r["s_onder_gemiddelde"] == 1 and r["n_negative"] == 0)
+    n_best = sum(1 for r in rows if r["s_onder_gemiddelde"] == 1 and r["s_stabiliseert"] == 1 and r["n_negative"] == 0)
     n_market = sum(1 for r in rows if r["s_aanbod"] is not None)
     log(f"Signalen: {len(rows)} kaarten beoordeeld ({len(series) - len(rows)} met te weinig geschiedenis); "
-        f"{n_multi} kaarten met 3+ positieve en geen negatieve signalen; aanbod/vraag al meegeteld bij {n_market} kaarten.")
+        f"{n_cand} kaarten onder hun gemiddelde zonder negatief signaal, waarvan {n_best} ook gestabiliseerd; "
+        f"aanbod/vraag al meegeteld bij {n_market} kaarten.")
     return len(rows)
 
 
 # ---------------- backtest per signaal ----------------
-def backtest(store, today, horizon=30, threshold=0.10, step=5, log=print, series=None):
-    """Loopt terug in de tijd: op elke 'step' dagen de prijssignalen berekenen met alleen de data tot dan, en kijken
-    of de prijs daarna binnen 'horizon' dagen minstens 'threshold' hoger stond. Alleen de prijssignalen: aanbod,
-    vraag en liquiditeit hebben (nog) geen geschiedenis, en reprint verandert niet in de tijd."""
+OUTCOMES = ("raakt +10%", "na 30d +10%", "raakt +20%", "winst na kosten")
+
+
+def _outcomes(p0, later, fee):
+    """later: [(datum, prijs)] binnen de periode. Vier manieren om 'het kwam uit' te meten, van soepel naar streng."""
+    top = max(p for _, p in later)
+    end = later[-1][1]
+    net = end * (1 - fee) - config.PACKAGING - (p0 + config.ship_cost(p0))   # kopen incl. verzending, verkopen op dag 30 na commissie en verpakking
+    return (top >= p0 * 1.10, end >= p0 * 1.10, top >= p0 * 1.20, net > 0)
+
+
+def groups_for(sig):
+    """Onder welke groepen een meetmoment valt: elk los signaal, plus de combinaties die we willen vergelijken."""
+    g = ["alle momenten"]
+    for name, v in sig.items():
+        if v:
+            g.append(f"{name} {'+' if v > 0 else '-'}")
+    neg = any(v < 0 for v in sig.values())
+    onder, stab = sig.get("onder_gemiddelde") == 1, sig.get("stabiliseert") == 1
+    if onder and not neg:
+        g.append("onder gem., geen negatief")
+    if onder and stab:
+        g.append("onder gem. + stabiliseert")
+    if onder and stab and not neg:
+        g.append("onder gem. + stab., geen neg.")
+    return g
+
+
+def backtest(store, today, horizon=30, step=5, log=print, series=None):
+    """Loopt terug in de tijd: op een moment de prijssignalen berekenen met alleen de data tot dan, en kijken wat de
+    prijs daarna binnen 'horizon' dagen deed. Per kaart maar één meetmoment per periode (niet-overlappend), zodat één
+    wispelturige kaart niet tientallen keren meetelt. Alleen de prijssignalen: aanbod, vraag en liquiditeit hebben
+    (nog) geen geschiedenis, en reprint verandert niet in de tijd."""
     if series is None:
         products = famous_products(store)
         series = load_series(store, products, (date.fromisoformat(today) - timedelta(days=400)).isoformat())
+    fee = config.DEFAULT_FEE_PCT / 100
     tally = {}
-
-    def add(key, hit):
-        n, h = tally.get(key, (0, 0))
-        tally[key] = (n + 1, h + (1 if hit else 0))
-
     for pid, pts in series.items():
+        next_ok = ""
         for i in range(20, len(pts), step):
-            d0 = date.fromisoformat(pts[i][0])
-            target = (d0 + timedelta(days=horizon)).isoformat()
-            later = [p for d, p in pts[i + 1:] if d <= target]
-            if not later or pts[-1][0] < target:
+            if pts[i][0] < next_ok:
                 continue
+            target = (date.fromisoformat(pts[i][0]) + timedelta(days=horizon)).isoformat()
+            if pts[-1][0] < target:
+                break
+            later = [(d, p) for d, p in pts[i + 1:] if d <= target]
             pp = price_signals(pts[: i + 1])
-            if not pp:
+            if not later or not pp:
                 continue
-            hit = max(later) >= pp["price"] * (1 + threshold)     # ergens binnen de periode minstens +threshold
-            sig = pp["signals"]
-            add("alle momenten", hit)
-            for name, v in sig.items():
-                if v:
-                    add(f"{name} {'+' if v > 0 else '-'}", hit)
-            npos = sum(1 for v in sig.values() if v > 0)
-            nneg = sum(1 for v in sig.values() if v < 0)
-            if npos >= 2 and nneg == 0:
-                add("2+ positief, geen negatief", hit)
-            if npos >= 3:
-                add("alle 3 positief", hit)
+            res = _outcomes(pp["price"], later, fee)
+            for g in groups_for(pp["signals"]):
+                t = tally.setdefault(g, [0, 0, 0, 0, 0])
+                t[0] += 1
+                for k, hit in enumerate(res, 1):
+                    t[k] += 1 if hit else 0
+            next_ok = target   # volgende meetmoment van deze kaart pas na afloop van deze periode
     if not tally:
         log("Signalen-backtest: nog te weinig geschiedenis.")
         return tally
-    base_n, base_h = tally["alle momenten"]
-    base = base_h / base_n
-    log(f"Signalen-backtest (kaarten van beroemde Pokémon): kwam er binnen {horizon} dagen een stijging van {threshold * 100:.0f}%?")
-    for key in ["alle momenten"] + sorted(k for k in tally if k != "alle momenten"):
-        n, h = tally[key]
-        rate = h / n
-        verschil = "" if key == "alle momenten" else f"   ({(rate - base) * 100:+.1f} procentpunt t.o.v. gemiddeld)"
-        log(f"  {key:<30} {h:>6}/{n:<6} = {rate * 100:5.1f}%{verschil}")
+    base = tally["alle momenten"]
+    log(f"Signalen-backtest (kaarten van beroemde Pokémon, periode {horizon} dagen, per kaart niet-overlappend):")
+    log(f"  {'groep':<31}{'n':>5}  " + "  ".join(f"{o:>16}" for o in OUTCOMES))
+    order = ["alle momenten"] + sorted(k for k in tally if k != "alle momenten" and not k[0].isupper() and "gem." not in k) + \
+            sorted(k for k in tally if "gem." in k)
+    for key in order:
+        t = tally[key]
+        cells = []
+        for k in range(1, 5):
+            rate = t[k] / t[0]
+            diff = "" if key == "alle momenten" else f" ({(rate - base[k] / base[0]) * 100:+.0f})"
+            cells.append(f"{rate * 100:5.1f}%{diff:>7}")
+        log(f"  {key:<31}{t[0]:>5}  " + "  ".join(f"{c:>16}" for c in cells))
+    log("  (tussen haakjes: verschil in procentpunten t.o.v. alle momenten; 'winst na kosten' = gekocht incl. verzending, verkocht op dag 30 na 6% commissie en verpakking)")
     return tally
 
 
@@ -226,17 +262,18 @@ def main():
     args = ap.parse_args()
     store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
     today = date.today().isoformat()
+    compute_today(store, today)   # eerst de signalen: de momentopname kiest zijn kandidaten daaruit
     if not args.skip_snapshot:
         import market_snapshot
-        ppt = None
-        if os.environ.get("PPT_API_KEY"):
-            from ppt import PPT
-            ppt = PPT(os.environ["PPT_API_KEY"])
+        pk = None
+        if os.environ.get("PKMN_API_KEY"):
+            from pkmnprices import PkmnPrices
+            pk = PkmnPrices(os.environ["PKMN_API_KEY"], budget=config.SNAPSHOT_PK_BUDGET)
         try:
-            market_snapshot.run(store, ppt, today, deadline=time.time() + config.SNAPSHOT_MAX_MINUTES * 60)
-        except Exception as e:   # de signalen zelf kunnen ook zonder de momentopname van vandaag
+            if market_snapshot.run(store, pk, today, deadline=time.time() + config.SNAPSHOT_MAX_MINUTES * 60):
+                compute_today(store, today)   # opnieuw, zodat liquiditeit van vandaag meteen meetelt
+        except Exception as e:   # de signalen zelf staan er dan al, alleen zonder de momentopname van vandaag
             print(f"! marktmomentopname mislukt: {type(e).__name__}: {e}")
-    compute_today(store, today)
     if args.backtest:
         backtest(store, today)
 

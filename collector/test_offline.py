@@ -171,7 +171,9 @@ assert ppt.extract_history({"2026-09-01": 1.0, "2026-09-02": {"market": 2.0}}) =
 assert ppt.extract_graded([{"grade": "PSA 9", "averagePrice": 50}, {"grader": "BGS", "grade": "9.5", "medianPrice": 70}]) == {"PSA-9": 50.0, "BGS-9.5": 70.0}
 assert ppt.norm_number("125/197") == "125" and ppt.norm_number("045") == "45" and ppt.norm("Mr. Mime ex") == "mrmimeex"
 assert features.species_name("Team Rocket's Mewtwo ex") == "Mewtwo" and features.species_name("Charizard VSTAR") == "Charizard"
-assert abs(alerts.net_change(100, 0.15, 5) - ((1.15 * .95) - config.ship_cost(115) / 100 - 1)) < 1e-9
+assert abs(alerts.net_change(100, 0.15, 5) - ((115 * .95 - config.PACKAGING) / (100 + config.ship_cost(100)) - 1)) < 1e-9
+# het voorbeeld van de gebruiker: 2 kaarten voor 6 euro + 4 verzending, verkocht voor 8 per stuk -> ongeveer 4 euro winst
+assert abs((2 * (8 * 0.94 - config.PACKAGING) - (6 + 4)) - 4.04) < 1e-9
 assert config.ship_cost(4) == 1.50 and config.ship_cost(45) == 7.00 and config.ship_cost(500) == 15.00, "oplopende verzendtabel"
 
 # splice: historie in ander prijsniveau wordt op ons niveau gezet
@@ -1171,12 +1173,13 @@ importlib.reload(run)
 import pkmnprices as pkmod
 real_pk = pkmod.PkmnPrices
 pkmod.PkmnPrices = lambda key, budget=None: real_pk(key, session=prio, budget=budget)
+orig_offers = config.OFFERS_ENABLED
 try:
-    config.OFFERS_ENABLED = True   # standaard nu uit (zie test 39); hier expliciet aan om het mechanisme zelf te testen
+    config.OFFERS_ENABLED = True
     run.spend_pkmn_credits(store21, "2026-09-21", log=quiet)
 finally:
     pkmod.PkmnPrices = real_pk
-    config.OFFERS_ENABLED = False
+    config.OFFERS_ENABLED = orig_offers
     del os.environ["PKMN_API_KEY"]
 assert any("Collectiekaart" in o for o in prio.order), prio.order
 assert any("Kansenkaart" in o for o in prio.order)
@@ -1460,8 +1463,8 @@ offers.run(st3, pkmnprices.PkmnPrices("pk", session=HistSess()), "2026-09-21", l
 assert {k[0] for k in fk3.t["offers"]} == {"cf-1", "cf-2", "cf-3"}, {k[0] for k in fk3.t["offers"]}
 assert any("opslaan mislukt" in l for l in logs38c)
 
-# ============ 39. Beroemde Pokémon krijgen voorrang, met diepere geschiedenis, en 'Goedkope aanbiedingen' staat stil ============
-assert config.OFFERS_ENABLED is False, "aanbiedingen staan standaard stil, zoals afgesproken"
+# ============ 39. Beroemde Pokémon krijgen voorrang, met diepere geschiedenis, en goedkope aanbiedingen voor hun duurdere kaarten ============
+assert config.OFFERS_ENABLED is True, "goedkope aanbiedingen staan sinds 4 okt weer aan"
 
 fake29, store29 = new_store()
 os.environ["PKMN_API_KEY"] = "pk_famous"
@@ -1500,9 +1503,8 @@ hist_periods = [p for u, p in zip(famous_sess.order, famous_sess.periods) if "fa
 assert "180d" in famous_sess.periods, famous_sess.periods
 # na afloop staat de instelling weer terug op de standaard (geen blijvende bijwerking)
 assert config.HISTORY_PERIOD == "90d", config.HISTORY_PERIOD
-# en er ging geen enkel verzoek naar 'aanbiedingen' (die staan uit)
-assert not any("listings/cardmarket" in u for u in famous_sess.order), "geen aanbiedingen-verzoeken; die staan uit"
-assert fake29.t["offers"] == {}, "geen aanbiedingen opgeslagen"
+# goedkope aanbiedingen: de beroemde kaart (EUR20, boven de EUR10-grens) is opgevraagd
+assert any("/cards/9001/listings/cardmarket" in u for u in famous_sess.order), famous_sess.order
 
 # ============ 40. Gegradeerde geschiedenis: alleen beroemde Pokémon, graad 1 en 7-tot-max per bedrijf ============
 fake30, store30 = new_store()
@@ -1696,41 +1698,61 @@ try:
 finally:
     config.HISTORY_PERIOD = "90d"
 
-# ============ 46. Marktmomentopname: gekoppelde kaarten per stuk, nieuwe koppelen per set, eigen budget ============
+# ============ 46. Marktmomentopname via PkmnPrices: alleen kandidaten, al gevolgde kaarten eerst, eigen budget ============
 fake36, store36 = new_store()
 fd36 = sorted(config.FAMOUS_DEX_IDS)[0]
-store36.upsert_sets([{"set_id": "sk", "name": "Skyridge", "release_date": "2003-05-12"}])
+today36 = "2026-09-30"
 store36.upsert_products([
-    {"product_id": "sk-1", "kind": "card", "name": "Lapras", "number": "1", "set_id": "sk", "set_name": "Skyridge", "set_total": 9, "dex_id": fd36, "ppt_id": "p-1"},
-    {"product_id": "sk-2", "kind": "card", "name": "Snorlax", "number": "2", "set_id": "sk", "set_name": "Skyridge", "set_total": 9, "dex_id": fd36},
-    {"product_id": "sk-3", "kind": "card", "name": "Weedle", "number": "3", "set_id": "sk", "set_name": "Skyridge", "set_total": 9, "dex_id": 13},
+    {"product_id": "k-duur", "kind": "card", "name": "Duur", "dex_id": fd36, "pk_id": "11"},
+    {"product_id": "k-goedkoop", "kind": "card", "name": "Goedkoop", "dex_id": fd36, "pk_id": "12"},
+    {"product_id": "k-boven", "kind": "card", "name": "Boven gemiddelde", "dex_id": fd36, "pk_id": "13"},
+    {"product_id": "k-gevolgd", "kind": "card", "name": "Al gevolgd", "dex_id": fd36, "pk_id": "14"},
+    {"product_id": "k-geen-koppeling", "kind": "card", "name": "Zonder pk_id", "dex_id": fd36},
 ])
-class FakePPT:
+for pid, price, onder, neg in (("k-duur", 400.0, 1, 0), ("k-goedkoop", 40.0, 1, 0), ("k-boven", 90.0, -1, 1), ("k-geen-koppeling", 80.0, 1, 0)):
+    fake36.t["card_signals"][(pid, today36)] = {"product_id": pid, "date": today36, "price": price, "s_onder_gemiddelde": onder, "n_negative": neg}
+fake36.t["market_snapshots"][("k-gevolgd", "2026-09-25")] = {"product_id": "k-gevolgd", "date": "2026-09-25", "listings": 30, "sellers": 9}
+
+class ListSess:
+    headers = {}
     def __init__(self):
-        self.credits, self.blocked, self.calls = 0, False, []
-    def over_budget(self):
-        return False
-    def card(self, ppt_id, history_days=None, ebay=False):
-        self.calls.append(("card", ppt_id)); self.credits += 1
-        return {"ppt_id": ppt_id, "name": "Lapras", "number": "1", "listings": 40, "sellers": 12, "recent_sales": 5, "price_usd": 10.0}
-    def sets(self):
-        self.calls.append(("sets",)); self.credits += 1
-        return [{"set_id": "ppt-sk", "name": "Skyridge"}]
-    def cards_in_set(self, set_id, history_days=None):
-        self.calls.append(("set", set_id)); self.credits += 3
-        return [{"ppt_id": "p-2", "name": "Snorlax", "number": "2", "listings": 8, "sellers": 2, "recent_sales": 1, "price_usd": 30.0},
-                {"ppt_id": "p-3", "name": "Weedle", "number": "3", "listings": 99, "sellers": 50, "recent_sales": 20, "price_usd": 0.1}]
-fppt = FakePPT()
-n36 = market_snapshot.run(store36, fppt, "2026-09-30", log=quiet)
-assert n36 == 2, n36
+        self.order = []
+    def get(self, url, params=None, timeout=None):
+        card = url.split("/cards/")[1].split("/")[0]
+        self.order.append(card)
+        if card == "11":
+            data = [{"price": 300 + i, "seller": f"v{i % 12}", "condition": "Near Mint"} for i in range(20)]
+            return PkResp({"data": data, "pagination": {"page": 1, "total_pages": 9, "total": 172}})
+        return PkResp({"data": [{"price": 50, "seller": "enige"}], "pagination": {"page": 1, "total_pages": 1}})
+
+ls = ListSess()
+n36 = market_snapshot.run(store36, pkmnprices.PkmnPrices("pk", session=ls), today36, log=quiet)
+assert ls.order == ["14", "11", "12"], f"al gevolgd eerst, dan kandidaten duurste eerst; niet 'boven gemiddelde' of zonder koppeling: {ls.order}"
 snap36 = fake36.t["market_snapshots"]
-assert ("sk-1", "2026-09-30") in snap36 and ("sk-2", "2026-09-30") in snap36 and ("sk-3", "2026-09-30") not in snap36, "alleen beroemde Pokémon"
-prod36 = {p["product_id"]: p for p in store36.products("card")}
-assert prod36["sk-2"]["ppt_id"] == "p-2" and not prod36["sk-3"].get("ppt_id"), "nieuw gekoppeld; niet-beroemde kaart niet"
-fppt2 = FakePPT()
-market_snapshot.run(store36, fppt2, "2026-09-30", log=quiet)
-assert fppt2.calls == [], f"vandaag al gedaan: niets opnieuw opvragen ({fppt2.calls})"
-assert market_snapshot.run(store36, None, "2026-10-01", log=quiet) == 0, "zonder PPT-sleutel: netjes overslaan"
+assert snap36[("k-duur", today36)]["listings"] == 172 and snap36[("k-duur", today36)]["sellers"] == 12, snap36[("k-duur", today36)]
+assert snap36[("k-goedkoop", today36)]["listings"] == 1 and snap36[("k-goedkoop", today36)]["sellers"] == 1
+ls2 = ListSess()
+market_snapshot.run(store36, pkmnprices.PkmnPrices("pk", session=ls2), today36, log=quiet)
+assert ls2.order == [], "vandaag al gedaan: niets opnieuw opvragen"
+assert market_snapshot.run(store36, None, today36, log=quiet) == 0, "zonder sleutel: netjes overslaan"
+# budget: bij een budget van 25 credits past maar 1 kaart van 20
+orig_b = config.SNAPSHOT_PK_BUDGET
+config.SNAPSHOT_PK_BUDGET = 25
+try:
+    fake36.t["market_snapshots"] = {k: v for k, v in fake36.t["market_snapshots"].items() if k[1] != today36}
+    ls3 = ListSess()
+    class CostSess(ListSess):
+        def get(self, url, params=None, timeout=None):
+            r = super().get(url, params, timeout)
+            r.headers = {"x-credits-charged": "20"}
+            return r
+    cs = CostSess()
+    market_snapshot.run(store36, pkmnprices.PkmnPrices("pk", session=cs), today36, log=quiet)
+    assert len(cs.order) == 1, cs.order
+finally:
+    config.SNAPSHOT_PK_BUDGET = orig_b
+# dunne markt (1 verkoper) geeft meteen een negatief liquiditeitssignaal
+assert signals.market_signals([snap36[("k-goedkoop", today36)]]) == {"liquiditeit": -1}
 
 # ============ 47. Signalen: prijsvoorbeeld van de gebruiker (18% onder gemiddelde, stabiliserend) ============
 d47 = date(2026, 4, 1)
@@ -1741,10 +1763,12 @@ herstel = [100.0] * 150 + [100 - i for i in range(1, 21)] + [80.0 + (i % 2) * 0.
 ps = signals.price_signals(pts_from(herstel))
 assert ps["signals"]["onder_gemiddelde"] == 1, ps
 assert ps["signals"]["stabiliseert"] == 1, ps
-assert ps["signals"]["momentum"] == 1, ps
+assert ps["signals"]["piek"] == 0 and ps["signals"]["valt_nog"] == 0 and "momentum" not in ps["signals"], ps
 piek = [50.0] * 150 + [50.0 + i * 2 for i in range(1, 15)]          # +56% in 14 dagen
 pk_ = signals.price_signals(pts_from(piek))
-assert pk_["signals"]["momentum"] == -1 and pk_["signals"]["onder_gemiddelde"] == -1, pk_
+assert pk_["signals"]["piek"] == -1 and pk_["signals"]["onder_gemiddelde"] == -1, pk_
+val_ = signals.price_signals(pts_from([50.0] * 150 + [50.0 - i * 1.5 for i in range(1, 15)]))
+assert val_["signals"]["valt_nog"] == -1, val_
 assert signals.price_signals(pts_from([10.0] * 10)) is None, "te weinig geschiedenis"
 
 # markt: dunne markt = negatief; aanbod/vraag pas na 14 dagen
@@ -1753,7 +1777,7 @@ snaps47 = [{"date": f"d{i}", "sellers": 20, "listings": 100 - i * 3, "recent_sal
 m47 = signals.market_signals(snaps47)
 assert m47 == {"liquiditeit": 1, "aanbod": 1, "vraag": 1}, m47
 c47 = signals.combine(ps, {"newer_printing": True}, snaps47)
-assert c47["signals"]["reprint"] == -1 and c47["n_positive"] == 6 and c47["n_negative"] == 1, c47
+assert c47["signals"]["reprint"] == -1 and c47["n_positive"] == 5 and c47["n_negative"] == 1, c47
 
 # dagelijks opslaan
 fake37, store37 = new_store()
@@ -1764,14 +1788,36 @@ for pid in ("h-1", "x-1"):
 logs37 = []
 assert signals.compute_today(store37, today37, log=logs37.append) == 1
 row37 = fake37.t["card_signals"][("h-1", today37)]
-assert row37["s_onder_gemiddelde"] == 1 and row37["n_positive"] >= 3 and row37["s_aanbod"] is None, row37
-assert any("3+ positieve" in l for l in logs37)
+assert row37["s_onder_gemiddelde"] == 1 and row37["s_stabiliseert"] == 1 and row37["s_momentum"] == 0 and row37["s_aanbod"] is None, row37
+assert any("onder hun gemiddelde zonder negatief signaal, waarvan 1 ook gestabiliseerd" in l for l in logs37), logs37
 
 # backtest per signaal: een reeks die telkens na een daling herstelt, moet 'onder_gemiddelde +' boven gemiddeld laten scoren
 golf = [100 + 25 * math.sin(i / 20) for i in range(400)]
-bt = signals.backtest(None, "2027-01-01", series={"g": pts_from(golf)}, log=quiet)
+bt_logs = []
+bt = signals.backtest(None, "2027-01-01", series={f"g{k}": pts_from([100 + 25 * math.sin((i + k * 7) / 20) for i in range(400)]) for k in range(6)}, log=bt_logs.append)
 assert "alle momenten" in bt and "onder_gemiddelde +" in bt, sorted(bt)
-rate = lambda k: bt[k][1] / bt[k][0]
+rate = lambda k, col=1: bt[k][col] / bt[k][0]
 assert rate("onder_gemiddelde +") > rate("alle momenten"), (rate("onder_gemiddelde +"), rate("alle momenten"))
+assert all(len(v) == 5 for v in bt.values()) and any("winst na kosten" in l for l in bt_logs), "vier uitkomsten per groep"
+# per kaart niet-overlappend: een reeks van 400 dagen levert hooguit ~400/30 meetmomenten op, niet ~76 (elke 5 dagen)
+one = signals.backtest(None, "2027-01-01", series={"g": pts_from(golf)}, log=quiet)
+assert one["alle momenten"][0] <= 400 // 30 + 1, one["alle momenten"]
+# strenger meten is nooit soepeler: 'na 30d +10%' en 'raakt +20%' komen nooit vaker uit dan 'raakt +10%'
+assert all(v[2] <= v[1] and v[3] <= v[1] for v in bt.values())
+
+# ============ 48. Doelen voor goedkope aanbiedingen: beroemd vanaf EUR10 + duurste onder EUR500, duurste eerst ============
+fake38, store38 = new_store()
+fd38 = sorted(config.FAMOUS_DEX_IDS)[0]
+rows38 = [("fam-duur", fd38, 300.0), ("fam-goedkoop", fd38, 4.0), ("fam-tien", fd38, 10.0), ("ander-duur", 13, 450.0), ("ander-te-duur", 13, 900.0), ("ander-goedkoop", 13, 2.0)]
+store38.upsert_products([{"product_id": pid, "kind": "card", "name": pid, "dex_id": dex} for pid, dex, _ in rows38])
+for pid, _, pr in rows38:
+    fake38.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": pr}
+orig_n = config.DEALS_TOP_N
+config.DEALS_TOP_N = 1
+try:
+    tg = offers.deal_targets(store38)
+finally:
+    config.DEALS_TOP_N = orig_n
+assert tg == ["ander-duur", "fam-duur", "fam-tien"], tg
 
 print("alle tests geslaagd")

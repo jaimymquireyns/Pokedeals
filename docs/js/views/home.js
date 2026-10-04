@@ -1,6 +1,6 @@
 import { getSession, rest } from "../api.js";
 import { brandmark, detailHash, emptyNote, go, kindTag, note, oppRow } from "../components.js";
-import { isOpportunity, netGain } from "../model.js";
+import { SHOW_PREDICTIONS, isOpportunity, netGain } from "../model.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
 import { getSettings } from "../prefs.js";
 import { eur, fmtDate, h, icon, segment, store, thumb, toast } from "../ui.js";
@@ -9,30 +9,13 @@ import { summarize } from "./track.js";
 const DEAL_MIN_DISCOUNT = 0.20;   // hoeveel de goedkoopste aanbieding minstens onder het gemiddelde van de andere moet liggen...
 const DEAL_MIN_ABS = 25;          // ...óf, als dat percentage niet gehaald wordt, minstens dit bedrag eraf (voor dure kaarten waar 20% een hoge drempel is)
 
-/** Kaarten waar de laagste actuele aanbieding opvallend afwijkt van de rest — een toevallig lage prijs vinden,
- * los van de (soms onbetrouwbare) trend-gebaseerde kans hierboven. Alleen mogelijk voor kaarten waar we al
- * aanbiedingen van hebben (collectie + beste kansen), dus dit dekt nooit de hele catalogus. */
-async function fetchDeals() {
-  // Een deal vergelijken we tegen de ANDERE aanbiedingen van dezelfde kaart, niet tegen de trendprijs: die kan
-  // zelf onbetrouwbaar zijn bij weinig verkopen (zie Electivire), dus alleen aanbiedingen onderling vergelijken
-  // is een eerlijkere, feitelijke toets dan een voorspelling.
-  const offers = await rest.get("offers?select=*&order=product_id.asc,rank.asc").catch(() => []);
-  const byPid = new Map();
-  for (const o of offers) { if (!byPid.has(o.product_id)) byPid.set(o.product_id, []); byPid.get(o.product_id).push(o); }
-  const deals = [];
-  for (const [pid, rows] of byPid) {
-    if (rows.length < 2) continue;
-    const cheapest = Number(rows[0].price);
-    const refAvg = rows.slice(1).reduce((s, r) => s + Number(r.price), 0) / (rows.length - 1);
-    const discount = 1 - cheapest / refAvg;
-    if (discount >= DEAL_MIN_DISCOUNT || (refAvg - cheapest) >= DEAL_MIN_ABS) deals.push({ product_id: pid, cheapest, market: refAvg, discount, seller: rows[0].seller });
-  }
-  if (!deals.length) return [];
-  deals.sort((a, b) => b.discount - a.discount);
-  const ids = deals.map((d) => d.product_id);
-  const products = await rest.get(`products?select=product_id,name,image,set_name,number,kind&product_id=in.(${ids.join(",")})`).catch(() => []);
-  const byProduct = new Map(products.map((p) => [p.product_id, p]));
-  return deals.map((d) => ({ ...d, ...byProduct.get(d.product_id) })).filter((d) => d.name).slice(0, 20);
+/** Goedkope aanbiedingen: de laagste aanbieding ligt flink onder het gemiddelde van de andere aanbiedingen van
+ * dezelfde kaart (min. 20%, of min. EUR25 bij dure kaarten). De database rekent dit zelf uit (view v_deals), zodat
+ * de app niet alle aanbiedingen hoeft op te halen. Vergelijkt aanbiedingen onderling, niet met de trendprijs: die
+ * kan bij weinig verkopen onbetrouwbaar zijn (zie Electivire). */
+async function fetchDeals(limit = 60) {
+  const rows = await rest.get(`v_deals?select=*&order=discount.desc&limit=${limit}`).catch(() => []);
+  return rows.map((d) => ({ ...d, cheapest: Number(d.cheapest), market: Number(d.market), discount: Number(d.discount) }));
 }
 
 function marketRow(d, watchId, onHeart) {
@@ -62,7 +45,44 @@ async function fetchRows(s) {
   }
 }
 
+/** Home zolang de kansberekening verborgen is: alleen de goedkope aanbiedingen. */
+async function dealsHome(root) {
+  const status = h("p", { class: "muted sub", text: "Laden…" });
+  const list = h("ul", { class: "dealslist" });
+  const watched = new Map();
+  root.replaceChildren(h("div", { class: "page" },
+    brandmark(),
+    h("div", { class: "head" }, h("h1", { text: "Home" }), status),
+    h("div", { class: "bar" }, h("span"), h("button", { class: "gear", type: "button", text: "Instellingen", onclick: () => go("#/settings") })),
+    h("div", { class: "sec dealsec" },
+      h("h3", { text: "Goedkope aanbiedingen" }),
+      h("p", { class: "p14 muted", text: "Kaarten waarvan de laagste aanbieding op Cardmarket flink onder de andere aanbiedingen ligt. Vergelijk altijd zelf op Cardmarket: een opvallend lage prijs kan ook een vergissing of een slechte conditie zijn." }),
+      list),
+    h("p", { class: "fine muted", text: "De kansberekening (welke kaarten gaan stijgen) is tijdelijk verborgen tot ze betrouwbaar genoeg is. Geen financieel advies." })));
+  const deals = await fetchDeals();
+  if (!deals.length) {
+    status.textContent = "";
+    list.replaceChildren(emptyNote("Nog geen goedkope aanbiedingen gevonden. Ze worden elke nacht bijgewerkt; elke kaart om de 3 dagen."));
+    return;
+  }
+  const newest = deals.reduce((m, d) => (d.date > m ? d.date : m), "");
+  status.textContent = `${deals.length} aanbiedingen · laatst gecontroleerd ${fmtDate(newest)}`;
+  if (getSession()) await Promise.all(deals.map(async (d) => { try { const id = await isWatched(d.product_id); if (id) watched.set(d.product_id, id); } catch {} }));
+  const draw = () => list.replaceChildren(...deals.map((d) => marketRow(d, watched.get(d.product_id), async (e) => {
+    e.stopPropagation();
+    if (!getSession()) { go("#/login?next=" + encodeURIComponent("#/home")); return; }
+    try {
+      const wid = watched.get(d.product_id);
+      if (wid) { await removeWatch(wid); watched.delete(d.product_id); toast("Van watchlist gehaald"); }
+      else { watched.set(d.product_id, await addWatch(d.product_id)); toast("Toegevoegd aan watchlist"); }
+      draw();
+    } catch { toast("Aanpassen mislukte"); }
+  })));
+  draw();
+}
+
 export async function homeView(root) {
+  if (!SHOW_PREDICTIONS) return dealsHome(root);
   const s = getSettings();
   const trackLine = h("span", { text: "" });
   const status = h("p", { class: "muted sub" }, h("span", { class: "st", text: "Laden…" }), " ", trackLine);

@@ -52,12 +52,14 @@ DIGEST_MIN_P_UP = 0.60
 # ---- Laagste Near Mint-prijs per kaart (PkmnPrices Pro) ----
 # Cardmarket-commissie (5%) + Trustee Service (1%, het voorzichtige uiteinde van 0,5-1%): samen als vaste veilige aanname.
 DEFAULT_FEE_PCT = 6.0
-# Geschatte verzendkosten, oplopend met de verkoopprijs (Cardmarkets eigen tarieven zijn niet automatisch op te halen).
+# Geschatte verzending die je als KOPER betaalt bij een Cardmarket-aankoop, op basis van de kaartprijs. De verzending
+# bij het verkopen betaalt de koper (jij koopt er de postzegel van), dus die telt niet als kost; wel verpakking.
 SHIP_TIERS = [(5, 1.50), (20, 4.00), (50, 7.00), (150, 10.00), (float("inf"), 15.00)]
+PACKAGING = 0.50   # hoesje, toploader en envelop per verkoop
 
 
 def ship_cost(price):
-    """Geschatte verzendkosten bij een verkoop van deze waarde."""
+    """Geschatte verzending die je als koper betaalt voor een kaart van deze prijs."""
     for limit, cost in SHIP_TIERS:
         if price <= limit:
             return cost
@@ -71,9 +73,10 @@ NM_REFRESH_PRICE = False   # tijdelijk uit: de dagelijkse actuele NM-prijs kan w
 HISTORY_PERIOD = "90d"     # hoever de eenmalige geschiedenis-opbouw terugkijkt: zonder limiet vraagt de API blijkbaar veel meer op dan nodig (en dus duurder/trager)
 PK_BUDGET = 64000          # maximaal aantal credits per dag dat de geplande taken zelf gebruiken (Pro-plan: 75.000; de rest blijft bewust ongebruikt om zelf mee te kunnen testen)
 DEALS_MAX_PRICE = 500      # 'goedkope aanbiedingen' voor kaarten duurder dan dit worden niet apart opgehaald
-DEALS_TOP_N = 700          # ...voor de zoveel duurste kaarten onder die grens
+DEALS_TOP_N = 500          # ...voor de zoveel duurste kaarten onder die grens
+DEALS_FAMOUS_MIN_PRICE = 10   # plus alle kaarten van de 65 beroemde Pokémon vanaf deze prijs
 DEALS_BUDGET = 14000       # eigen, gegarandeerd budget hiervoor, los van wat de geschiedenis-opbouw gebruikt
-OFFERS_ENABLED = False     # 'Goedkope aanbiedingen' staat tijdelijk stil (op verzoek): het budget gaat nu naar de beroemde Pokémon hieronder. Het blokje in de app blijft gewoon staan, met steeds oudere gegevens.
+OFFERS_ENABLED = True      # 'Goedkope aanbiedingen' op Home (4 okt weer aangezet): 500 duurste kaarten onder EUR500 + beroemde Pokémon vanaf EUR10, eigen budget DEALS_BUDGET, elke kaart om de 3 dagen ververst
 
 # 65 beroemde Pokémon (dex-nummers), samen met de gebruiker vastgesteld op basis van aantal kaarten x gemiddelde
 # prijs in onze eigen data. Krijgen voorrang op geschiedenis, net als de eigen collectie, en mogen dieper terug
@@ -84,7 +87,8 @@ FAMOUS_DEX_IDS = {
     133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
 }
 FAMOUS_HISTORY_DAYS = 180
-SNAPSHOT_PPT_BUDGET = 12000   # PokemonPriceTracker-credits per dag voor de marktmomentopname (plan: 20.000; verder gebruikt de dagelijkse taak PPT niet)
+SNAPSHOT_PK_BUDGET = 6000    # PkmnPrices-credits per dag voor de marktmomentopname (alleen kandidaten; PokemonPriceTracker staat op het gratis plan)
+SNAPSHOT_PER_PAGE = 20       # aanbiedingen per kaart per opvraging; PkmnPrices rekent per rij, dus dit is ook het maximum aan credits per kaart
 SNAPSHOT_MAX_MINUTES = 40     # de aparte signalentaak krijgt 60 minuten van GitHub; de momentopname stopt ruim daarvoor
 # Meersignalenplan, stap 2: grenzen per signaal (zie signals.py)
 SIG_BELOW_AVG = 0.15          # >= 15% onder het 6-maandsgemiddelde = positief; >= 15% erboven = negatief

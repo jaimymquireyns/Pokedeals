@@ -1,3 +1,4 @@
+import { SHOW_PREDICTIONS } from "../model.js";
 // Watchlist: kaarten en sealed producten die je volgt, met eigen mappen (een kaart mag in meerdere mappen staan).
 import { isLoggedIn, rest, userId } from "../api.js";
 import { brandmark, chanceBar, detailHash, emptyNote, go, kindTag } from "../components.js";
@@ -5,7 +6,8 @@ import { closeSheet, debounce, eur, h, icon, num, openSheet, pp, segment, signed
 
 let ui = { folder: "alles", sort: "az", ...store.get("pd:watch", {}) };
 const saveUi = () => store.set("pd:watch", ui);
-const SORTS = [["az", "A–Z"], ["set", "Set en nummer"], ["low", "Laagste prijs"], ["high", "Hoogste prijs"], ["up", "Grootste kans op stijging"], ["down", "Grootste kans op daling"]];
+const SORTS = [["az", "A–Z"], ["set", "Set en nummer"], ["low", "Laagste prijs"], ["high", "Hoogste prijs"],
+  ...(SHOW_PREDICTIONS ? [["up", "Grootste kans op stijging"], ["down", "Grootste kans op daling"]] : [])];
 const numCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "nl", { numeric: true });
 
 export async function watchlistView(root) {
@@ -60,7 +62,7 @@ export async function watchlistView(root) {
         h("div", { class: "body" },
           h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: r.value_each ? eur(r.value_each) : "–" })),
           h("div", { class: "l2" }, h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }), kindTag(r.kind)),
-          r.p_up != null ? h("div", { class: "l3" }, h("b", { text: pp(r.p_up) }), h("span", { class: "lbl", text: "kans" }),
+          SHOW_PREDICTIONS && r.p_up != null ? h("div", { class: "l3" }, h("b", { text: pp(r.p_up) }), h("span", { class: "lbl", text: "kans" }),
             h("div", { class: "bar1" }, h("i", { style: `width:${Math.min(r.p_up * 100, 100)}%` })),
             fchips.length ? h("span", { class: "fmini", text: fchips.map((f) => f.name).join(", ") }) : null) : null)),
       h("button", { class: "morebtn", type: "button", "aria-label": "Mappen en verwijderen", onclick: () => manage(r, fchips) }, icon("folder"))));
