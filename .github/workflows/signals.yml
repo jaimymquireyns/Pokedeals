@@ -30,7 +30,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+          PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
           BACKTEST: ${{ github.event.inputs.backtest }}
         run: |
           if [ "$BACKTEST" = "ja" ]; then python signals.py --backtest; else python signals.py; fi
