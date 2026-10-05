@@ -1,6 +1,6 @@
 import { getSession, rest } from "../api.js";
 import { brandmark, detailHash, emptyNote, go, kindTag, note, oppRow } from "../components.js";
-import { SHOW_PREDICTIONS, isOpportunity, netGain } from "../model.js";
+import { DEAL_MIN_GAIN, SHOW_PREDICTIONS, dealGain, isOpportunity, netGain } from "../model.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
 import { getSettings } from "../prefs.js";
 import { eur, fmtDate, h, icon, segment, store, thumb, toast } from "../ui.js";
@@ -14,8 +14,14 @@ const DEAL_MIN_ABS = 25;          // ...óf, als dat percentage niet gehaald wor
  * de app niet alle aanbiedingen hoeft op te halen. Vergelijkt aanbiedingen onderling, niet met de trendprijs: die
  * kan bij weinig verkopen onbetrouwbaar zijn (zie Electivire). */
 async function fetchDeals(limit = 60) {
-  const rows = await rest.get(`v_deals?select=*&order=discount.desc&limit=${limit}`).catch(() => []);
-  return rows.map((d) => ({ ...d, cheapest: Number(d.cheapest), market: Number(d.market), discount: Number(d.discount) }));
+  const s = getSettings();
+  const rows = await rest.get(`v_deals?select=*&order=discount.desc&limit=200`).catch(() => []);
+  return rows
+    .map((d) => ({ ...d, cheapest: Number(d.cheapest), market: Number(d.market), discount: Number(d.discount) }))
+    .map((d) => ({ ...d, gain: dealGain(d.cheapest, d.market, s) }))
+    .filter((d) => d.gain >= DEAL_MIN_GAIN)   // na verzending als koper, commissie en verpakking moet er echt winst overblijven
+    .sort((a, b) => b.gain - a.gain)
+    .slice(0, limit);
 }
 
 function marketRow(d, watchId, onHeart) {
@@ -26,7 +32,8 @@ function marketRow(d, watchId, onHeart) {
         h("div", { class: "l1" }, h("span", { class: "name", text: d.name }), h("span", { class: "price num", text: eur(d.cheapest) })),
         h("div", { class: "l2" }, h("span", { class: "set", text: (d.set_name || "") + (d.number && d.kind === "card" ? ` #${d.number}` : "") }), kindTag(d.kind)),
         d.variant && d.variant !== "Normal" ? h("div", { class: "l2" }, h("span", { class: "tag", text: d.variant })) : null,
-        h("div", { class: "l3 dealinfo" }, h("b", { class: "dealpct", text: `-${Math.round(d.discount * 100)}%` }), h("span", { class: "lbl", text: `t.o.v. ${eur(d.market)} (nr. 2)` })))),
+        h("div", { class: "l3 dealinfo" }, h("b", { class: "dealpct", text: `-${Math.round(d.discount * 100)}%` }), h("span", { class: "lbl", text: `t.o.v. ${eur(d.market)} (nr. 2)` })),
+        d.gain != null ? h("div", { class: "l3 dealgain" }, h("span", { class: "lbl", text: "winst ca." }), h("b", { class: "num pos", text: eur(d.gain) }), h("span", { class: "lbl", text: "na verzending en kosten" })) : null)),
     h("button", { class: "heartb" + (watchId ? " on" : ""), type: "button", "aria-label": watchId ? "Van watchlist halen" : "Aan watchlist toevoegen", onclick: onHeart }, icon("heart", watchId ? "filled" : ""))));
 }
 
@@ -57,7 +64,7 @@ async function dealsHome(root) {
     h("div", { class: "bar" }, h("span"), h("button", { class: "gear", type: "button", text: "Instellingen", onclick: () => go("#/settings") })),
     h("div", { class: "sec dealsec" },
       h("h3", { text: "Goedkope aanbiedingen" }),
-      h("p", { class: "p14 muted", text: "Kaarten waarvan de goedkoopste aanbieding op Cardmarket flink onder de tweede goedkoopste ligt, binnen dezelfde uitvoering (Normal, Reverse Holofoil, ...). Alleen gewone Near Mint-kaarten. Vergelijk altijd zelf op Cardmarket: een opvallend lage prijs kan ook een vergissing zijn." }),
+      h("p", { class: "p14 muted", text: "Kaarten waarvan de goedkoopste aanbieding op Cardmarket flink onder de tweede goedkoopste ligt, binnen dezelfde uitvoering (Normal, Reverse Holofoil, ...). Alleen gewone Near Mint-kaarten, en alleen als er na verzending (gewone post tot € 25, daarna pakket), commissie en verpakking nog winst overblijft. Vergelijk altijd zelf op Cardmarket: een opvallend lage prijs kan ook een vergissing zijn." }),
       list),
     h("p", { class: "fine muted", text: "De kansberekening (welke kaarten gaan stijgen) is tijdelijk verborgen tot ze betrouwbaar genoeg is. Geen financieel advies." })));
   const deals = await fetchDeals();

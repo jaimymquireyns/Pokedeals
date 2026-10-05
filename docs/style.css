@@ -329,3 +329,6 @@ dialog#scan{margin:0;width:100%;height:100%;max-width:none;max-height:none;backg
 .salehead b.num{font-size:18px}
 .salelines{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13.5px}
 .salelines li{display:flex;justify-content:space-between;gap:10px}
+.dealgain{display:flex;align-items:baseline;gap:6px;margin-top:2px;font-size:13px;flex-wrap:wrap}
+.dealgain b{font-size:14px}
+.mini.warn{color:var(--amber)}

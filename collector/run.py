@@ -283,11 +283,14 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
                 config.HISTORY_PERIOD = original_period
     except Exception as e:
         log(f"! beroemde Pokémon (gewone geschiedenis) overgeslagen: {e}")
-    try:
-        import graded_history
-        graded_history.run(store, pk_client, today, log=log, deadline=deadline, target_days=config.FAMOUS_HISTORY_DAYS)
-    except Exception as e:
-        log(f"! beroemde Pokémon (gegradeerde geschiedenis) overgeslagen: {e}")
+    if config.GRADED_ENABLED:
+        try:
+            import graded_history
+            graded_history.run(store, pk_client, today, log=log, deadline=deadline, target_days=config.FAMOUS_HISTORY_DAYS)
+        except Exception as e:
+            log(f"! beroemde Pokémon (gegradeerde geschiedenis) overgeslagen: {e}")
+    else:
+        log("Gegradeerde geschiedenis staat uit (config.GRADED_ENABLED): wacht op een controle van de eBay-gegevens.")
     try:
         import nm
         nm.run(store, pk_client, today, log=log, deadline=deadline)

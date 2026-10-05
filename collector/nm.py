@@ -122,6 +122,15 @@ def extra_targets(fc, exclude, cap=20_000):
     return order
 
 
+def _save_misses(store, misses, log):
+    """Onthoudt welke kaarten PkmnPrices niet kon vinden. Lukt het opslaan niet (bijv. omdat de kolom pk_miss_on nog
+    ontbreekt), dan is dat geen ramp: de kaarten worden dan gewoon de volgende nacht opnieuw geprobeerd."""
+    try:
+        store.upsert_products(misses)
+    except Exception as e:
+        log(f"  (kon niet onthouden welke kaarten niet gevonden zijn: {type(e).__name__}; draai supabase/schema.sql opnieuw, kolom pk_miss_on)")
+
+
 def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, deadline=None, refresh_price=True):
     """Koppelt nog niet-gekoppelde kaarten uit 'targets' aan PkmnPrices en ververst (als refresh_price=True) hun
     Near Mint-prijs. refresh_price=False slaat het verversen over maar koppelt gewoon door, voor als de actuele
@@ -142,13 +151,18 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
     except Exception as e:
         log(f"  (kon niet controleren wie vandaag al gedaan is, ga gewoon door: {e})")
 
-    mapped = failed = 0
-    new_links = []
+    mapped = failed = recent_miss = 0
+    new_links, misses = [], []
+    t0 = date.fromisoformat(today)
     for i, pid in enumerate(targets, 1):
         if pk.over_budget() or (deadline and time.time() >= deadline):
             break
         p = products.get(pid)
         if not p or p.get("pk_id"):
+            continue
+        miss = p.get("pk_miss_on")
+        if miss and (t0 - date.fromisoformat(str(miss)[:10])).days < config.PK_MISS_RETRY_DAYS:
+            recent_miss += 1    # onlangs al gezocht en niet gevonden: niet elke nacht opnieuw credits aan uitgeven
             continue
         try:
             found = find_card(pk, p)
@@ -162,11 +176,20 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
             mapped += 1
         else:
             failed += 1
+            p["pk_miss_on"] = today
+            misses.append({"product_id": pid, "kind": "card", "name": p["name"], "pk_miss_on": today})
         if len(new_links) >= flush_every or (i == len(targets) and new_links):
             store.upsert_products(new_links)
             new_links = []
+        if len(misses) >= flush_every:
+            _save_misses(store, misses, log)
+            misses = []
     if new_links:
         store.upsert_products(new_links)
+    if misses:
+        _save_misses(store, misses, log)
+    if recent_miss:
+        log(f"  ({recent_miss} kaarten overgeslagen: onlangs al gezocht bij PkmnPrices zonder resultaat; opnieuw na {config.PK_MISS_RETRY_DAYS} dagen)")
 
     all_rows, examples = [], []
     if not refresh_price:

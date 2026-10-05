@@ -22,8 +22,10 @@ export const PERIODS = [
 // Verzending bij een Cardmarket-aankoop, geschat op de prijs van de kaart (de koper betaalt de verzending; de verkoper
 // koopt daar de postzegel van). Alleen nodig voor kaarten die je nog niet hebt: bij je eigen aankopen vul je de echte
 // verzending in. Cardmarkets eigen tarieven zijn niet automatisch op te halen.
-export const SHIP_TIERS = [[5, 1.5], [20, 4], [50, 7], [150, 10], [Infinity, 15]];
+// Onder EUR25 gewone post (rond EUR3), vanaf EUR25 als pakket (duurder). Een schatting; pas aan als de tarieven veranderen.
+export const SHIP_TIERS = [[24.99, 3], [50, 7], [150, 10], [Infinity, 15]];
 export const shipCost = (price) => SHIP_TIERS.find(([limit]) => price <= limit)[1];
+export const MAIN_PRICE_N = 10;   // de hoofdprijs van een kaart: de mediaan van de zoveel goedkoopste aanbiedingen van dezelfde uitvoering
 export const PACKAGING = 0.5;   // hoesje, toploader en envelop per verkoop
 
 /** Echte kostprijs per stuk: aankoopprijs plus jouw deel van de verzending en overige kosten bij het kopen. */
@@ -56,6 +58,11 @@ export const netGain = (price, exp, s) => {
   const net = price * (1 + exp) * (1 - s.fee_pct / 100) - PACKAGING;
   return net / cost - 1;
 };
+
+/** Verwachte winst op een koopje: je koopt de goedkoopste aanbieding (plus verzending als koper) en verkoopt daarna voor de
+ * prijs van de tweede goedkoopste (min commissie en verpakking). Is dat bedrag niet duidelijk positief, dan is het geen koopje. */
+export const DEAL_MIN_GAIN = 1;
+export const dealGain = (cheapest, second, s) => second * (1 - s.fee_pct / 100) - PACKAGING - (cheapest + shipCost(cheapest));
 
 export const isOpportunity = (r, s) => !s.net_only || netGain(r.price, r.exp, s) * 100 >= s.net_min_pct;
 

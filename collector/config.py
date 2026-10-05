@@ -54,7 +54,8 @@ DIGEST_MIN_P_UP = 0.60
 DEFAULT_FEE_PCT = 6.0
 # Geschatte verzending die je als KOPER betaalt bij een Cardmarket-aankoop, op basis van de kaartprijs. De verzending
 # bij het verkopen betaalt de koper (jij koopt er de postzegel van), dus die telt niet als kost; wel verpakking.
-SHIP_TIERS = [(5, 1.50), (20, 4.00), (50, 7.00), (150, 10.00), (float("inf"), 15.00)]
+# Onder EUR25 gewone post (rond EUR3), vanaf EUR25 als pakket (duurder). Een schatting naar de ervaring van de gebruiker; pas aan als de tarieven veranderen.
+SHIP_TIERS = [(24.99, 3.00), (50, 7.00), (150, 10.00), (float("inf"), 15.00)]
 PACKAGING = 0.50   # hoesje, toploader en envelop per verkoop
 
 
@@ -95,6 +96,10 @@ CLEAN_NM = False             # voor de dagelijkse kansberekening; de signalen-ba
 CLEAN_FACTOR = 3.0           # een punt dat meer dan zoveel keer boven zijn referentie ligt, is een piek
 CLEAN_WINDOW_DAYS = 90       # referentie zonder Cardmarket-gemiddelde: de mediaan van de behouden punten van de laatste zoveel dagen
 CLEAN_MAX_DROP_DAYS = 60     # een 'piek' die langer aanhoudt dan dit, is waarschijnlijk het nieuwe niveau en wordt weer geaccepteerd
+GRADED_ENABLED = False       # gegradeerde geschiedenis (PSA/BGS/CGC) staat UIT sinds 6 okt: de uitlezing van de eBay-verkopen herkende niets (9.730 opvragingen, ~40.600 credits, 0 prijspunten). Eerst een echt antwoord bekijken (check_card --graded), dan repareren.
+GRADED_BUDGET = 8000         # ook als hij weer aan staat: nooit meer dan dit per dag
+GRADED_MAX_UNPARSED = 20     # noodrem: zoveel opvragingen achter elkaar WEL verkopen teruggekregen maar GEEN prijspunt herkend = de uitlezing klopt niet, stoppen
+PK_MISS_RETRY_DAYS = 30      # een kaart die PkmnPrices niet kon vinden, pas na zoveel dagen opnieuw zoeken (kostte elke nacht ~1 credit per kaart)
 CM_LINKS_BUDGET = 1500       # PkmnPrices-credits per dag om per kaart de exacte Cardmarket-pagina op te zoeken (1 credit per kaart; ~6.000 kaarten = ongeveer 4 nachten)
 SNAPSHOT_PK_BUDGET = 6000    # PkmnPrices-credits per dag voor de marktmomentopname (alleen kandidaten; PokemonPriceTracker staat op het gratis plan)
 SNAPSHOT_PER_PAGE = 20       # aanbiedingen per kaart per opvraging; PkmnPrices rekent per rij, dus dit is ook het maximum aan credits per kaart

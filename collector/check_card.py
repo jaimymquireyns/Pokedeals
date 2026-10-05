@@ -5,6 +5,7 @@ misschien op de verkeerde kaart?
     python check_card.py ecard3-71
     python check_card.py ecard3-71 lc-64 hgss4-18   # meerdere tegelijk
     python check_card.py ecard3-71 --no-listings    # alleen de koppeling controleren, geen aanbiedingen opvragen
+    python check_card.py ecard3-71 --graded          # ook echte eBay-verkopen van gegradeerde kaarten tonen (max. ~15 credits per kaart)
 
 Na de koppeling laat het ook zien waar de prijs vandaan komt, om te beoordelen of die betrouwbaar is:
   - onze eigen Near Mint-reeks (laatste 60 dagen): hoeveel verschillende waarden, en hoe lang de prijs vastzat
@@ -22,7 +23,7 @@ from pkmnprices import PkmnPrices
 from store import SupabaseStore
 
 
-def check(store, pk, product_id, log=print, today=None, listings=True):
+def check(store, pk, product_id, log=print, today=None, listings=True, graded=False):
     rows = store.products("card", extra={"product_id": f"eq.{product_id}"})
     if not rows:
         log(f"{product_id}: onbekend in onze eigen database.")
@@ -50,10 +51,44 @@ def check(store, pk, product_id, log=print, today=None, listings=True):
         log(f"  velden van de kaart bij PkmnPrices: {', '.join(sorted(card)) if isinstance(card, dict) else type(card).__name__}")
     ok = (name or "").strip().lower() == (p.get("name") or "").strip().lower()
     log("  --> lijkt te KLOPPEN (zelfde naam)" if ok else "  --> LIJKT NIET TE KLOPPEN: andere naam dan bij ons!")
+    if graded:
+        try:
+            show_graded(pk, p["pk_id"], product_id, today or date.today().isoformat(), log=log)
+        except Exception as e:
+            log(f"  ! gegradeerd onderzoek mislukt: {type(e).__name__}: {e}")
     try:
         inspect_prices(store, pk, product_id, p["pk_id"], today or date.today().isoformat(), listings=listings, log=log)
     except Exception as e:   # de koppelingscontrole hierboven staat er dan al; dit deel mag haar niet onderuit halen
         log(f"  ! prijsonderzoek mislukt: {type(e).__name__}: {e}")
+
+
+def show_graded(pk, pk_id, product_id, today, log=print):
+    """Toont het ruwe antwoord van PkmnPrices voor gegradeerde eBay-verkopen, plus wat onze uitlezing (graded_history.
+    parse_sales) daarvan maakt. Aanleiding: de uitlezing herkende niets (0 prijspunten uit ruim 9.000 opvragingen)."""
+    import json
+
+    import graded_history
+    for label, params in (("PSA 10", {"graded": "true", "grader": "PSA", "grade": "10", "per_page": 5}),
+                          ("alle gegradeerde (zonder filter)", {"graded": "true", "per_page": 5})):
+        log(f"  --- gegradeerde eBay-verkopen: {label} ---")
+        try:
+            body = pk.call(f"/cards/{pk_id}/listings/ebay", params)
+        except Exception as e:
+            log(f"    ! opvragen mislukt: {e}")
+            continue
+        rows = body.get("data") if isinstance(body, dict) else body
+        rows = rows if isinstance(rows, list) else []
+        if isinstance(body, dict):
+            log(f"    antwoord bevat: {', '.join(sorted(body))}")
+            if body.get("pagination"):
+                log(f"    paginering: {json.dumps(body['pagination'], ensure_ascii=False)[:200]}")
+        log(f"    {len(rows)} verkopen teruggekregen")
+        if rows and isinstance(rows[0], dict):
+            log(f"    velden per verkoop: {', '.join(sorted(rows[0]))}")
+        for r in rows[:3]:
+            log("    " + json.dumps(r, ensure_ascii=False)[:500])
+        parsed = graded_history.parse_sales(product_id, "PSA", "10", rows, today)
+        log(f"    onze uitlezing herkent daarvan: {len(parsed)} prijspunten" + (f"  (bijv. {parsed[0]['date']}: EUR{parsed[0]['price']})" if parsed else "   <-- NIETS: de veldnamen kloppen niet"))
 
 
 def longest_flat_run(values):
@@ -129,11 +164,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("product_ids", nargs="+", help="een of meer product_id's uit onze eigen database, bijv. ecard3-71")
     ap.add_argument("--no-listings", action="store_true", help="geen aanbiedingen opvragen (kost dan vrijwel geen credits)")
+    ap.add_argument("--graded", action="store_true", help="ook het ruwe antwoord van de gegradeerde eBay-verkopen tonen")
     args = ap.parse_args()
     store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
     pk = PkmnPrices(os.environ["PKMN_API_KEY"])
     for pid in args.product_ids:
-        check(store, pk, pid, listings=not args.no_listings)
+        check(store, pk, pid, listings=not args.no_listings, graded=args.graded)
     print(f"\n({pk.credits} credits gebruikt)")
 
 

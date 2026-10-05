@@ -14,7 +14,7 @@ from store import SupabaseStore
 
 REFRESH_DAYS = 3   # een kaart wordt pas opnieuw ververst als het langer dan dit geleden is
 TOP_N = 300         # 'de beste kansen': zelfde top als bij het koppelen van Near Mint-prijzen
-LIMIT = 8            # zoveel aanbiedingen bewaren we per kaart (de opvraging kost per teruggegeven rij, niet per opgeslagen rij)
+LIMIT = 20           # zoveel aanbiedingen bewaren we per kaart (de opvraging haalt er al 20 op en kost per teruggegeven rij, dus bewaren kost niets extra)
 MAX_SAVE_FAILS = 5   # zoveel keer achter elkaar opslaan mislukken = de database is echt weg: stoppen
 
 

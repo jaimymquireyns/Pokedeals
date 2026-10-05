@@ -174,7 +174,7 @@ assert features.species_name("Team Rocket's Mewtwo ex") == "Mewtwo" and features
 assert abs(alerts.net_change(100, 0.15, 5) - ((115 * .95 - config.PACKAGING) / (100 + config.ship_cost(100)) - 1)) < 1e-9
 # het voorbeeld van de gebruiker: 2 kaarten voor 6 euro + 4 verzending, verkocht voor 8 per stuk -> ongeveer 4 euro winst
 assert abs((2 * (8 * 0.94 - config.PACKAGING) - (6 + 4)) - 4.04) < 1e-9
-assert config.ship_cost(4) == 1.50 and config.ship_cost(45) == 7.00 and config.ship_cost(500) == 15.00, "oplopende verzendtabel"
+assert config.ship_cost(4) == 3.00 and config.ship_cost(24.99) == 3.00 and config.ship_cost(25) == 7.00 and config.ship_cost(45) == 7.00 and config.ship_cost(500) == 15.00, "gewone post (EUR3) tot EUR25, daarna als pakket, oplopend"
 
 # splice: historie in ander prijsniveau wordt op ons niveau gezet
 own = [{"date": f"2026-09-{d:02d}", "price": 100.0 + d, "avg1": None, "avg7": None, "avg30": None} for d in range(10, 13)]
@@ -640,8 +640,26 @@ assert float(fake3.t["prices"][("sv04.5-232", "2026-09-21", "pkmnprices", "nm")]
 assert float(fake3.t["prices"][("base1-58", "2026-09-21", "pkmnprices", "nm")]["price"]) == 40.0
 ns.paths.clear()
 nm.run(store3, pkmnprices.PkmnPrices("pk", session=ns), "2026-09-22", log=quiet)
-assert [p for p in ns.paths if p == "/cards"] == ["/cards"], ns.paths       # alleen nog de mislukte kaart 'Zzz' wordt opnieuw gezocht
+assert [p for p in ns.paths if p == "/cards"] == [], ns.paths    # de mislukte kaart 'Zzz' is de eerste run onthouden en wordt niet de volgende dag alweer gezocht
 assert "/cards/901" in ns.paths and "/cards/500" in ns.paths
+assert fake3.t["products"][("x-1",)]["pk_miss_on"] == "2026-09-21", "onthouden wanneer de kaart niet gevonden is"
+ns.paths.clear()
+late = (date(2026, 9, 21) + timedelta(days=config.PK_MISS_RETRY_DAYS)).isoformat()
+nm.run(store3, pkmnprices.PkmnPrices("pk", session=ns), late, log=quiet)
+assert [p for p in ns.paths if p == "/cards"] == ["/cards"], "na 30 dagen wordt de kaart opnieuw gezocht (misschien staat hij er dan wel)"
+
+# in een achtergelaten kolom: lukt het onthouden niet (kolom ontbreekt), dan gaat het zoeken gewoon door zonder crash
+class NoMissCol(SupabaseStore):
+    def upsert_products(self, rows):
+        if any("pk_miss_on" in r for r in rows):
+            raise RuntimeError("column pk_miss_on does not exist")
+        return super().upsert_products(rows)
+fake3b, _ = new_store()
+store3b = NoMissCol("https://x.supabase.co", "sb_secret_test", session=fake3b)
+store3b.upsert_products([{"product_id": "m-1", "kind": "card", "name": "Zzz", "number": "9", "set_name": "S", "set_total": 1}])
+logs3b = []
+nm._map_and_refresh(store3b, pkmnprices.PkmnPrices("pk", session=NmSess()), "2026-10-06", ["m-1"], {p["product_id"]: p for p in store3b.products("card")}, logs3b.append, refresh_price=False)
+assert any("pk_miss_on" in l for l in logs3b), logs3b
 order, _fc = nm.pick_targets(store3, 10)
 assert order[0] == "base1-58" and order[1:] == ["sv04.5-232", "x-1"], order       # collectie eerst, dan beste kansen
 
@@ -1967,7 +1985,7 @@ raw_var = [
 ]
 pv = offers.parse_offers("hgss4-18", raw_var, "2026-10-05")
 assert [(p["seller"], p["variant"]) for p in pv] == [("a", "Normal"), ("f", "Normal"), ("b", "Reverse Holofoil")], pv
-assert [p["rank"] for p in pv] == [1, 2, 3] and offers.LIMIT == 8
+assert [p["rank"] for p in pv] == [1, 2, 3] and offers.LIMIT == 20
 assert offers.parse_offers("x", [], "2026-10-05") == []
 
 # ============ 54. Cardmarket-pagina per kaart (cm_links) ============
@@ -2053,5 +2071,84 @@ class CardSess:
 logs45 = []
 check_card.check(store45, pkmnprices.PkmnPrices("pk", session=CardSess()), "cc-1", log=logs45.append, today="2026-10-05")
 assert any("Cardmarket-pagina: https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71" in l and "26950" in l for l in logs45), logs45
+
+# ============ 55. Gegradeerd: staat uit, noodrem, budgetplafond, en de controleknop ============
+assert config.GRADED_ENABLED is False and config.GRADED_BUDGET == 8000 and config.GRADED_MAX_UNPARSED == 20
+
+fake46, store46 = new_store()
+fd46 = sorted(config.FAMOUS_DEX_IDS)[0]
+store46.upsert_products([{"product_id": f"gr-{i}", "kind": "card", "name": f"Gr{i}", "number": str(i), "set_name": "S", "set_total": 9, "dex_id": fd46, "pk_id": str(900 + i)} for i in range(40)])
+
+class UnparsedSess:
+    """Geeft telkens wel verkopen terug (en rekent er credits voor), maar met velden die we niet kennen."""
+    headers = {}
+    def __init__(self):
+        self.calls = 0
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        r = PkResp({"data": [{"sold_at": "2026-09-01", "total": {"amount": 55.0, "currency": "USD"}, "title": "PSA 10"}] * 4, "pagination": {"page": 1, "total_pages": 1}})
+        r.headers = {"x-credits-charged": "4"}
+        return r
+us = UnparsedSess()
+logs46 = []
+graded_history.run(store46, pkmnprices.PkmnPrices("pk", session=us, budget=1000000), "2026-10-06", log=logs46.append)
+assert us.calls == config.GRADED_MAX_UNPARSED, f"noodrem na {us.calls} opvragingen"
+assert any("NOODREM" in l and "sold_at" in l for l in logs46), logs46
+assert not any("verdieping" in l for l in logs46), "na een noodrem ook niet dieper proberen"
+
+# een herkende reeks tussendoor zet de teller terug: er stopt dan niets
+class MixedSess(UnparsedSess):
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        good = self.calls % 5 == 0
+        data = [{"date": "2026-09-01", "price": 55.0}] if good else [{"sold_at": "x", "total": 1}]
+        r = PkResp({"data": data, "pagination": {"page": 1, "total_pages": 1}})
+        r.headers = {"x-credits-charged": "1"}
+        return r
+ms = MixedSess()
+logs46b = []
+graded_history.run(store46, pkmnprices.PkmnPrices("pk", session=ms, budget=1000000), "2026-10-06", log=logs46b.append)
+assert not any("NOODREM" in l for l in logs46b), "tussendoor wel herkend: geen noodrem"
+
+# een kaart zonder enige verkoop (lege antwoorden) is geen reden tot een noodrem
+class EmptySess(UnparsedSess):
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})
+es = EmptySess()
+logs46c = []
+graded_history.run(store46, pkmnprices.PkmnPrices("pk", session=es, budget=1000000), "2026-10-06", log=logs46c.append)
+assert es.calls > config.GRADED_MAX_UNPARSED and not any("NOODREM" in l for l in logs46c)
+
+# budgetplafond: 40 credits per opvraging en een plafond van 8000 = hoogstens 200 opvragingen, en het budget van de aanroeper is daarna weer terug
+class Costly(UnparsedSess):
+    def get(self, url, params=None, timeout=None):
+        self.calls += 1
+        r = PkResp({"data": [{"date": "2026-09-01", "price": 55.0}], "pagination": {"page": 1, "total_pages": 1}})
+        r.headers = {"x-credits-charged": "40"}
+        return r
+cs46 = Costly()
+pk46 = pkmnprices.PkmnPrices("pk", session=cs46, budget=1000000)
+graded_history.run(store46, pk46, "2026-10-06", log=quiet)
+assert cs46.calls == 200 and pk46.budget == 1000000, (cs46.calls, pk46.budget)
+
+# run.py: bij GRADED_ENABLED = False wordt er geen enkel eBay-verzoek gedaan (test 39 draaide al de hele nachtelijke volgorde)
+assert not any("listings/ebay" in u for u in famous_sess.order), "gegradeerd staat uit: geen eBay-verzoeken in de nachtelijke taak"
+
+# check_card --graded toont het ruwe antwoord en wat onze uitlezing ervan maakt
+fake47, store47 = new_store()
+store47.upsert_products([{"product_id": "cg-1", "kind": "card", "name": "Charizard", "set_name": "Base Set", "number": "4", "pk_id": "77"}])
+class EbaySess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        if "/listings/ebay" in url:
+            return PkResp({"data": [{"sold_at": "2026-09-01", "title": "PSA 10 Charizard", "total": {"amount": 5000.0, "currency": "USD"}}], "pagination": {"page": 1, "total_pages": 3}})
+        return PkResp({"name": "Charizard", "set": {"name": "Base Set"}, "number": "4"})
+logs47 = []
+check_card.check(store47, pkmnprices.PkmnPrices("pk", session=EbaySess()), "cg-1", log=logs47.append, today="2026-10-06", listings=False, graded=True)
+text47 = "\n".join(logs47)
+assert "velden per verkoop: sold_at, title, total" in text47 and "5000.0" in text47 and "paginering" in text47, text47
+assert "NIETS: de veldnamen kloppen niet" in text47, "onze uitlezing herkent dit niet, en dat wordt gezegd"
+assert text47.count("gegradeerde eBay-verkopen") == 2, "twee opvragingen: PSA 10 en alle gegradeerde"
 
 print("alle tests geslaagd")
