@@ -95,6 +95,7 @@ CLEAN_NM = False             # voor de dagelijkse kansberekening; de signalen-ba
 CLEAN_FACTOR = 3.0           # een punt dat meer dan zoveel keer boven zijn referentie ligt, is een piek
 CLEAN_WINDOW_DAYS = 90       # referentie zonder Cardmarket-gemiddelde: de mediaan van de behouden punten van de laatste zoveel dagen
 CLEAN_MAX_DROP_DAYS = 60     # een 'piek' die langer aanhoudt dan dit, is waarschijnlijk het nieuwe niveau en wordt weer geaccepteerd
+CM_LINKS_BUDGET = 1500       # PkmnPrices-credits per dag om per kaart de exacte Cardmarket-pagina op te zoeken (1 credit per kaart; ~6.000 kaarten = ongeveer 4 nachten)
 SNAPSHOT_PK_BUDGET = 6000    # PkmnPrices-credits per dag voor de marktmomentopname (alleen kandidaten; PokemonPriceTracker staat op het gratis plan)
 SNAPSHOT_PER_PAGE = 20       # aanbiedingen per kaart per opvraging; PkmnPrices rekent per rij, dus dit is ook het maximum aan credits per kaart
 SNAPSHOT_MAX_MINUTES = 40     # de aparte signalentaak krijgt 60 minuten van GitHub; de momentopname stopt ruim daarvoor

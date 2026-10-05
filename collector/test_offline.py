@@ -691,6 +691,7 @@ assert f730["exp_change"] < 20, f730   # geen duizenden procenten meer
 import sealed_history
 import graded_history
 import famous_analysis
+import cm_links
 import market_snapshot
 import signals
 raw_hist = [{"date": "2026-08-01", "source": "cardmarket", "currency": "EUR", "condition": None, "variant": None, "avg": 140.0, "low": 138.0},
@@ -1954,5 +1955,103 @@ assert "A. Zoals het was" in text41 and "B. Met pieken eruit gehaald" in text41,
 assert "verwijderd 50 (" in text41 and "2 van 4 kaarten aangepast" in text41, text41
 assert b41["alle momenten"][0] <= a41["alle momenten"][0], "met opschonen nooit meer meetmomenten dan zonder"
 assert sum(1 for l in logs41 if l.strip().startswith("alle momenten")) == 2, "beide tabellen getoond"
+
+# ============ 53. Aanbiedingen: variant bewaren, gegradeerd/getekend/bewerkt weglaten ============
+raw_var = [
+    {"price": 29.09, "condition": "Near Mint", "seller": "a", "quantity": 1, "language": "EN", "variant": "Normal", "graded": False, "signed": False, "altered": False},
+    {"price": 300.0, "condition": "Near Mint", "seller": "b", "quantity": 1, "language": "EN", "variant": "Reverse Holofoil", "graded": False, "signed": False, "altered": False},
+    {"price": 5.0, "condition": "Near Mint", "seller": "c", "quantity": 1, "language": "EN", "variant": "Normal", "graded": True, "grader": "PSA", "grade": "9"},
+    {"price": 6.0, "condition": "Near Mint", "seller": "d", "quantity": 1, "language": "EN", "variant": "Normal", "signed": True},
+    {"price": 7.0, "condition": "Near Mint", "seller": "e", "quantity": 1, "language": "EN", "variant": "Normal", "altered": "true"},
+    {"price": 30.3, "condition": "Near Mint", "seller": "f", "quantity": 2, "language": "EN", "variant": "Normal"},
+]
+pv = offers.parse_offers("hgss4-18", raw_var, "2026-10-05")
+assert [(p["seller"], p["variant"]) for p in pv] == [("a", "Normal"), ("f", "Normal"), ("b", "Reverse Holofoil")], pv
+assert [p["rank"] for p in pv] == [1, 2, 3] and offers.LIMIT == 8
+assert offers.parse_offers("x", [], "2026-10-05") == []
+
+# ============ 54. Cardmarket-pagina per kaart (cm_links) ============
+assert cm_links.clean_url("https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71") == "https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71"
+assert cm_links.clean_url("/en/Pokemon/Products/Singles/X/Y") == "https://www.cardmarket.com/en/Pokemon/Products/Singles/X/Y", "relatief adres aanvullen"
+assert cm_links.clean_url("https://evil.example.com/x") is None and cm_links.clean_url("javascript:alert(1)") is None and cm_links.clean_url("") is None and cm_links.clean_url(None) is None
+assert cm_links.extract({"cardmarket_url": "https://www.cardmarket.com/en/Pokemon/Products/Singles/A/B", "cardmarket_product_id": "26950"}) == ("https://www.cardmarket.com/en/Pokemon/Products/Singles/A/B", 26950)
+assert cm_links.extract({"data": {"cardmarket_product_id": 5}}) == (None, 5) and cm_links.extract({}) == (None, None) and cm_links.extract(None) == (None, None)
+
+fake42, store42 = new_store()
+fd42 = sorted(config.FAMOUS_DEX_IDS)[0]
+store42.upsert_products([
+    {"product_id": "l-rest", "kind": "card", "name": "Rest", "pk_id": "1", "dex_id": 13},
+    {"product_id": "l-famous", "kind": "card", "name": "Beroemd", "pk_id": "2", "dex_id": fd42},
+    {"product_id": "l-coll", "kind": "card", "name": "Collectie", "pk_id": "3", "dex_id": 13},
+    {"product_id": "l-nolink", "kind": "card", "name": "ZonderLink", "pk_id": "4", "dex_id": 13},
+    {"product_id": "l-nopk", "kind": "card", "name": "NietGekoppeld", "dex_id": fd42},
+    {"product_id": "l-done", "kind": "card", "name": "Klaar", "pk_id": "5", "dex_id": fd42},
+])
+fake42.t["products"][("l-done",)]["cm_url"] = "https://www.cardmarket.com/en/Pokemon/Products/Singles/Klaar/K"
+fake42.t["collection"][(1,)] = {"id": "c1", "product_id": "l-coll", "user_id": "u"}
+order42, _ = cm_links.targets(store42)
+assert order42[0] == "l-coll", f"collectie eerst: {order42}"
+assert "l-nopk" not in order42 and "l-done" not in order42, "alleen gekoppelde kaarten zonder link"
+assert order42.index("l-famous") < order42.index("l-rest"), "beroemde Pokémon vóór de rest"
+
+class CmSess:
+    headers = {}
+    def __init__(self):
+        self.urls = []
+    def get(self, url, params=None, timeout=None):
+        self.urls.append(url)
+        n = url.rsplit("/", 1)[-1]
+        if n == "4":
+            return PkResp({"name": "ZonderLink"})
+        return PkResp({"name": "x", "cardmarket_url": f"https://www.cardmarket.com/en/Pokemon/Products/Singles/S/Kaart-{n}", "cardmarket_product_id": int(n) * 100})
+cs42 = CmSess()
+logs42 = []
+n42 = cm_links.run(store42, pkmnprices.PkmnPrices("pk", session=cs42), "2026-10-05", log=logs42.append)
+prods42 = {p["product_id"]: p for p in store42.products("card")}
+assert n42 == 3 and prods42["l-rest"]["cm_url"].endswith("Kaart-1") and prods42["l-famous"]["cm_product_id"] == 200, prods42["l-famous"]
+assert prods42["l-nolink"]["cm_url"] == "", "geen link bij PkmnPrices: lege tekst, zodat hij niet elke nacht opnieuw wordt geprobeerd"
+assert prods42["l-done"]["cm_url"].endswith("/Klaar/K"), "bestaande link niet overschreven"
+assert prods42["l-nopk"].get("cm_url") is None
+cs42b = CmSess()
+cm_links.run(store42, pkmnprices.PkmnPrices("pk", session=cs42b), "2026-10-06", log=quiet)
+assert cs42b.urls == [], "alles al gedaan: geen enkel verzoek meer"
+
+# budget: 1 credit per kaart, dus bij een budget van 2 maar 2 kaarten
+fake43, store43 = new_store()
+store43.upsert_products([{"product_id": f"b-{i}", "kind": "card", "name": f"B{i}", "pk_id": str(10 + i), "dex_id": 13} for i in range(6)])
+class CostCm(CmSess):
+    def get(self, url, params=None, timeout=None):
+        r = super().get(url, params, timeout)
+        r.headers = {"x-credits-charged": "1"}
+        return r
+cc43 = CostCm()
+cm_links.run(store43, pkmnprices.PkmnPrices("pk", session=cc43, budget=100000), "2026-10-05", log=quiet, budget=2)
+assert len(cc43.urls) == 2, cc43.urls
+
+# PkmnPrices geeft het veld helemaal niet mee: na 20 kaarten stoppen, niets opslaan
+fake44, store44 = new_store()
+store44.upsert_products([{"product_id": f"n-{i}", "kind": "card", "name": f"N{i}", "pk_id": str(100 + i), "dex_id": 13} for i in range(30)])
+class NoField(CmSess):
+    def get(self, url, params=None, timeout=None):
+        self.urls.append(url)
+        return PkResp({"name": "x"})
+nf = NoField()
+logs44 = []
+assert cm_links.run(store44, pkmnprices.PkmnPrices("pk", session=nf), "2026-10-05", log=logs44.append) == 0
+assert len(nf.urls) == cm_links.EARLY_STOP_AFTER and any("geen Cardmarket-adres" in l for l in logs44), (len(nf.urls), logs44)
+assert all(p.get("cm_url") is None for p in store44.products("card")), "niets opgeslagen"
+
+# check_card toont de Cardmarket-pagina
+fake45, store45 = new_store()
+store45.upsert_products([{"product_id": "cc-1", "kind": "card", "name": "Lapras", "set_name": "Skyridge", "number": "71", "pk_id": "26950"}])
+class CardSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        if "/listings/" in url:
+            return PkResp({"data": [], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"name": "Lapras", "set": {"name": "Skyridge"}, "number": "071", "cardmarket_url": "https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71", "cardmarket_product_id": 26950})
+logs45 = []
+check_card.check(store45, pkmnprices.PkmnPrices("pk", session=CardSess()), "cc-1", log=logs45.append, today="2026-10-05")
+assert any("Cardmarket-pagina: https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71" in l and "26950" in l for l in logs45), logs45
 
 print("alle tests geslaagd")

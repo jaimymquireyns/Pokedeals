@@ -25,7 +25,8 @@ function marketRow(d, watchId, onHeart) {
       h("div", { class: "body" },
         h("div", { class: "l1" }, h("span", { class: "name", text: d.name }), h("span", { class: "price num", text: eur(d.cheapest) })),
         h("div", { class: "l2" }, h("span", { class: "set", text: (d.set_name || "") + (d.number && d.kind === "card" ? ` #${d.number}` : "") }), kindTag(d.kind)),
-        h("div", { class: "l3 dealinfo" }, h("b", { class: "dealpct", text: `-${Math.round(d.discount * 100)}%` }), h("span", { class: "lbl", text: `t.o.v. ${eur(d.market)}` })))),
+        d.variant && d.variant !== "Normal" ? h("div", { class: "l2" }, h("span", { class: "tag", text: d.variant })) : null,
+        h("div", { class: "l3 dealinfo" }, h("b", { class: "dealpct", text: `-${Math.round(d.discount * 100)}%` }), h("span", { class: "lbl", text: `t.o.v. ${eur(d.market)} (nr. 2)` })))),
     h("button", { class: "heartb" + (watchId ? " on" : ""), type: "button", "aria-label": watchId ? "Van watchlist halen" : "Aan watchlist toevoegen", onclick: onHeart }, icon("heart", watchId ? "filled" : ""))));
 }
 
@@ -56,7 +57,7 @@ async function dealsHome(root) {
     h("div", { class: "bar" }, h("span"), h("button", { class: "gear", type: "button", text: "Instellingen", onclick: () => go("#/settings") })),
     h("div", { class: "sec dealsec" },
       h("h3", { text: "Goedkope aanbiedingen" }),
-      h("p", { class: "p14 muted", text: "Kaarten waarvan de laagste aanbieding op Cardmarket flink onder de andere aanbiedingen ligt. Vergelijk altijd zelf op Cardmarket: een opvallend lage prijs kan ook een vergissing of een slechte conditie zijn." }),
+      h("p", { class: "p14 muted", text: "Kaarten waarvan de goedkoopste aanbieding op Cardmarket flink onder de tweede goedkoopste ligt, binnen dezelfde uitvoering (Normal, Reverse Holofoil, ...). Alleen gewone Near Mint-kaarten. Vergelijk altijd zelf op Cardmarket: een opvallend lage prijs kan ook een vergissing zijn." }),
       list),
     h("p", { class: "fine muted", text: "De kansberekening (welke kaarten gaan stijgen) is tijdelijk verborgen tot ze betrouwbaar genoeg is. Geen financieel advies." })));
   const deals = await fetchDeals();

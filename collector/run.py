@@ -248,6 +248,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
                 offers.run(store, pk_client, today, log=log, deadline=deadline, only=core_cards)
     except Exception as e:
         log(f"! eigen collectie eerst overgeslagen: {e}")
+    try:
+        import cm_links
+        cm_links.run(store, pk_client, today, log=log, deadline=deadline)   # klein, eigen budget: de exacte Cardmarket-pagina per kaart
+    except Exception as e:
+        log(f"! Cardmarket-links overgeslagen: {e}")
     if config.OFFERS_ENABLED:
         try:
             import offers

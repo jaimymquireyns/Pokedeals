@@ -9,6 +9,22 @@ export const kindTag = (kind) => h("span", { class: "tag" + (kind === "sealed" ?
 export const pill = (label) => h("span", { class: "pill " + (label.startsWith("koop") ? "koop" : label.startsWith("verkoop") ? "verkoop" : label.startsWith("winst") ? "winst" : ""), text: label });
 export const gradeTag = (c) => (gradeLabel(c) ? h("span", { class: "gr", text: gradeLabel(c) }) : null);
 
+/** Cardmarket-adres van een kaart: de exacte pagina als we die kennen (cm_url, via PkmnPrices), anders een zoekopdracht
+ * op naam en nummer (die kan meerdere kaarten van dezelfde Pokémon tonen). Alleen echte Cardmarket-adressen. */
+export const CM_PREFIX = "https://www.cardmarket.com/";
+export const hasExactCm = (p) => typeof p.cm_url === "string" && p.cm_url.startsWith(CM_PREFIX);
+export function cardmarketHref(p) {
+  if (hasExactCm(p)) return p.cm_url;
+  const q = [p.name, p.kind === "card" && p.number ? p.number : ""].join(" ").trim();
+  return `${CM_PREFIX}en/Pokemon/Products/Search?searchString=${encodeURIComponent(q)}`;
+}
+
+/** Mediaan van een lijst getallen (bij een even aantal: het gemiddelde van de twee middelste). */
+export const median = (xs) => {
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null;
+};
+
 /** Logo + naam, bovenaan elk scherm. */
 export const brandmark = () => h("div", { class: "brandmark" },
   h("span", { class: "mark" }, h("img", { src: "icons/icon-192.png", alt: "" })),

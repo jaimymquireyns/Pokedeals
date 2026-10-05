@@ -17,6 +17,7 @@ import argparse
 import os
 from datetime import date, timedelta
 
+import cm_links
 from pkmnprices import PkmnPrices
 from store import SupabaseStore
 
@@ -43,6 +44,10 @@ def check(store, pk, product_id, log=print, today=None, listings=True):
     set_name = setinfo.get("name") or card.get("set_name")
     number = card.get("number") or card.get("card_number")
     log(f"  bij PkmnPrices: {name} — {set_name} #{number}")
+    url, cm_id = cm_links.extract(card)
+    log(f"  Cardmarket-pagina: {url or '(geen)'}" + (f"   (product {cm_id})" if cm_id else ""))
+    if not url and not cm_id:
+        log(f"  velden van de kaart bij PkmnPrices: {', '.join(sorted(card)) if isinstance(card, dict) else type(card).__name__}")
     ok = (name or "").strip().lower() == (p.get("name") or "").strip().lower()
     log("  --> lijkt te KLOPPEN (zelfde naam)" if ok else "  --> LIJKT NIET TE KLOPPEN: andere naam dan bij ons!")
     try:

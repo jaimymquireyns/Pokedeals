@@ -1,7 +1,7 @@
 import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
-import { chanceBar, gradeTag, go, kindTag, pill } from "../components.js";
+import { cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, pill } from "../components.js";
 import { PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, breakEven, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
@@ -37,9 +37,12 @@ export async function detailView(root, pid, cid) {
   const gk = c ? gradeKey(c) : "raw";
   const num2 = (x) => (x == null ? null : Number(x));
   const trendPrice = c ? num2(c.value_each) : num2(p.price);
-  const offerAvg = offerRows.length ? offerRows.reduce((s, o) => s + Number(o.price), 0) / offerRows.length : null;
-  // "Waarde nu"/"Winst" en de winstgrens gebruiken voortaan het gemiddelde van de laagste 5 actuele aanbiedingen
-  // als dat er is (realistischer dan de trendprijs, die bij weinig verkopen ver van de echte markt kan liggen).
+  // "Waarde nu"/"Winst" en de winstgrens: de mediaan van de (maximaal) 3 goedkoopste aanbiedingen van de uitvoering van de
+  // goedkoopste aanbieding. Voorheen het gemiddelde van alle 5: dat meet uitvoeringen door elkaar (Normal en Reverse
+  // Holofoil kunnen een factor 10 verschillen) en laat zich door een enkele absurde vraagprijs (EUR 9.001) omhoogtrekken.
+  const refVariant = offerRows.length ? (offerRows[0].variant ?? null) : null;
+  const refOffers = offerRows.filter((o) => (o.variant ?? null) === refVariant).slice(0, 3);
+  const offerAvg = refOffers.length ? median(refOffers.map((o) => Number(o.price))) : null;
   const price = offerAvg ?? trendPrice;
   const graded = gk !== "raw";
   const fcByKey = new Map(fcRows.map((r) => [`${r.horizon_days}-${r.threshold_pct}`, r]));
@@ -53,10 +56,9 @@ export async function detailView(root, pid, cid) {
     offersSec = h("div", { class: "sec" }, h("h3", { text: "Laagste aanbiedingen · Near Mint" }),
       ...offerRows.map((o) => h("div", { class: "offrow" },
         h("div", {}, h("div", { class: "offprice num", text: eur(Number(o.price)) }),
-          h("div", { class: "offmeta", text: [o.seller, o.quantity > 1 ? `${o.quantity} stuks` : "1 stuk", o.language].filter(Boolean).join(" · ") })))),
-      h("a", { class: "linkbtn", target: "_blank", rel: "noopener", text: "Alle aanbiedingen op Cardmarket →",
-        href: `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${enc([p.name, p.number || ""].join(" ").trim())}` }),
-      h("p", { class: "mini", text: `Live aanbod van Cardmarket, alleen Near Mint. Bijgewerkt ${fmtDateLong(offerRows[0].date)}. Alleen beschikbaar voor je collectie en de beste kansen.` }));
+          h("div", { class: "offmeta", text: [o.seller, o.quantity > 1 ? `${o.quantity} stuks` : "1 stuk", o.language, o.variant && o.variant !== "Normal" ? o.variant : null].filter(Boolean).join(" · ") })))),
+      h("a", { class: "linkbtn", target: "_blank", rel: "noopener", text: hasExactCm(p) ? "Alle aanbiedingen op Cardmarket →" : "Zoek deze kaart op Cardmarket →", href: cardmarketHref(p) }),
+      h("p", { class: "mini", text: `Live aanbod van Cardmarket, alleen gewone Near Mint-kaarten (geen gegradeerde, getekende of bewerkte). Bijgewerkt ${fmtDateLong(offerRows[0].date)}.` }));
   }
 
   // ---- kop ----
@@ -64,7 +66,7 @@ export async function detailView(root, pid, cid) {
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null),
       h("div", { class: "big num", text: price ? eur(price) : "Geen prijs" }),
-      offerAvg != null ? h("p", { class: "mini", text: `Gemiddelde van de ${offerRows.length} laagste actuele aanbiedingen (Near Mint). Trendprijs ter vergelijking: ${eur(trendPrice)}.` }) : null));
+      offerAvg != null ? h("p", { class: "mini", text: `Mediaan van de ${refOffers.length} laagste actuele aanbiedingen${refVariant && refVariant !== "Normal" ? ` (${refVariant})` : ""} (Near Mint). Trendprijs ter vergelijking: ${eur(trendPrice)}.` }) : null));
 
   // ---- identificatie: zeldzaamheid, uitgiftedatum, taal ----
   const idBits = [p.kind === "card" && p.rarity ? ["Zeldzaamheid", p.rarity] : null,
@@ -251,8 +253,7 @@ export async function detailView(root, pid, cid) {
       openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), addForm(p, { onDone: () => { closeSheet(); toast("Toegevoegd aan je collectie"); } })));
     } }));
   }
-  btns.append(h("a", { class: "btn", target: "_blank", rel: "noopener", text: "Zoek op Cardmarket",
-    href: `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${enc([p.name, p.kind === "card" && p.number ? p.number : ""].join(" ").trim())}` }));
+  btns.append(h("a", { class: "btn", target: "_blank", rel: "noopener", text: hasExactCm(p) ? "Open op Cardmarket" : "Zoek op Cardmarket", href: cardmarketHref(p) }));
   if (c) btns.append(h("button", { class: "btn del", type: "button", text: "Verwijderen uit collectie", onclick: async () => {
     if (!confirm(`${p.name} uit je collectie verwijderen?`)) return;
     try { await rest.del("collection", `id=eq.${enc(cid)}`); toast("Verwijderd"); go("#/collection"); } catch { toast("Verwijderen mislukte"); }

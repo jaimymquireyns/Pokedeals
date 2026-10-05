@@ -14,7 +14,7 @@ from store import SupabaseStore
 
 REFRESH_DAYS = 3   # een kaart wordt pas opnieuw ververst als het langer dan dit geleden is
 TOP_N = 300         # 'de beste kansen': zelfde top als bij het koppelen van Near Mint-prijzen
-LIMIT = 5            # zoveel aanbiedingen bewaren we per kaart
+LIMIT = 8            # zoveel aanbiedingen bewaren we per kaart (de opvraging kost per teruggegeven rij, niet per opgeslagen rij)
 MAX_SAVE_FAILS = 5   # zoveel keer achter elkaar opslaan mislukken = de database is echt weg: stoppen
 
 
@@ -84,15 +84,27 @@ def stale(store, product_ids, today, max_age_days=REFRESH_DAYS):
     return [pid for pid in product_ids if pid not in fresh]
 
 
+def _flag(v):
+    return v is True or str(v).strip().lower() in ("true", "1", "yes")
+
+
+def usable(r):
+    """Alleen gewone Near Mint-aanbiedingen. Gegradeerde, getekende en bewerkte kaarten horen daar niet bij: ze hebben
+    een heel andere prijs. De API kan al filteren op conditie, maar voor de zekerheid filteren we hier nog eens zelf."""
+    return (isinstance(r, dict) and (r.get("condition") or "").lower() == "near mint" and bool(r.get("price"))
+            and not _flag(r.get("graded")) and not _flag(r.get("signed")) and not _flag(r.get("altered")))
+
+
 def parse_offers(product_id, rows, today, limit=LIMIT):
-    """Alleen Near Mint, goedkoopste eerst. De API kan al filteren op conditie (we sturen 'condition' mee), maar
-    voor de zekerheid filteren we het hier ook nog eens zelf."""
-    nm_rows = [r for r in rows if isinstance(r, dict) and (r.get("condition") or "").lower() == "near mint" and r.get("price")]
+    """Goedkoopste eerst, met de uitvoering ('variant': Normal, Reverse Holofoil, ...): die verschillen soms een factor
+    10 in prijs en horen niet door elkaar vergeleken te worden."""
+    nm_rows = [r for r in rows if usable(r)]
     nm_rows.sort(key=lambda r: float(r["price"]))
     out = []
     for i, r in enumerate(nm_rows[:limit], 1):
         out.append({"product_id": product_id, "rank": i, "price": round(float(r["price"]), 2),
-                    "seller": r.get("seller"), "quantity": r.get("quantity"), "language": r.get("language"), "date": today})
+                    "seller": r.get("seller"), "quantity": r.get("quantity"), "language": r.get("language"),
+                    "variant": r.get("variant"), "date": today})
     return out
 
 
