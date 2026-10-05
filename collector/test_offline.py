@@ -2151,4 +2151,32 @@ assert "velden per verkoop: sold_at, title, total" in text47 and "5000.0" in tex
 assert "NIETS: de veldnamen kloppen niet" in text47, "onze uitlezing herkent dit niet, en dat wordt gezegd"
 assert text47.count("gegradeerde eBay-verkopen") == 2, "twee opvragingen: PSA 10 en alle gegradeerde"
 
+# ============ 56. check_card voor een niet-gekoppelde kaart: kandidaten en waarom de koppelregel ze afwijst ============
+fake48, store48 = new_store()
+store48.upsert_products([{"product_id": "swshp-SWSH039", "kind": "card", "name": "Pikachu", "set_id": "swshp", "set_name": "SWSH Black Star Promos", "number": "SWSH039", "dex_id": 25}])
+class PromoSess:
+    headers = {}
+    def __init__(self):
+        self.params = []
+    def get(self, url, params=None, timeout=None):
+        self.params.append(dict(params or {}))
+        return PkResp({"data": [{"id": 8001, "name": "Pikachu", "number": "SWSH039", "total_set_number": None, "set": {"name": "SWSH: Sword & Shield Promo Cards"}},
+                                {"id": 8002, "name": "Pikachu", "number": "58", "total_set_number": "102", "set": {"name": "Base Set"}}],
+                       "pagination": {"page": 1, "total_pages": 1}})
+ps48 = PromoSess()
+logs48 = []
+check_card.check(store48, pkmnprices.PkmnPrices("pk", session=ps48), "swshp-SWSH039", log=logs48.append, today="2026-10-06")
+text48 = "\n".join(logs48)
+assert "nog niet gekoppeld" in text48 and "set-id swshp" in text48, text48
+assert "id 8001" in text48 and "nummer klopt; setnaam NEE, setgrootte NEE" in text48, "de promo: nummer klopt, maar set en grootte niet"
+assert "id 8002" in text48 and "nummer klopt niet" in text48
+assert "onze koppelregel kiest: NIETS" in text48, "dit is precies waarom promo's niet gekoppeld worden"
+assert ps48.params == [{"name": "Pikachu", "number": "SWSH039", "per_page": 15, "page": 1}] or len(ps48.params) == 1, ps48.params
+
+# een gewone kaart waar de regel wel een keuze maakt
+store48.upsert_products([{"product_id": "base1-58", "kind": "card", "name": "Pikachu", "set_id": "base1", "set_name": "Base Set", "set_total": 102, "number": "58"}])
+logs48b = []
+check_card.check(store48, pkmnprices.PkmnPrices("pk", session=PromoSess()), "base1-58", log=logs48b.append, today="2026-10-06")
+assert any("onze koppelregel kiest: id 8002" in l for l in logs48b), logs48b
+
 print("alle tests geslaagd")

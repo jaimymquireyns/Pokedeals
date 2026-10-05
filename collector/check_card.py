@@ -32,7 +32,11 @@ def check(store, pk, product_id, log=print, today=None, listings=True, graded=Fa
     log(f"\n=== {product_id} ===")
     log(f"  bij ons:        {p.get('name')} — {p.get('set_name')} #{p.get('number')} (dex {p.get('dex_id')})")
     if not p.get("pk_id"):
-        log("  nog niet gekoppeld aan PkmnPrices.")
+        log(f"  nog niet gekoppeld aan PkmnPrices (set-id {p.get('set_id')}, setgrootte {p.get('set_total')}, onthouden als niet gevonden op {p.get('pk_miss_on') or '-'}).")
+        try:
+            explain_unlinked(pk, p, log=log)
+        except Exception as e:
+            log(f"  ! zoeken mislukt: {type(e).__name__}: {e}")
         return
     log(f"  pk_id:          {p['pk_id']}")
     try:
@@ -89,6 +93,36 @@ def show_graded(pk, pk_id, product_id, today, log=print):
             log("    " + json.dumps(r, ensure_ascii=False)[:500])
         parsed = graded_history.parse_sales(product_id, "PSA", "10", rows, today)
         log(f"    onze uitlezing herkent daarvan: {len(parsed)} prijspunten" + (f"  (bijv. {parsed[0]['date']}: EUR{parsed[0]['price']})" if parsed else "   <-- NIETS: de veldnamen kloppen niet"))
+
+
+def explain_unlinked(pk, product, log=print):
+    """Voor een kaart die we niet aan PkmnPrices kunnen koppelen: wat geeft PkmnPrices terug bij dezelfde zoekopdracht als
+    de nachtelijke taak, en waarom wijst onze koppelregel (nm.match_card) elke kandidaat af? Zo zien we of het aan de
+    setnaam, de setgrootte of het kaartnummer ligt. Kost maximaal 15 credits per zoekopdracht."""
+    import nm
+    searches = [("zoals de nachtelijke taak (naam + nummer)", {"name": product["name"], "number": product.get("number")})]
+    shown = False
+    for label, params in searches + [("alleen op naam", {"name": product["name"]})]:
+        rows = pk.list_all("/cards", params, per_page=15, max_pages=1)
+        log(f"  zoeken {label}: {len(rows)} kandidaten")
+        if not rows and label != "alleen op naam":
+            continue
+        want_n = nm.norm_number(product.get("number"))
+        mine = nm.norm(product.get("set_name"))
+        for c in rows[:15]:
+            cset = (c.get("set") or {}).get("name")
+            same_n = nm.norm_number(c.get("number")) == want_n
+            set_ok = bool(mine and nm.norm(cset) and (mine in nm.norm(cset) or nm.norm(cset) in mine))
+            total_ok = bool(product.get("set_total")) and nm.norm_number(c.get("total_set_number")) == nm.norm_number(product["set_total"])
+            why = "nummer klopt niet" if not same_n else (f"nummer klopt; setnaam {'ja' if set_ok else 'NEE'}, setgrootte {'ja' if total_ok else 'NEE'}")
+            log(f"    id {c.get('id')}: {c.get('name')} — {cset} #{c.get('number')} (van {c.get('total_set_number')})   [{why}]")
+        hit = nm.match_card(product, rows)
+        log(f"  onze koppelregel kiest: {('id ' + str(hit['id'])) if hit else 'NIETS'}")
+        shown = True
+        if label == "alleen op naam" or rows:
+            break
+    if not shown:
+        log("  PkmnPrices kent geen kaart met deze naam.")
 
 
 def longest_flat_run(values):
