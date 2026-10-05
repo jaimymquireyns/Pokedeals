@@ -1820,4 +1820,52 @@ finally:
     config.DEALS_TOP_N = orig_n
 assert tg == ["ander-duur", "fam-duur", "fam-tien"], tg
 
+# ============ 49. check_card: prijsonderzoek (het Lapras-scenario: vaste prijs, 1 verkoper, ver boven de verkopen) ============
+fake39, store39 = new_store()
+store39.upsert_products([{"product_id": "lapras-x", "kind": "card", "name": "Lapras", "set_name": "Skyridge", "number": "71", "pk_id": "26950"}])
+today39 = date(2026, 10, 5)
+for i in range(30):
+    d39 = (today39 - timedelta(days=30 - i)).isoformat()
+    store39.upsert_prices([{"product_id": "lapras-x", "date": d39, "source": "pkmnprices", "grade_key": "nm", "price": 4.0 + (i % 3) * 0.1 if i < 10 else 1450.0}])
+store39.upsert_prices([{"product_id": "lapras-x", "date": today39.isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 15.0,
+                        "avg1": 15.0, "avg7": 14.0, "avg30": 13.0, "low": 12.0}])
+assert check_card.longest_flat_run([1, 1, 1, 2, 2, 3]) == 3 and check_card.longest_flat_run([]) == 0 and check_card.longest_flat_run([5.0]) == 1
+
+class LaprasSess:
+    headers = {}
+    def __init__(self):
+        self.urls = []
+    def get(self, url, params=None, timeout=None):
+        self.urls.append((url, dict(params or {})))
+        if "/listings/cardmarket" in url:
+            return PkResp({"data": [{"price": 1450.0, "seller": "enige", "quantity": 1, "condition": "Near Mint"}], "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"name": "Lapras", "set": {"name": "Skyridge"}, "number": "071"})
+
+ls39 = LaprasSess()
+logs39 = []
+check_card.check(store39, pkmnprices.PkmnPrices("pk", session=ls39), "lapras-x", log=logs39.append, today=today39.isoformat())
+text39 = "\n".join(logs39)
+assert "KLOPPEN" in text39, text39
+assert "prijs staat vast" in text39, text39
+assert "1 verschillende verkopers" in text39 and "erg weinig verkopers" in text39, text39
+assert "103.6x het verkoopgemiddelde van 7 dagen" in text39 and "aanbod ver boven" in text39, text39
+assert "wijkt sterk af van de verkopen" in text39, text39
+assert any("/listings/cardmarket" in u and p.get("per_page") == 10 and p.get("condition") == "Near Mint" for u, p in ls39.urls), "max. 10 aanbiedingen per kaart"
+
+# --no-listings: geen enkel aanbiedingen-verzoek
+ls39b = LaprasSess()
+logs39b = []
+check_card.check(store39, pkmnprices.PkmnPrices("pk", session=ls39b), "lapras-x", log=logs39b.append, today=today39.isoformat(), listings=False)
+assert not any("/listings/" in u for u, _ in ls39b.urls), ls39b.urls
+
+# fout in het prijsonderzoek haalt de koppelingscontrole niet onderuit
+class BoomStore:
+    def products(self, *a, **k):
+        return store39.products(*a, **k)
+    def select(self, *a, **k):
+        raise RuntimeError("database weg")
+logs39c = []
+check_card.check(BoomStore(), pkmnprices.PkmnPrices("pk", session=LaprasSess()), "lapras-x", log=logs39c.append, today=today39.isoformat())
+assert any("KLOPPEN" in l for l in logs39c) and any("prijsonderzoek mislukt" in l for l in logs39c), logs39c
+
 print("alle tests geslaagd")
