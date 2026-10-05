@@ -1,0 +1,26 @@
+name: Kaartkoppeling controleren
+
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "product_id's, met spaties ertussen"
+        default: "ecard3-71 lc-64 hgss4-18 ex9-60 lc-30"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Controleren
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
+        run: python check_card.py ${{ github.event.inputs.ids }}
