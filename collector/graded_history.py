@@ -21,7 +21,8 @@ GRADES = {
 def famous_graded_targets(store):
     """Kaarten van de beroemde Pokémon die al aan PkmnPrices gekoppeld zijn (koppelen gebeurt al bij de gewone
     geschiedenis hiervoor, dus deze stap koppelt zelf niets nieuws)."""
-    return [p for p in store.products("card", extra={"dex_id": f"in.({','.join(str(d) for d in sorted(config.FAMOUS_DEX_IDS))})"}) if p.get("pk_id")]
+    return [p for p in store.products("card", extra={"dex_id": f"in.({','.join(str(d) for d in sorted(config.FAMOUS_DEX_IDS))})"})
+            if p.get("pk_id") and not config.is_digital_set(p.get("set_id"))]
 
 
 def oldest_date(store, product_id, grade_key):

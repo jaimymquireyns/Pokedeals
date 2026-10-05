@@ -5,6 +5,7 @@ volgen slaan we daarom dagelijks de Near Mint-prijs van PkmnPrices op (grade_key
 één keer aan PkmnPrices (zoeken op naam, dan op kaartnummer en set), daarna kost het vernieuwen 1 credit per kaart.
 """
 import os
+import re
 import time
 from datetime import date
 
@@ -36,8 +37,31 @@ def nm_price(detail):
     return best.get("variant"), float(best["market_price"])
 
 
-def match_card(product, candidates):
-    """Kiest de PkmnPrices-kaart bij een van onze kaarten: kaartnummer moet kloppen, dan setnaam en setgrootte."""
+SYMBOLS = "δ☆★◇♢♦◆"   # tekens in kaartnamen die PkmnPrices niet gebruikt ('Mewtwo δ', 'Gyarados ☆ δ')
+
+
+def clean_name(name):
+    """'Mewtwo δ' -> 'Mewtwo', 'Leafeon-GX' -> 'Leafeon GX': dezelfde kaart zoals PkmnPrices hem schrijft. Alleen als extra
+    zoekpoging gebruikt, nooit in plaats van de naam zelf (anders zou 'Ho-Oh' als 'Ho Oh' gezocht worden)."""
+    s = re.sub(r"\([^)]*\)", " ", name or "")
+    s = "".join(" " if ch in SYMBOLS else ch for ch in s).replace("-", " ").replace("\u2019", "'")
+    return " ".join(s.split())
+
+
+def is_promo_set(set_name):
+    s = norm(set_name)
+    return "promo" in s or "blackstar" in s
+
+
+def _promo_parts(cand_name):
+    """'Pikachu - SM04 (Target Non-Holo)' -> ('pikachu', True): de kale naam, en of er een variant tussen haakjes staat."""
+    raw = cand_name or ""
+    variant = bool(re.search(r"\([^)]*\)", raw))
+    base = re.split(r"\s+-\s+", re.sub(r"\([^)]*\)", " ", raw))[0]
+    return norm(base), variant
+
+
+def _match_by_set(product, candidates):
     number = norm_number(product.get("number"))
     best, best_score = None, 0
     for c in candidates:
@@ -55,13 +79,69 @@ def match_card(product, candidates):
     return best
 
 
+def _match_promo(product, candidates):
+    """Promo's hebben bij PkmnPrices geen setgrootte en een andere setnaam ('SM Promos', 'SWSH: Sword & Shield Promo Cards'),
+    maar wel hetzelfde nummer ('SM04') en een naam als 'Pikachu - SM04'. Alleen als er precies één kandidaat is met hetzelfde nummer,
+    dezelfde naam, in een promo-set en zonder variant tussen haakjes ('(Target Non-Holo)'), koppelen we hem; anders niets:
+    een verkeerde koppeling geeft een verkeerde prijs, en dat is erger dan geen koppeling."""
+    number = norm_number(product.get("number"))
+    ours = {norm(product.get("name")), norm(clean_name(product.get("name")))}
+    hits = []
+    for c in candidates:
+        if norm_number(c.get("number")) != number:
+            continue
+        base, variant = _promo_parts(c.get("name"))
+        if base in ours and not variant and is_promo_set((c.get("set") or {}).get("name")):
+            hits.append(c)
+    return hits[0] if len(hits) == 1 else None
+
+
+def match_card_how(product, candidates, allow_promo=True):
+    """(kaart, regel): 'set' = nummer klopt en setnaam of setgrootte lijkt; 'promo' = zie _match_promo."""
+    hit = _match_by_set(product, candidates)
+    if hit:
+        return hit, "set"
+    if allow_promo and is_promo_set(product.get("set_name")):
+        hit = _match_promo(product, candidates)
+        if hit:
+            return hit, "promo"
+    return None, None
+
+
+def match_card(product, candidates):
+    """Kiest de PkmnPrices-kaart bij een van onze kaarten: nummer moet kloppen, dan setnaam of setgrootte; voor promo's de aparte regel."""
+    return match_card_how(product, candidates)[0]
+
+
+def find_card_ex(pk, product):
+    """Zoekt de kaart bij PkmnPrices. Geeft (id, regel) of (None, None). Credits worden per teruggegeven rij gerekend, dus korte,
+    gerichte zoekopdrachten, en een volgende poging pas als de vorige niets opleverde:
+      1. de naam zoals wij hem hebben, met het kaartnummer;
+      2. de naam zonder tekens PkmnPrices niet kent ('Mewtwo δ' -> 'Mewtwo', 'Leafeon-GX' -> 'Leafeon GX');
+      3. het nummer zonder letters ervoor ('CC001' -> '001'), alleen voor kaarten die geen promo zijn en alleen met een set die klopt."""
+    name, number = product["name"], product.get("number")
+    cn = clean_name(name)
+    attempts = [("naam", name, number, True)]
+    if cn and cn != name:
+        attempts.append(("naam zonder tekens", cn, number, True))
+    if number and re.match(r"^[A-Za-z]+\d", str(number)) and not is_promo_set(product.get("set_name")):
+        attempts.append(("nummer zonder voorvoegsel", cn or name, re.sub(r"^[A-Za-z]+", "", str(number)), False))
+    seen = set()
+    for label, q_name, q_number, allow_promo in attempts:
+        key = (q_name, str(q_number))
+        if key in seen:
+            continue
+        seen.add(key)
+        rows = pk.list_all("/cards", {"name": q_name, "number": q_number}, per_page=15, max_pages=1)
+        probe = product if q_number == number else {**product, "number": q_number}
+        hit, how = match_card_how(probe, rows, allow_promo=allow_promo)
+        if hit:
+            return str(hit["id"]), f"{label}, {how}"
+    return None, None
+
+
 def find_card(pk, product):
-    """Zoekt de kaart bij PkmnPrices. Credits worden per teruggegeven rij gerekend, dus een korte, gerichte
-    zoekopdracht scheelt veel: een klein aantal resultaten per pagina, en het kaartnummer meegestuurd (voor het
-    geval de zoekopdracht daarop kan filteren; negeert de API dat veld, dan kost het verder niets extra)."""
-    rows = pk.list_all("/cards", {"name": product["name"], "number": product.get("number")}, per_page=15, max_pages=1)
-    hit = match_card(product, rows)
-    return str(hit["id"]) if hit else None
+    return find_card_ex(pk, product)[0]
 
 
 def core_ids(store):
@@ -152,6 +232,7 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
         log(f"  (kon niet controleren wie vandaag al gedaan is, ga gewoon door: {e})")
 
     mapped = failed = recent_miss = 0
+    by_rule = {}
     new_links, misses = [], []
     t0 = date.fromisoformat(today)
     for i, pid in enumerate(targets, 1):
@@ -160,12 +241,14 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
         p = products.get(pid)
         if not p or p.get("pk_id"):
             continue
+        if config.is_digital_set(p.get("set_id")):
+            continue    # Pokémon TCG Pocket: bestaat niet op papier, dus ook niet bij PkmnPrices
         miss = p.get("pk_miss_on")
         if miss and (t0 - date.fromisoformat(str(miss)[:10])).days < config.PK_MISS_RETRY_DAYS:
             recent_miss += 1    # onlangs al gezocht en niet gevonden: niet elke nacht opnieuw credits aan uitgeven
             continue
         try:
-            found = find_card(pk, p)
+            found, how = find_card_ex(pk, p)
         except Exception as e:
             log(f"  zoeken mislukt voor {p['name']}: {e}")
             failed += 1
@@ -174,6 +257,7 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
             p["pk_id"] = found
             new_links.append({"product_id": pid, "kind": "card", "name": p["name"], "pk_id": found})
             mapped += 1
+            by_rule[how] = by_rule.get(how, 0) + 1
         else:
             failed += 1
             p["pk_miss_on"] = today
@@ -188,6 +272,8 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
         store.upsert_products(new_links)
     if misses:
         _save_misses(store, misses, log)
+    if by_rule:
+        log("  gekoppeld via: " + ", ".join(f"{k}: {v}" for k, v in sorted(by_rule.items())))
     if recent_miss:
         log(f"  ({recent_miss} kaarten overgeslagen: onlangs al gezocht bij PkmnPrices zonder resultaat; opnieuw na {config.PK_MISS_RETRY_DAYS} dagen)")
 

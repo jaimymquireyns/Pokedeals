@@ -1,4 +1,5 @@
 """Instellingen op één plek."""
+import re
 
 # ---- Verzamelen ----
 WORKERS = 4                # gelijktijdige verzoeken naar TCGdex
@@ -96,6 +97,15 @@ CLEAN_NM = False             # voor de dagelijkse kansberekening; de signalen-ba
 CLEAN_FACTOR = 3.0           # een punt dat meer dan zoveel keer boven zijn referentie ligt, is een piek
 CLEAN_WINDOW_DAYS = 90       # referentie zonder Cardmarket-gemiddelde: de mediaan van de behouden punten van de laatste zoveel dagen
 CLEAN_MAX_DROP_DAYS = 60     # een 'piek' die langer aanhoudt dan dit, is waarschijnlijk het nieuwe niveau en wordt weer geaccepteerd
+# Pokémon TCG Pocket (de mobiele game: sets A1, A1a, A2..., B1..., P-A) zijn digitale kaarten: ze bestaan niet op papier, hebben geen
+# Cardmarket-markt en komen niet bij PkmnPrices voor. Ze worden niet meer opgehaald, niet meer gekoppeld en niet getoond in de app.
+DIGITAL_SET_RE = re.compile(r"^(?:[AB]\d+[a-z]?|P-[A-Z])$")
+
+
+def is_digital_set(set_id):
+    return bool(set_id) and DIGITAL_SET_RE.match(str(set_id)) is not None
+
+
 GRADED_ENABLED = False       # gegradeerde geschiedenis (PSA/BGS/CGC) staat UIT sinds 6 okt: de uitlezing van de eBay-verkopen herkende niets (9.730 opvragingen, ~40.600 credits, 0 prijspunten). Eerst een echt antwoord bekijken (check_card --graded), dan repareren.
 GRADED_BUDGET = 8000         # ook als hij weer aan staat: nooit meer dan dit per dag
 GRADED_MAX_UNPARSED = 20     # noodrem: zoveel opvragingen achter elkaar WEL verkopen teruggekregen maar GEEN prijspunt herkend = de uitlezing klopt niet, stoppen

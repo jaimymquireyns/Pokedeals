@@ -50,6 +50,8 @@ def collect_cards(provider, store, set_ids, today, min_track=None, workers=None,
         prices.clear()
 
     for set_id in set_ids:
+        if config.is_digital_set(set_id):
+            continue    # Pokémon TCG Pocket: digitale kaarten, geen prijzen, niet voor deze app
         s = provider.get_set(set_id)
         if not s:
             log(f"! set {set_id} niet gevonden")
@@ -97,7 +99,7 @@ def newest_sets(provider, store, n, workers=None, log=print):
                             "card_total": s.get("card_total")} for s in rows])
     rows = [r for r in store.known_sets().values() if r.get("release_date")]
     rows.sort(key=lambda r: r["release_date"], reverse=True)
-    return [r["set_id"] for r in rows[:n]]
+    return [r["set_id"] for r in rows if not config.is_digital_set(r["set_id"])][:n]
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +271,7 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     try:
         import nm
         import card_history
-        famous_products = [p for p in store.products("card") if p.get("dex_id") in config.FAMOUS_DEX_IDS]
+        famous_products = [p for p in store.products("card") if p.get("dex_id") in config.FAMOUS_DEX_IDS and not config.is_digital_set(p.get("set_id"))]
         famous_ids = [p["product_id"] for p in famous_products]
         log(f"Beroemde Pokémon eerst: {len(famous_ids)} kaarten (van {len(config.FAMOUS_DEX_IDS)} Pokémon), tot {config.FAMOUS_HISTORY_DAYS} dagen geschiedenis.")
         if famous_ids:

@@ -116,8 +116,8 @@ def explain_unlinked(pk, product, log=print):
             total_ok = bool(product.get("set_total")) and nm.norm_number(c.get("total_set_number")) == nm.norm_number(product["set_total"])
             why = "nummer klopt niet" if not same_n else (f"nummer klopt; setnaam {'ja' if set_ok else 'NEE'}, setgrootte {'ja' if total_ok else 'NEE'}")
             log(f"    id {c.get('id')}: {c.get('name')} — {cset} #{c.get('number')} (van {c.get('total_set_number')})   [{why}]")
-        hit = nm.match_card(product, rows)
-        log(f"  onze koppelregel kiest: {('id ' + str(hit['id'])) if hit else 'NIETS'}")
+        hit, how = nm.match_card_how(product, rows)
+        log(f"  onze koppelregel kiest: {('id ' + str(hit['id']) + ' (regel: ' + how + ')') if hit else 'NIETS'}")
         shown = True
         if label == "alleen op naam" or rows:
             break

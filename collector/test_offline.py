@@ -2170,7 +2170,7 @@ text48 = "\n".join(logs48)
 assert "nog niet gekoppeld" in text48 and "set-id swshp" in text48, text48
 assert "id 8001" in text48 and "nummer klopt; setnaam NEE, setgrootte NEE" in text48, "de promo: nummer klopt, maar set en grootte niet"
 assert "id 8002" in text48 and "nummer klopt niet" in text48
-assert "onze koppelregel kiest: NIETS" in text48, "dit is precies waarom promo's niet gekoppeld worden"
+assert "onze koppelregel kiest: id 8001 (regel: promo)" in text48, "de promo wordt nu gekoppeld via de promo-regel: " + text48
 assert ps48.params == [{"name": "Pikachu", "number": "SWSH039", "per_page": 15, "page": 1}] or len(ps48.params) == 1, ps48.params
 
 # een gewone kaart waar de regel wel een keuze maakt
@@ -2178,5 +2178,98 @@ store48.upsert_products([{"product_id": "base1-58", "kind": "card", "name": "Pik
 logs48b = []
 check_card.check(store48, pkmnprices.PkmnPrices("pk", session=PromoSess()), "base1-58", log=logs48b.append, today="2026-10-06")
 assert any("onze koppelregel kiest: id 8002" in l for l in logs48b), logs48b
+
+# ============ 57. Koppelregels, getest met de echte antwoorden van PkmnPrices uit het logboek van 6 okt ============
+def cand(i, name, number, setname, total=None):
+    return {"id": i, "name": name, "number": number, "total_set_number": total, "set": {"name": setname}}
+
+# -- promo's: nummer klopt, naam 'X - NUMMER', set 'SM Promos' / 'SWSH: Sword & Shield Promo Cards', geen setgrootte --
+pik = {"product_id": "smp-SM04", "name": "Pikachu", "set_name": "SM Black Star Promos", "number": "SM04", "set_total": 248}
+c_pik = [cand(20839, "Pikachu - SM04 (Target Non-Holo)", "SM04", "SM Promos"), cand(20897, "Pikachu - SM04", "SM04", "SM Promos"),
+         cand(35362, "Pikachu - SM04 (General Mills)", "SM04", "Miscellaneous Cards & Products")]
+assert nm.match_card_how(pik, c_pik) == (c_pik[1], "promo"), "de gewone promo, niet de 'Target Non-Holo' of 'General Mills'"
+snor = {"product_id": "smp-SM05", "name": "Snorlax GX", "set_name": "SM Black Star Promos", "number": "SM05", "set_total": 248}
+c_snor = [cand(20615, "Snorlax GX - SM05", "SM05", "SM Promos"), cand(22351, "Snorlax GX - SM05", "SM05", "Jumbo Cards")]
+assert nm.match_card(snor, c_snor)["id"] == 20615, "SM Promos, niet Jumbo Cards"
+ray = {"product_id": "swshp-SWSH029", "name": "Rayquaza", "set_name": "SWSH Black Star Promos", "number": "SWSH029", "set_total": 307}
+c_ray = [cand(26557, "Rayquaza - SWSH029", "SWSH029", "SWSH: Sword & Shield Promo Cards"), cand(35225, "Rayquaza - SWSH029 (Pixel Cosmos Holo)", "SWSH029", "Miscellaneous Cards & Products")]
+assert nm.match_card(ray, c_ray)["id"] == 26557
+# twijfel = niet koppelen: twee even goede kandidaten
+assert nm.match_card(pik, [cand(1, "Pikachu - SM04", "SM04", "SM Promos"), cand(2, "Pikachu - SM04", "SM04", "SM Promos")]) is None
+# een andere kaart met hetzelfde nummer in een promo-set wordt nooit gekoppeld
+assert nm.match_card(pik, [cand(3, "Raichu - SM04", "SM04", "SM Promos")]) is None
+# de promo-regel geldt alleen voor promo-sets: een gewone set met alleen een gelijk nummer blijft NIET gekoppeld
+base = {"product_id": "x-1", "name": "Pikachu", "set_name": "Base Set", "number": "58", "set_total": 102}
+assert nm.match_card(base, [cand(4, "Pikachu", "58", "Jungle", "64")]) is None
+# de bestaande regel (setnaam of setgrootte) werkt nog precies als eerst
+assert nm.match_card_how(base, [cand(5, "Pikachu", "58", "Base Set", "102")]) == (cand(5, "Pikachu", "58", "Base Set", "102"), "set")
+
+# -- namen opschonen (alleen als extra zoekpoging) --
+assert nm.clean_name("Mewtwo δ") == "Mewtwo" and nm.clean_name("Gyarados ☆ δ") == "Gyarados" and nm.clean_name("Leafeon-GX") == "Leafeon GX"
+assert nm.clean_name("Blastoise (Delta Species)") == "Blastoise" and nm.clean_name("Pikachu") == "Pikachu"
+
+class ScriptedPk:
+    """Beantwoordt /cards-zoekopdrachten uit een tabel {(naam, nummer): kandidaten} en onthoudt wat er gezocht is."""
+    def __init__(self, table):
+        self.table, self.asked = table, []
+    credits, budget, blocked = 0, 10**9, False
+    def over_budget(self):
+        return False
+    def list_all(self, path, params, per_page=100, max_pages=200):
+        self.asked.append((params["name"], str(params["number"])))
+        return self.table.get((params["name"], str(params["number"])), [])
+
+# -- delta-kaart: 'Mewtwo δ' geeft 0 resultaten, 'Mewtwo' + nummer vindt hem op setnaam --
+mew = {"product_id": "ex11-12", "name": "Mewtwo δ", "set_name": "Delta Species", "number": "12", "set_total": 113}
+pk_d = ScriptedPk({("Mewtwo", "12"): [cand(7001, "Mewtwo", "12", "Delta Species", "113"), cand(7002, "Mewtwo", "12", "Aquapolis", "147")]})
+assert nm.find_card_ex(pk_d, mew) == ("7001", "naam zonder tekens, set"), nm.find_card_ex(pk_d, mew)
+assert pk_d.asked == [("Mewtwo δ", "12"), ("Mewtwo", "12")]
+
+# -- Shiny Vault: 'Leafeon-GX' + 'SV46' --
+leaf = {"product_id": "sma-SV46", "name": "Leafeon-GX", "set_name": "Hidden Fates Shiny Vault", "number": "SV46", "set_total": 94}
+pk_s = ScriptedPk({("Leafeon GX", "SV46"): [cand(7101, "Leafeon GX", "SV46", "Hidden Fates: Shiny Vault")]})
+assert nm.find_card(pk_s, leaf) == "7101"
+
+# -- nummer met voorvoegsel (Celebrations Classic Collection): alleen met een set die klopt, nooit via de promo-regel --
+blast = {"product_id": "cel25cc-CC001", "name": "Blastoise", "set_name": "Celebrations Classic Collection", "number": "CC001", "set_total": 25}
+pk_c = ScriptedPk({("Blastoise", "001"): [cand(7201, "Blastoise", "001", "Trading Card Game Classic", "034"), cand(7202, "Blastoise", "001", "Celebrations: Classic Collection", "025")]})
+assert nm.find_card_ex(pk_c, blast) == ("7202", "nummer zonder voorvoegsel, set"), nm.find_card_ex(pk_c, blast)
+pk_c2 = ScriptedPk({("Blastoise", "001"): [cand(7201, "Blastoise", "001", "Trading Card Game Classic", "034")]})
+assert nm.find_card(pk_c2, blast) is None, "alleen een gelijk nummer in een andere set: niet koppelen"
+
+# -- zuinig: een gewone kaart zonder match kost precies 1 zoekopdracht (geen extra pogingen als er niets te schonen valt) --
+plain = {"product_id": "sv03-1", "name": "Pikachu", "set_name": "Obsidian Flames", "number": "1", "set_total": 197}
+pk_p = ScriptedPk({})
+assert nm.find_card(pk_p, plain) is None and pk_p.asked == [("Pikachu", "1")]
+# een promo met haakjes-naam doet geen 'nummer zonder voorvoegsel'-poging (die is voor niet-promo's)
+pk_q = ScriptedPk({})
+nm.find_card(pk_q, pik)
+assert pk_q.asked == [("Pikachu", "SM04")], pk_q.asked
+
+# -- Pokémon TCG Pocket (digitaal): herkend, niet meer opgehaald, niet meer gekoppeld, niet voor de beroemde-lijst --
+for sid in ("A1", "A1a", "A2b", "A4a", "B1", "B2a", "P-A"):
+    assert config.is_digital_set(sid), sid
+for sid in ("base1", "sv01", "swsh12", "ex11", "sma", "smp", "cm-sealed", "A", "", None):
+    assert not config.is_digital_set(sid), sid
+
+fake49, store49 = new_store()
+store49.upsert_products([{"product_id": "A1-001", "kind": "card", "name": "Bulbasaur", "set_id": "A1", "set_name": "Genetic Apex", "number": "001", "dex_id": 1},
+                         {"product_id": "sv03-9", "kind": "card", "name": "Bulbasaur", "set_id": "sv03", "set_name": "Obsidian Flames", "number": "9", "dex_id": 1}])
+pk_dg = ScriptedPk({})
+prods49 = {p["product_id"]: p for p in store49.products("card")}
+logs49 = []
+nm._map_and_refresh(store49, pk_dg, "2026-10-07", ["A1-001", "sv03-9"], prods49, logs49.append, refresh_price=False)
+assert pk_dg.asked == [("Bulbasaur", "9")], f"alleen de echte kaart wordt gezocht: {pk_dg.asked}"
+assert not any(p.get("pk_miss_on") for p in store49.products("card") if p["product_id"] == "A1-001"), "geen 'niet gevonden' voor een kaart die niet bestaat"
+
+class SetProvider:
+    def __init__(self):
+        self.asked = []
+    def get_set(self, set_id):
+        self.asked.append(set_id)
+        return None
+sp = SetProvider()
+run.collect_cards(sp, store49, ["base1", "A1", "B2a", "P-A", "sv01"], "2026-10-07", log=quiet)
+assert sp.asked == ["base1", "sv01"], f"Pocket-sets worden niet opgehaald: {sp.asked}"
 
 print("alle tests geslaagd")
