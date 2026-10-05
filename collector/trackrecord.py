@@ -133,7 +133,7 @@ def backtest(store, today, days=200, step=5, combos=None, log=print, product_ids
         for r in grp:
             by_source.setdefault(r["source"], []).append(
                 {**r, "price": float(r["price"]) if r.get("price") is not None else None,
-                 "avg1": None, "avg7": None, "avg30": None})
+                 "anchor": r.get("avg30") or r.get("avg7"), "avg1": None, "avg7": None, "avg30": None})
         series_by_pid[pid] = analysis.series_for(pid, by_source, nm_rows=nm_by_pid.get(pid))
     if product_ids is not None:
         wanted = set(product_ids)

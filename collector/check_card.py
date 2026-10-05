@@ -99,8 +99,14 @@ def inspect_prices(store, pk, product_id, pk_id, today, listings=True, log=print
             lowest = offers[0][0]
             sellers = {o[1] for o in offers if o[1]}
             log(f"  Goedkoopste Near Mint-aanbiedingen nu ({len(offers)} opgehaald, {len(sellers)} verschillende verkopers):")
+            by_key = {(float(x["price"]), x.get("seller"), x.get("quantity")): x for x in data if isinstance(x, dict) and x.get("price")}
             for p, seller, qty in offers[:6]:
-                log(f"    EUR{p:>9.2f}  {seller or '?'}" + (f"  (x{qty})" if qty else ""))
+                extra = {k: v for k, v in by_key.get((p, seller, qty), {}).items()
+                         if k not in ("price", "seller", "quantity", "condition", "id") and v not in (None, "", [], {})}
+                log(f"    EUR{p:>9.2f}  {seller or '?'}" + (f"  (x{qty})" if qty else "") + (f"   {str(extra)[:140]}" if extra else ""))
+            first = next((x for x in data if isinstance(x, dict)), None)
+            if first:
+                log(f"    velden per aanbieding: {', '.join(sorted(first))}")
             if len(sellers) <= 2:
                 log("    <-- erg weinig verkopers: de laagste prijs kan door een of twee verkopers bepaald worden")
         else:
@@ -111,7 +117,7 @@ def inspect_prices(store, pk, product_id, pk_id, today, listings=True, log=print
         log(f"  Laagste aanbieding is {ratio:.1f}x het verkoopgemiddelde van 7 dagen" + ("   <-- aanbod ver boven wat er echt verkocht wordt" if ratio > 3 else ""))
     if avg7 and vals:
         ratio = vals[-1] / avg7
-        log(f"  Onze Near Mint-prijs is {ratio:.1f}x het verkoopgemiddelde van 7 dagen" + ("   <-- wijkt sterk af van de verkopen" if ratio > 3 or ratio < 1 / 3 else ""))
+        log(f"  Onze Near Mint-prijs is {ratio:.1f}x het verkoopgemiddelde van 7 dagen" + ("   <-- ver boven de verkopen" if ratio > 3 else ""))
 
 
 def main():

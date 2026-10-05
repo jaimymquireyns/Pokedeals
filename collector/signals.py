@@ -17,7 +17,8 @@ Uit de dagelijkse marktmomentopname (market_snapshot.py, via PkmnPrices, alleen 
   vraag              (nog) geen bron: PkmnPrices geeft geen recente verkopen, deze blijft leeg
 
     python signals.py                 # momentopname + signalen van vandaag berekenen en opslaan (de dagelijkse taak)
-    python signals.py --backtest      # per signaal nagaan hoe vaak een +10% stijging binnen 30 dagen volgde
+    python signals.py --backtest      # per signaal nagaan hoe vaak een +10% stijging binnen 30 dagen volgde, met en zonder
+                                      # de pieken in de Near Mint-reeks (zie analysis.clean_nm_rows)
     python signals.py --skip-snapshot # alleen signalen, zonder PokemonPriceTracker
 """
 import argparse
@@ -39,27 +40,39 @@ def famous_products(store):
     return {p["product_id"]: p for p in store.products("card") if p.get("dex_id") in config.FAMOUS_DEX_IDS}
 
 
-def load_series(store, product_ids, since):
-    """Prijsreeks per kaart, op dezelfde manier opgebouwd als de kansberekening (Near Mint als die er is, anders de
-    trend). In stukjes van 150 kaarten opgehaald, zodat het nooit de hele prijzentabel doorbladert."""
+def load_inputs(store, product_ids, since):
+    """De ruwe prijsrijen per kaart (Cardmarket-reeks en Near Mint-reeks), in stukjes van 150 kaarten opgehaald, zodat
+    het nooit de hele prijzentabel doorbladert."""
     raw, nm = {}, {}
     ids = sorted(product_ids)
     for i in range(0, len(ids), 150):
         ch = ",".join(ids[i:i + 150])
         for gk, target in (("raw", raw), ("nm", nm)):
-            for r in store.select("prices", {"select": "product_id,date,source,price", "product_id": f"in.({ch})",
+            for r in store.select("prices", {"select": "product_id,date,source,price,avg7,avg30", "product_id": f"in.({ch})",
                                              "grade_key": f"eq.{gk}", "date": f"gte.{since}", "order": "product_id.asc,date.asc"}):
                 if r.get("price") is not None:
-                    target.setdefault(r["product_id"], []).append({**r, "price": float(r["price"]), "avg1": None, "avg7": None, "avg30": None})
+                    target.setdefault(r["product_id"], []).append(
+                        {**r, "price": float(r["price"]), "anchor": r.get("avg30") or r.get("avg7"), "avg1": None, "avg7": None, "avg30": None})
+    return ids, raw, nm
+
+
+def build_series(inputs, clean=False, stats=None):
+    """Prijsreeks per kaart, op dezelfde manier opgebouwd als de kansberekening (Near Mint als die er is, anders de
+    trend). clean=True haalt pieken uit de Near Mint-reeks (zie analysis.clean_nm_rows)."""
+    ids, raw, nm = inputs
     out = {}
     for pid in ids:
         by_source = {}
         for r in raw.get(pid, []):
             by_source.setdefault(r["source"], []).append(r)
-        s = analysis.series_for(pid, by_source, nm_rows=nm.get(pid))
+        s = analysis.series_for(pid, by_source, nm_rows=nm.get(pid), clean=clean, clean_stats=stats)
         if s:
             out[pid] = [(x["date"], float(x["price"])) for x in s if x.get("price")]
     return out
+
+
+def load_series(store, product_ids, since, clean=False, stats=None):
+    return build_series(load_inputs(store, product_ids, since), clean=clean, stats=stats)
 
 
 def load_snapshots(store, product_ids, since):
@@ -255,6 +268,25 @@ def backtest(store, today, horizon=30, step=5, log=print, series=None):
     return tally
 
 
+def compare_cleaning(store, today, log=print, horizon=30):
+    """Draait de backtest twee keer op dezelfde data: zoals het was, en met de pieken uit de Near Mint-reeks gehaald.
+    Blijft 'onder het gemiddelde' ook zonder die pieken sterk voorspellen, dan is het geen bijeffect van de pieken."""
+    products = famous_products(store)
+    inputs = load_inputs(store, products, (date.fromisoformat(today) - timedelta(days=400)).isoformat())
+    log("=== A. Zoals het was (Near Mint-reeks ongewijzigd) ===")
+    a = backtest(store, today, horizon=horizon, log=log, series=build_series(inputs, clean=False))
+    stats = {}
+    clean_series = build_series(inputs, clean=True, stats=stats)
+    n = max(stats.get("in", 0), 1)
+    log("")
+    log(f"=== B. Met pieken eruit gehaald ===")
+    log(f"  Near Mint-punten: {stats.get('in', 0)} -> {stats.get('out', 0)}; verwijderd {stats.get('in', 0) - stats.get('out', 0)} "
+        f"({(stats.get('in', 0) - stats.get('out', 0)) / n * 100:.1f}%): {stats.get('anchor', 0)} via Cardmarkets verkoopgemiddelde, "
+        f"{stats.get('causal', 0)} via de schatting uit de eigen reeks; {stats.get('cards_changed', 0)} van {stats.get('cards', 0)} kaarten aangepast")
+    b = backtest(store, today, horizon=horizon, log=log, series=clean_series)
+    return a, b
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--backtest", action="store_true")
@@ -275,7 +307,7 @@ def main():
         except Exception as e:   # de signalen zelf staan er dan al, alleen zonder de momentopname van vandaag
             print(f"! marktmomentopname mislukt: {type(e).__name__}: {e}")
     if args.backtest:
-        backtest(store, today)
+        compare_cleaning(store, today)
 
 
 if __name__ == "__main__":

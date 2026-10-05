@@ -1849,7 +1849,7 @@ assert "KLOPPEN" in text39, text39
 assert "prijs staat vast" in text39, text39
 assert "1 verschillende verkopers" in text39 and "erg weinig verkopers" in text39, text39
 assert "103.6x het verkoopgemiddelde van 7 dagen" in text39 and "aanbod ver boven" in text39, text39
-assert "wijkt sterk af van de verkopen" in text39, text39
+assert "ver boven de verkopen" in text39, text39
 assert any("/listings/cardmarket" in u and p.get("per_page") == 10 and p.get("condition") == "Near Mint" for u, p in ls39.urls), "max. 10 aanbiedingen per kaart"
 
 # --no-listings: geen enkel aanbiedingen-verzoek
@@ -1867,5 +1867,92 @@ class BoomStore:
 logs39c = []
 check_card.check(BoomStore(), pkmnprices.PkmnPrices("pk", session=LaprasSess()), "lapras-x", log=logs39c.append, today=today39.isoformat())
 assert any("KLOPPEN" in l for l in logs39c) and any("prijsonderzoek mislukt" in l for l in logs39c), logs39c
+
+# ============ 50. check_card: taal/velden per aanbieding, en geen valse waarschuwing als de prijs LAGER is dan de verkopen ============
+fake40, store40 = new_store()
+store40.upsert_products([{"product_id": "dragonite-x", "kind": "card", "name": "Dragonite", "set_name": "Triumphant", "number": "18", "pk_id": "14940"}])
+store40.upsert_prices([{"product_id": "dragonite-x", "date": today39.isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 11.0, "avg1": 20.0, "avg7": 30.0, "avg30": 8.0, "low": 1.0},
+                       {"product_id": "dragonite-x", "date": today39.isoformat(), "source": "pkmnprices", "grade_key": "nm", "price": 9.0}])
+class LangSess:
+    headers = {}
+    def get(self, url, params=None, timeout=None):
+        if "/listings/cardmarket" in url:
+            return PkResp({"data": [{"price": 9.0, "seller": "a", "quantity": 1, "condition": "Near Mint", "language": "Spanish", "country": "ES"},
+                                    {"price": 300.0, "seller": "b", "quantity": 1, "condition": "Near Mint", "language": "English", "country": "NL", "comment": "first edition"}],
+                           "pagination": {"page": 1, "total_pages": 1}})
+        return PkResp({"name": "Dragonite", "set": {"name": "Triumphant"}, "number": "18"})
+logs40 = []
+check_card.check(store40, pkmnprices.PkmnPrices("pk", session=LangSess()), "dragonite-x", log=logs40.append, today=today39.isoformat())
+text40 = "\n".join(logs40)
+assert "'language': 'Spanish'" in text40 and "'country': 'NL'" in text40 and "first edition" in text40, text40
+assert "velden per aanbieding:" in text40 and "language" in text40.split("velden per aanbieding:")[1], text40
+assert "0.3x het verkoopgemiddelde" in text40 and "<-- ver boven" not in text40.split("Onze Near Mint-prijs")[1] and "wijkt sterk af" not in text40, text40
+
+# ============ 51. Pieken uit de Near Mint-reeks halen (Lapras, Snorlax, Dragonite) ============
+def nm_rows_from(prices, start=date(2026, 6, 1)):
+    return [{"date": (start + timedelta(days=i)).isoformat(), "price": p} for i, p in enumerate(prices)]
+
+# Lapras: 10 dagen normaal (4), 25 dagen EUR1450, 2 dagen 800, dan weer normaal (5)
+lapras = [4.0 + (i % 3) * 0.2 for i in range(10)] + [1450.0] * 25 + [800.0] * 2 + [5.0] * 23
+cl, st = analysis.clean_nm_rows(nm_rows_from(lapras))
+assert st["causal"] == 27 and st["anchor"] == 0 and st["in"] == 60 and st["out"] == 33, st
+assert max(r["price"] for r in cl) < 6, "geen piek meer over"
+assert cl[-1]["price"] == 5.0 and cl[10]["price"] == 5.0, "de normale prijs erna blijft staan"
+
+# normale reeks: ongewijzigd, ook een echte stijging binnen 3x en een daling
+rise = [10.0] * 20 + [25.0] * 20 + [8.0] * 20
+cl2, st2 = analysis.clean_nm_rows(nm_rows_from(rise))
+assert len(cl2) == 60 and st2["causal"] == 0 and st2["anchor"] == 0, st2
+flat = nm_rows_from([7.5] * 40)
+cl3, st3 = analysis.clean_nm_rows(flat)
+assert cl3 == flat and st3["out"] == 40
+
+# een hoog niveau dat langer duurt dan CLEAN_MAX_DROP_DAYS wordt het nieuwe niveau (geen eindeloos wegfilteren van een echte stijging)
+lang = [20.0] * 40 + [1949.99] * 100
+cl4, st4 = analysis.clean_nm_rows(nm_rows_from(lang))
+assert st4["causal"] == config.CLEAN_MAX_DROP_DAYS, st4
+assert [r["price"] for r in cl4].count(1949.99) == 100 - config.CLEAN_MAX_DROP_DAYS, "de rest van het hoge niveau is geaccepteerd en blijft (geen heen-en-weer)"
+
+# Cardmarkets verkoopgemiddelde als referentie: werkt ook als de reeks al in de piek begint (Moltres/Snorlax)
+moltres = nm_rows_from([329.0] * 30)
+anchors = {r["date"]: 5.4 for r in moltres[20:]}                 # alleen de laatste 10 dagen hebben een referentie
+cl5, st5 = analysis.clean_nm_rows(moltres, anchors=anchors)
+assert st5["anchor"] == 10 and st5["causal"] == 0 and len(cl5) == 20, st5
+cl6, st6 = analysis.clean_nm_rows(nm_rows_from([12.0] * 5), anchors={r["date"]: 5.4 for r in nm_rows_from([12.0] * 5)})
+assert st6["anchor"] == 0, "12 is geen 3x het gemiddelde van 5,4 (16,2): blijft staan"
+
+# series_for: standaard ongewijzigd; met clean=True zonder piek; te weinig over na opschonen -> terugvallen op de Cardmarket-reeks
+by_src = {"tcgdex": [{"date": r["date"], "price": 6.0, "avg1": None, "avg7": 6.0, "avg30": 6.0} for r in nm_rows_from([6.0] * 40)]}
+spiky = nm_rows_from([4.0] * 15 + [1450.0] * 20 + [5.0] * 15)
+assert config.CLEAN_NM is False
+base_len = len(analysis.series_for("x-1", by_src, nm_rows=spiky))
+assert base_len == 50, base_len
+stats_sf = {}
+cleaned_sf = analysis.series_for("x-1", by_src, nm_rows=spiky, clean=True, clean_stats=stats_sf)
+assert len(cleaned_sf) == 30 and max(r["price"] for r in cleaned_sf) < 6, (len(cleaned_sf), stats_sf)
+assert stats_sf["cards"] == 1 and stats_sf["cards_changed"] == 1 and stats_sf["anchor"] == 20 and stats_sf["causal"] == 0, stats_sf   # hier is voor die dagen een Cardmarket-gemiddelde, dus de nauwkeurige regel pakt het
+mostly_spike = nm_rows_from([4.0] * 3 + [1450.0] * 40)
+fallback = analysis.series_for("x-2", by_src, nm_rows=mostly_spike, clean=True)
+assert len(fallback) == 40 and fallback[0]["price"] == 6.0, "te weinig NM-punten over na opschonen: de gewone Cardmarket-reeks is gebruikt"
+
+# de referentie komt uit de ruwe rijen (anchor of avg30)
+assert analysis.anchors_from({"tcgdex": [{"date": "2026-01-01", "avg30": 8.0}, {"date": "2026-01-02", "anchor": 9.0, "avg30": None}, {"date": "2026-01-03"}]}) == {"2026-01-01": 8.0, "2026-01-02": 9.0}
+
+# ============ 52. compare_cleaning: backtest met en zonder pieken, en hoeveel er verwijderd is ============
+fake41, store41 = new_store()
+fd41 = sorted(config.FAMOUS_DEX_IDS)[0]
+store41.upsert_products([{"product_id": f"cc-{k}", "kind": "card", "name": f"CC{k}", "dex_id": fd41} for k in range(4)])
+d41 = date(2026, 1, 1)
+for k in range(4):
+    pr = [20.0 + 3 * math.sin(i / 9) + (1450.0 - 20.0 if (k % 2 == 0 and 60 <= i < 85) else 0.0) for i in range(220)]
+    store41.upsert_prices([{"product_id": f"cc-{k}", "date": (d41 + timedelta(days=i)).isoformat(), "source": "pkmnprices", "grade_key": "nm", "price": pr[i]} for i in range(220)])
+    store41.upsert_prices([{"product_id": f"cc-{k}", "date": (d41 + timedelta(days=i)).isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 20.0, "avg30": 20.0, "avg7": 20.0} for i in range(150, 220)])
+logs41 = []
+a41, b41 = signals.compare_cleaning(store41, (d41 + timedelta(days=219)).isoformat(), log=logs41.append)
+text41 = "\n".join(logs41)
+assert "A. Zoals het was" in text41 and "B. Met pieken eruit gehaald" in text41, text41
+assert "verwijderd 50 (" in text41 and "2 van 4 kaarten aangepast" in text41, text41
+assert b41["alle momenten"][0] <= a41["alle momenten"][0], "met opschonen nooit meer meetmomenten dan zonder"
+assert sum(1 for l in logs41 if l.strip().startswith("alle momenten")) == 2, "beide tabellen getoond"
 
 print("alle tests geslaagd")

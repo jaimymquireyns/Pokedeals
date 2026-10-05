@@ -87,6 +87,14 @@ FAMOUS_DEX_IDS = {
     133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
 }
 FAMOUS_HISTORY_DAYS = 180
+
+# Opschonen van de Near Mint-reeks. De Near Mint-'prijs' van PkmnPrices blijkt de laagste vraagprijs te zijn, geen
+# verkoopgemiddelde: als de goedkope exemplaren verdwijnen springt hij naar een absurd bedrag en blijft daar weken
+# staan (Lapras EUR1.450, Snorlax EUR1.949,99). Punten die zo'n piek zijn, tellen niet mee in analyses die dat aanzetten.
+CLEAN_NM = False             # voor de dagelijkse kansberekening; de signalen-backtest vergelijkt altijd beide versies
+CLEAN_FACTOR = 3.0           # een punt dat meer dan zoveel keer boven zijn referentie ligt, is een piek
+CLEAN_WINDOW_DAYS = 90       # referentie zonder Cardmarket-gemiddelde: de mediaan van de behouden punten van de laatste zoveel dagen
+CLEAN_MAX_DROP_DAYS = 60     # een 'piek' die langer aanhoudt dan dit, is waarschijnlijk het nieuwe niveau en wordt weer geaccepteerd
 SNAPSHOT_PK_BUDGET = 6000    # PkmnPrices-credits per dag voor de marktmomentopname (alleen kandidaten; PokemonPriceTracker staat op het gratis plan)
 SNAPSHOT_PER_PAGE = 20       # aanbiedingen per kaart per opvraging; PkmnPrices rekent per rij, dus dit is ook het maximum aan credits per kaart
 SNAPSHOT_MAX_MINUTES = 40     # de aparte signalentaak krijgt 60 minuten van GitHub; de momentopname stopt ruim daarvoor

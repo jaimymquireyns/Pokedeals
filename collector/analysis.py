@@ -245,14 +245,80 @@ def calibrate(p, stats):
     return min(max((st["n"] * obs + k * p) / (st["n"] + k), 0.02), 0.98)
 
 
-def series_for(product_id, by_source, nm_rows=None):
+def anchors_from(by_source):
+    """Cardmarkets eigen 30-daagse (anders 7-daagse) verkoopgemiddelde per datum: een referentie die op echte
+    verkopen is gebaseerd. Bestaat alleen voor dagen dat onze eigen dagelijkse verzameling al draaide."""
+    out = {}
+    for rows in by_source.values():
+        for r in rows:
+            a = r.get("anchor") or r.get("avg30") or r.get("avg7")
+            if a:
+                out[r["date"]] = float(a)
+    return out
+
+
+def clean_nm_rows(rows, anchors=None, factor=None, window_days=None, max_drop_days=None):
+    """Haalt pieken uit een Near Mint-reeks. Twee regels, allebei zonder naar de toekomst te kijken (anders zou een
+    backtest te mooi uitvallen):
+      1. Ligt een punt meer dan 'factor' keer boven Cardmarkets eigen verkoopgemiddelde van die dag (anchors), dan is het
+         een piek. Dit is de betrouwbare regel, maar hij werkt alleen voor dagen waarvoor we dat gemiddelde hebben.
+      2. Anders: ligt het meer dan 'factor' keer boven de mediaan van de behouden punten van de laatste dagen, dan is
+         het een piek. Houdt het hoge niveau langer dan 'max_drop_days' aan, dan nemen we aan dat het echt het nieuwe
+         niveau is en accepteren we het weer. Dit is een schatting: een reeks die al in een piek begint, of een piek die
+         langer duurt, wordt niet herkend.
+    Alleen pieken omhoog worden verwijderd; dalingen blijven staan. Geeft (schone rijen, statistiek) terug."""
+    factor = factor or config.CLEAN_FACTOR
+    window = window_days or config.CLEAN_WINDOW_DAYS
+    max_drop = max_drop_days or config.CLEAN_MAX_DROP_DAYS
+    prices = [r["price"] for r in rows if r.get("price")]
+    stats = {"in": len(prices), "out": 0, "anchor": 0, "causal": 0}
+    spread = bool(prices) and max(prices) > factor * min(prices)   # zonder spreiding kan regel 2 nooit iets vinden: snel pad
+    out, kept, streak = [], [], None
+    for r in sorted(rows, key=lambda r: r["date"]):
+        p = r.get("price")
+        if not p:
+            continue
+        a = anchors.get(r["date"]) if anchors else None
+        if a and p > factor * a:
+            stats["anchor"] += 1
+            continue
+        d = date.fromisoformat(r["date"])
+        flagged = False
+        if spread and kept:
+            recent = sorted(kp for kd, kp in kept if (d - kd).days <= window)
+            if recent:
+                flagged = p > factor * recent[len(recent) // 2]
+        if flagged:
+            if streak is None:
+                streak = d
+            if (d - streak).days < max_drop:
+                stats["causal"] += 1
+                continue
+            kept = []   # te lang aangehouden: dit is het nieuwe niveau, de referentie begint opnieuw
+        streak = None
+        kept.append((d, p))
+        out.append(r)
+    stats["out"] = len(out)
+    return out, stats
+
+
+def series_for(product_id, by_source, nm_rows=None, clean=None, clean_stats=None):
     """De reeks waarop het model draait. Heeft een kaart genoeg eigen Near Mint-geschiedenis (PkmnPrices,
     via card_history.py), dan is dát de basis in plaats van de gemengde Cardmarket-trend. Anders: sealed de
     eigen reeks van die bron, kaarten hun Cardmarket-reeks met oude PPT-historie ('ppt_hist') eraan vastgeplakt."""
+    clean = config.CLEAN_NM if clean is None else clean
     if nm_rows and len(nm_rows) >= config.MIN_HISTORY_POINTS:
-        rows = [{"date": r["date"], "trend": r["price"], "price": r["price"], "avg1": None, "avg7": None, "avg30": None}
-                for r in nm_rows if r["price"]]
-        return fill_avgs(rows)   # hier wél een gemiddelde berekenen: dit is echte dagelijkse Near Mint-historie, geen dunne markt
+        if clean:
+            nm_rows, st = clean_nm_rows(nm_rows, anchors=anchors_from(by_source))
+            if clean_stats is not None:
+                for k in ("in", "out", "anchor", "causal"):
+                    clean_stats[k] = clean_stats.get(k, 0) + st[k]
+                clean_stats["cards"] = clean_stats.get("cards", 0) + 1
+                clean_stats["cards_changed"] = clean_stats.get("cards_changed", 0) + (1 if st["out"] < st["in"] else 0)
+        if len(nm_rows) >= config.MIN_HISTORY_POINTS:   # na het opschonen nog genoeg over? Anders de gewone Cardmarket-reeks hieronder
+            rows = [{"date": r["date"], "trend": r["price"], "price": r["price"], "avg1": None, "avg7": None, "avg30": None}
+                    for r in nm_rows if r["price"]]
+            return fill_avgs(rows)   # hier wél een gemiddelde berekenen: dit is echte dagelijkse Near Mint-historie, geen dunne markt
     if ":" in product_id:      # sealed (bijv. 'cm:12345'): de eigen reeks van die bron
         own = [v for k, v in by_source.items() if k != "ppt_hist"]
         series = max(own, key=len) if own else []
