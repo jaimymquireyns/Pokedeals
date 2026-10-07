@@ -31,6 +31,7 @@ import analysis
 import config
 from store import SupabaseStore
 
+EDGE_COLS = ("p_win", "p_win0", "p_up10", "exp_ret", "model")   # zie edge.py en supabase/schema.sql
 PRICE_SIGNALS = ("onder_gemiddelde", "stabiliseert", "piek", "valt_nog")
 MARKET_SIGNALS = ("aanbod", "vraag", "liquiditeit")
 
@@ -165,7 +166,8 @@ def compute_today(store, today, log=print):
     if not products:
         log("Signalen: nog geen kaarten van beroemde Pokémon gevonden.")
         return 0
-    series = load_series(store, products, (date.fromisoformat(today) - timedelta(days=200)).isoformat())
+    days = config.EDGE_HISTORY_DAYS if config.EDGE_ENABLED else 200   # het eigen model traint op een langere geschiedenis dan de signalen zelf nodig hebben
+    series = load_series(store, products, (date.fromisoformat(today) - timedelta(days=days)).isoformat())
     snaps = load_snapshots(store, products, (date.fromisoformat(today) - timedelta(days=30)).isoformat())
     rows = []
     for pid, pts in series.items():
@@ -179,8 +181,23 @@ def compute_today(store, today, log=print):
                      "s_momentum": min(sig.get("piek", 0), sig.get("valt_nog", 0)),   # -1 = piek of valt nog
                      "s_reprint": sig.get("reprint"), **{f"s_{k}": sig.get(k) for k in MARKET_SIGNALS},
                      "n_positive": c["n_positive"], "n_negative": c["n_negative"], "score": c["score"]})
+    if rows and config.EDGE_ENABLED:
+        try:
+            import edge
+            shadow = edge.shadow(series, today, log=log)
+            for r in rows:
+                r.update(shadow.get(r["product_id"], {}))
+        except Exception as e:   # het eigen model is een proef: als het mislukt moeten de gewone signalen er gewoon staan
+            log(f"! eigen model mislukt: {type(e).__name__}: {e}")
     if rows:
-        store.upsert("card_signals", rows, "product_id,date")
+        try:
+            store.upsert("card_signals", rows, "product_id,date")
+        except Exception as e:
+            slim = [{k: v for k, v in r.items() if k not in EDGE_COLS} for r in rows]
+            if slim == rows:
+                raise
+            store.upsert("card_signals", slim, "product_id,date")   # zonder de kolommen van het eigen model; zijn die er niet, dan lukt dit wel
+            log(f"  (voorspellingen van het eigen model niet opgeslagen: {type(e).__name__}; draai supabase/schema.sql opnieuw voor de kolommen p_win, p_win0, p_up10, exp_ret en model)")
     n_cand = sum(1 for r in rows if r["s_onder_gemiddelde"] == 1 and r["n_negative"] == 0)
     n_best = sum(1 for r in rows if r["s_onder_gemiddelde"] == 1 and r["s_stabiliseert"] == 1 and r["n_negative"] == 0)
     n_market = sum(1 for r in rows if r["s_aanbod"] is not None)
@@ -268,11 +285,12 @@ def backtest(store, today, horizon=30, step=5, log=print, series=None):
     return tally
 
 
-def compare_cleaning(store, today, log=print, horizon=30):
+def compare_cleaning(store, today, log=print, horizon=30, inputs=None):
     """Draait de backtest twee keer op dezelfde data: zoals het was, en met de pieken uit de Near Mint-reeks gehaald.
     Blijft 'onder het gemiddelde' ook zonder die pieken sterk voorspellen, dan is het geen bijeffect van de pieken."""
-    products = famous_products(store)
-    inputs = load_inputs(store, products, (date.fromisoformat(today) - timedelta(days=400)).isoformat())
+    if inputs is None:
+        products = famous_products(store)
+        inputs = load_inputs(store, products, (date.fromisoformat(today) - timedelta(days=400)).isoformat())
     log("=== A. Zoals het was (Near Mint-reeks ongewijzigd) ===")
     a = backtest(store, today, horizon=horizon, log=log, series=build_series(inputs, clean=False))
     stats = {}
@@ -285,6 +303,27 @@ def compare_cleaning(store, today, log=print, horizon=30):
         f"{stats.get('causal', 0)} via de schatting uit de eigen reeks; {stats.get('cards_changed', 0)} van {stats.get('cards', 0)} kaarten aangepast")
     b = backtest(store, today, horizon=horizon, log=log, series=clean_series)
     return a, b
+
+
+def extra_analysis(store, today, inputs, products, log=print):
+    """Wat de gewone backtest nog niet liet zien: waar 'onder het gemiddelde' werkt (prijsklasse, diepte, markt), een eigen model dat
+    eerlijk wordt getoetst op data die het nooit zag, de echt vooruit getoetste voorspellingen van de afgelopen weken, en welke prijzen verdacht zijn."""
+    import edge
+    import reliability
+    series_a = build_series(inputs, clean=False)
+    series_b = build_series(inputs, clean=True)
+    for label, series in (("A. zoals het was", series_a), ("B. met pieken eruit gehaald", series_b)):
+        log("")
+        log(f"=== {label}: uitsplitsing en eigen model ===")
+        samples = edge.collect_samples(series)
+        edge.report_splits(samples, log)
+        edge.report_walk_forward(edge.walk_forward(samples), log)
+    log("")
+    log("=== Voorspellingen die we de afgelopen weken zelf hebben vastgelegd ===")
+    edge.evaluate_stored(store, today, series_a, log)
+    log("")
+    log("=== Betrouwbaarheid van de prijzen ===")
+    reliability.report(store, inputs, products, today, log)
 
 
 def main():
@@ -307,7 +346,13 @@ def main():
         except Exception as e:   # de signalen zelf staan er dan al, alleen zonder de momentopname van vandaag
             print(f"! marktmomentopname mislukt: {type(e).__name__}: {e}")
     if args.backtest:
-        compare_cleaning(store, today)
+        products = famous_products(store)
+        inputs = load_inputs(store, products, (date.fromisoformat(today) - timedelta(days=400)).isoformat())
+        compare_cleaning(store, today, inputs=inputs)
+        try:
+            extra_analysis(store, today, inputs, products)
+        except Exception as e:   # de gewone backtest staat er dan al
+            print(f"! extra analyse mislukt: {type(e).__name__}: {e}")
 
 
 if __name__ == "__main__":

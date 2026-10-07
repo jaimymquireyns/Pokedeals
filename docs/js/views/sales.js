@@ -3,7 +3,7 @@ import { rest, userId } from "../api.js";
 import { lineChart } from "../chart.js";
 import { emptyNote, filterBox, matchQuery } from "../components.js";
 import { allocate, saleProfit } from "../model.js";
-import { eur, fmtDateLong, h, segment, signedEur, store, toast } from "../ui.js";
+import { closeSheet, eur, fmtDateLong, h, icon, openSheet, segment, signedEur, store, toast } from "../ui.js";
 
 export async function loadSales() {
   const [sales, items] = await Promise.all([
@@ -110,6 +110,30 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
   return { cost: shown.map((x) => [x[0], x[1]]), profit: shown.map((x) => [x[0], x[2]]) };
 }
 
+const SALE_PERIODS = [["all", "Alles"], ["month", "Deze maand"], ["3m", "3 maanden"], ["year", "Dit jaar"]];
+const SALE_RESULTS = [["all", "Alles"], ["win", "Winst"], ["loss", "Verlies"]];
+const SALE_SORTS = [["new", "Nieuwste eerst"], ["old", "Oudste eerst"], ["win", "Grootste winst"], ["loss", "Grootste verlies"]];
+export const SALE_FILTER_DEFAULT = { period: "all", result: "all", sort: "new" };
+
+/** Periode, uitkomst en volgorde toepassen op de verkopen. now: 'YYYY-MM-DD' (voor de tests). */
+export function filterSales(sales, f, now = new Date().toISOString().slice(0, 10)) {
+  const day = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+  const ok = {
+    all: () => true,
+    month: (s) => s.sale_date.slice(0, 7) === now.slice(0, 7),
+    "3m": (s) => s.sale_date >= day(now, -92),
+    year: (s) => s.sale_date.slice(0, 4) === now.slice(0, 4),
+  }[f.period] || (() => true);
+  const res = { all: () => true, win: (s) => s.profit.total > 0, loss: (s) => s.profit.total < 0 }[f.result] || (() => true);
+  const cmp = {
+    new: (a, b) => b.sale_date.localeCompare(a.sale_date),
+    old: (a, b) => a.sale_date.localeCompare(b.sale_date),
+    win: (a, b) => b.profit.total - a.profit.total,
+    loss: (a, b) => a.profit.total - b.profit.total,
+  }[f.sort] || (() => 0);
+  return sales.filter((s) => ok(s) && res(s)).sort(cmp);
+}
+
 export async function renderSales(box, { onChange } = {}) {
   box.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
   let sales;
@@ -118,7 +142,7 @@ export async function renderSales(box, { onChange } = {}) {
     box.replaceChildren(emptyNote("Nog geen verkopen. Kies bij 'In bezit' de knop Verkopen om er een vast te leggen."));
     return;
   }
-  const ui = { mode: "cum", range: "MAX", ...store.get("pd:sales", {}) };
+  const ui = { mode: "cum", range: "MAX", ...SALE_FILTER_DEFAULT, ...store.get("pd:sales", {}) };
   const saveUi = () => store.set("pd:sales", ui);
   let query = "";
   let current = sales;   // de verkopen die door de zoekbalk komen: de totalen, de grafiek, de lijst en de CSV gaan daar allemaal over
@@ -127,12 +151,22 @@ export async function renderSales(box, { onChange } = {}) {
   const chartBox = h("div", { class: "chartbox" });
   const chartCard = h("div", { class: "chartcard" },
     segment([["cum", "Opbouwend"], ["month", "Per maand"]], ui.mode, (m) => { ui.mode = m; saveUi(); drawChart(); }, "small"),
-    segment([["3M", "3M"], ["1J", "1J"], ["MAX", "Alles"]], ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"),
+    segment([["3M", "3M"], ["1J", "1J"], ["MAX", "Max"]], ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"),
     chartBox);
   const csvBox = h("div", { class: "more" });
   const listBox = h("div", { class: "salelist" });
   const countNote = h("p", { class: "mini fcount", hidden: true });
   const search = filterBox("Zoek op koper, kaart of set", (v) => { query = v; draw(); });
+  const sortBtn = h("button", { class: "sortb", type: "button", onclick: () => {
+    const opts = h("div", { class: "opts" }, ...SALE_SORTS.map(([k, label]) => h("button", { type: "button", class: "opt", "aria-pressed": String(ui.sort === k),
+      onclick: () => { ui.sort = k; saveUi(); closeSheet(); draw(); } }, h("span", { text: label }), ui.sort === k ? icon("check") : null)));
+    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Sorteren" }), opts));
+  } });
+  const filterBar = h("div", { class: "salefilters" },
+    segment(SALE_PERIODS, ui.period, (v) => { ui.period = v; saveUi(); draw(); }, "small"),
+    h("div", { class: "filterrow" }, segment(SALE_RESULTS, ui.result, (v) => { ui.result = v; saveUi(); draw(); }, "small"), sortBtn));
+  const filtersActive = () => ui.period !== "all" || ui.result !== "all";
+  const clearFilters = () => { ui.period = "all"; ui.result = "all"; saveUi(); renderSales(box, { onChange }); };
 
   function drawChart() {
     const r = salesPoints(current, ui.mode, ui.range);
@@ -145,12 +179,17 @@ export async function renderSales(box, { onChange } = {}) {
 
   function draw() {
     const q = query.trim();
-    current = sales.filter((s) => matchQuery(q, [s.buyer, s.sale_date, ...s.lines.flatMap((l) => [l.name, l.set_name, l.number])], s.lines.map((l) => l.set_name).join(" ")));
-    countNote.hidden = !q;
+    sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));
+    sortBtn.setAttribute("aria-label", "Sorteren, nu: " + SALE_SORTS.find((x) => x[0] === ui.sort)[1]);
+    const searched = sales.filter((s) => matchQuery(q, [s.buyer, s.sale_date, ...s.lines.flatMap((l) => [l.name, l.set_name, l.number])], s.lines.map((l) => l.set_name).join(" ")));
+    current = filterSales(searched, ui);
+    const narrowed = Boolean(q) || filtersActive();
+    countNote.hidden = !narrowed;
     countNote.textContent = `${current.length} van ${sales.length} verkopen`;
     if (!current.length) {
       sumBox.replaceChildren(); chartCard.hidden = true; csvBox.replaceChildren();
-      listBox.replaceChildren(emptyNote(`Niets gevonden voor "${q}".`));
+      listBox.replaceChildren(h("div", { class: "emptyfilter" }, emptyNote(q ? `Niets gevonden voor "${q}"${filtersActive() ? " binnen deze filters" : ""}.` : "Geen verkopen binnen deze filters."),
+        filtersActive() ? h("button", { class: "linkbtn", type: "button", text: "Filters wissen", onclick: clearFilters }) : null));
       return;
     }
     chartCard.hidden = false;
@@ -159,10 +198,10 @@ export async function renderSales(box, { onChange } = {}) {
     const thisMonth = current.filter((s) => s.sale_date.startsWith(month)).reduce((t, s) => t + s.profit.total, 0);
     const revenue = current.reduce((t, s) => t + Number(s.total_price), 0);
     sumBox.replaceChildren(h("div", { class: "sum" },
-      h("div", {}, h("div", { class: "lbl2", text: q ? "Winst (gefilterd)" : "Winst totaal" }), h("div", { class: "big num " + (total < 0 ? "neg" : ""), text: signedEur(total) })),
+      h("div", {}, h("div", { class: "lbl2", text: narrowed ? "Winst (gefilterd)" : "Winst totaal" }), h("div", { class: "big num " + (total < 0 ? "neg" : ""), text: signedEur(total) })),
       h("div", { class: "r" }, h("div", { class: "lbl2", text: "Deze maand" }), h("div", { class: "prof num" + (thisMonth < 0 ? " neg" : ""), text: signedEur(thisMonth) })),
       h("div", { class: "inv", text: `${current.length} ${current.length === 1 ? "verkoop" : "verkopen"} · ${eur(revenue)} omzet` })));
-    csvBox.replaceChildren(h("button", { type: "button", text: q ? "Exporteer deze verkopen als CSV" : "Exporteer als CSV", onclick: () => downloadCsv(current) }));
+    csvBox.replaceChildren(h("button", { type: "button", text: narrowed ? "Exporteer deze verkopen als CSV" : "Exporteer als CSV", onclick: () => downloadCsv(current) }));
     drawChart();
     listBox.replaceChildren(...current.map((s) => h("div", { class: "sec salecard" },
       h("div", { class: "salehead" },
@@ -175,6 +214,6 @@ export async function renderSales(box, { onChange } = {}) {
       h("button", { type: "button", class: "linkbtn", text: "Verkoop terugdraaien", onclick: () => undoSale(s, onChange) }))));
   }
 
-  box.replaceChildren(h("div", { class: "searchrow" }, search.box), countNote, sumBox, chartCard, csvBox, listBox);
+  box.replaceChildren(h("div", { class: "searchrow" }, search.box), filterBar, countNote, sumBox, chartCard, csvBox, listBox);
   draw();
 }

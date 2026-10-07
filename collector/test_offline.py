@@ -2361,4 +2361,295 @@ sp = SetProvider()
 run.collect_cards(sp, store49, ["base1", "A1", "B2a", "P-A", "sv01"], "2026-10-07", log=quiet)
 assert sp.asked == ["base1", "sv01"], f"Pocket-sets worden niet opgehaald: {sp.asked}"
 
+# ============ 55. Beroemde Pokémon: niet gevonden bij PkmnPrices -> na 7 dagen opnieuw, de rest na 30 ============
+fdx55 = sorted(config.FAMOUS_DEX_IDS)[0]
+D55 = date(2026, 10, 20)
+ago55 = lambda n: (D55 - timedelta(days=n)).isoformat()
+fake55, store55 = new_store()
+store55.upsert_products([
+    {"product_id": "f-8", "kind": "card", "name": "Zzz-f8", "set_name": "S", "number": "1", "set_total": 9, "dex_id": fdx55, "pk_miss_on": ago55(8)},
+    {"product_id": "f-6", "kind": "card", "name": "Zzz-f6", "set_name": "S", "number": "2", "set_total": 9, "dex_id": fdx55, "pk_miss_on": ago55(6)},
+    {"product_id": "o-8", "kind": "card", "name": "Zzz-o8", "set_name": "S", "number": "3", "set_total": 9, "dex_id": 13, "pk_miss_on": ago55(8)},
+    {"product_id": "o-31", "kind": "card", "name": "Zzz-o31", "set_name": "S", "number": "4", "set_total": 9, "dex_id": 13, "pk_miss_on": ago55(31)},
+])
+class NameSess55(NmSess):
+    def __init__(self):
+        super().__init__()
+        self.names = []
+    def get(self, url, params=None, timeout=None):
+        if url.replace(pkmnprices.BASE, "") == "/cards":
+            self.names.append(params["name"])
+        return super().get(url, params, timeout)
+ns55 = NameSess55()
+logs55 = []
+nm._map_and_refresh(store55, pkmnprices.PkmnPrices("pk", session=ns55), D55.isoformat(), ["f-8", "f-6", "o-8", "o-31"],
+                    {p["product_id"]: p for p in store55.products("card")}, logs55.append, refresh_price=False)
+assert sorted({n.replace(" ", "-") for n in ns55.names}) == ["Zzz-f8", "Zzz-o31"], ns55.names   # (de tweede poging zoekt zonder streepjes: 'Zzz f8')   # beroemd na 8 dagen: opnieuw; beroemd na 6: nog niet; gewoon na 8: nog niet; gewoon na 31: opnieuw
+assert any("beroemde Pokémon na 7" in l and "2 kaarten overgeslagen" in l for l in logs55), logs55
+
+# ============ 56. Cardmarket-link: wekelijkse herkansing voor kaarten die je gebruikt en beroemde Pokémon ============
+fake56, store56 = new_store()
+ago56 = lambda n: (date(2026, 10, 20) - timedelta(days=n)).isoformat()
+store56.upsert_products([
+    {"product_id": "r-fam", "kind": "card", "name": "FamOud", "pk_id": "11", "dex_id": fdx55, "cm_url": "", "cm_checked_on": ago56(8)},
+    {"product_id": "r-fam-nieuw", "kind": "card", "name": "FamNieuw", "pk_id": "15", "dex_id": fdx55, "cm_url": "", "cm_checked_on": ago56(2)},
+    {"product_id": "r-fam-nodate", "kind": "card", "name": "FamZonderDatum", "pk_id": "12", "dex_id": fdx55, "cm_url": ""},
+    {"product_id": "r-coll", "kind": "card", "name": "Collectie", "pk_id": "13", "dex_id": 13, "cm_url": "", "cm_checked_on": ago56(10)},
+    {"product_id": "r-rest", "kind": "card", "name": "Rest", "pk_id": "16", "dex_id": 13, "cm_url": "", "cm_checked_on": ago56(10)},
+    {"product_id": "r-never", "kind": "card", "name": "Nooit", "pk_id": "14", "dex_id": 13},
+])
+fake56.t["collection"][(1,)] = {"id": "c1", "product_id": "r-coll", "user_id": "u"}
+order56, _ = cm_links.targets(store56, "2026-10-20")
+assert set(order56) == {"r-fam", "r-fam-nodate", "r-coll", "r-never"}, order56   # 'r-fam-nieuw' (2 dagen) en 'r-rest' (niet beroemd, niet van jou) niet
+assert order56[0] == "r-coll", order56
+class CmSess56:
+    headers = {}
+    def __init__(self):
+        self.urls = []
+    def get(self, url, params=None, timeout=None):
+        self.urls.append(url)
+        n = url.rsplit("/", 1)[-1]
+        if n == "12":
+            return PkResp({"name": "x"})   # PkmnPrices heeft er nog steeds niets voor
+        return PkResp({"name": "x", "cardmarket_url": f"https://www.cardmarket.com/en/Pokemon/Products/Singles/S/Kaart-{n}", "cardmarket_product_id": int(n) * 100})
+cs56 = CmSess56()
+cm_links.run(store56, pkmnprices.PkmnPrices("pk", session=cs56), "2026-10-20", log=quiet)
+p56 = {p["product_id"]: p for p in store56.products("card")}
+assert p56["r-fam"]["cm_url"].endswith("Kaart-11") and p56["r-coll"]["cm_url"].endswith("Kaart-13") and p56["r-never"]["cm_url"].endswith("Kaart-14"), "de herkansing vond de link"
+assert p56["r-fam-nodate"]["cm_url"] == "" and p56["r-fam-nodate"]["cm_checked_on"] == "2026-10-20", "nog steeds niets: lege tekst, maar nu met de datum van vandaag"
+assert p56["r-rest"]["cm_url"] == "" and p56["r-rest"]["cm_checked_on"] == ago56(10), "een gewone kaart zonder link wordt niet opnieuw geprobeerd"
+cs56b = CmSess56()
+cm_links.run(store56, pkmnprices.PkmnPrices("pk", session=cs56b), "2026-10-21", log=quiet)
+assert cs56b.urls == [], "de dag erna niets te doen: de kaart zonder link is net gecontroleerd"
+cs56c = CmSess56()
+cm_links.run(store56, pkmnprices.PkmnPrices("pk", session=cs56c), "2026-10-27", log=quiet)
+assert sorted(u.rsplit("/", 1)[-1] for u in cs56c.urls) == ["12", "15"], "een week later: de kaart zonder link, en 'FamNieuw' die inmiddels ook 7+ dagen geleden is gecontroleerd"
+
+# ontbreekt de kolom cm_checked_on nog: de links worden toch opgeslagen, met een melding
+class NoCheckedCol(SupabaseStore):
+    def upsert_products(self, rows):
+        if any("cm_checked_on" in r for r in rows):
+            raise RuntimeError("column cm_checked_on does not exist")
+        return super().upsert_products(rows)
+fake56b, _ = new_store()
+store56b = NoCheckedCol("https://x.supabase.co", "sb_secret_test", session=fake56b)
+store56b.upsert_products([{"product_id": "q-1", "kind": "card", "name": "Q", "pk_id": "14", "dex_id": 13}])
+logs56b = []
+cm_links.run(store56b, pkmnprices.PkmnPrices("pk", session=CmSess56()), "2026-10-20", log=logs56b.append)
+assert store56b.products("card")[0]["cm_url"].endswith("Kaart-14") and any("cm_checked_on" in l for l in logs56b), logs56b
+
+# ============ 57. Eigen voorspelmodel (edge.py): kosten, markt, geen vooruitkijken, eerlijk toetsen ============
+import random
+import edge
+import reliability
+
+def ou_series(seed, days=420, base=60.0, phi=0.96, sd=0.04, d0=date(2025, 6, 1)):
+    """Een prijs die steeds naar zijn gemiddelde terugkeert (zoals de backtest liet zien dat echte prijzen doen)."""
+    rnd, u, out = random.Random(seed), 0.0, []
+    for i in range(days):
+        u = phi * u + rnd.gauss(0, sd)
+        out.append(((d0 + timedelta(days=i)).isoformat(), round(base * math.exp(u), 2)))
+    return out
+
+def rw_series(seed, days=420, base=60.0, sd=0.03, d0=date(2025, 6, 1)):
+    """Een zuivere random walk: er valt niets te voorspellen, dus een eerlijke toets mag geen voordeel vinden."""
+    rnd, u, out = random.Random(seed), 0.0, []
+    for i in range(days):
+        u += rnd.gauss(0, sd)
+        out.append(((d0 + timedelta(days=i)).isoformat(), round(base * math.exp(u), 2)))
+    return out
+
+# kosten: precies op de winstgrens is de winst nul, een tikje erboven is winst
+for p0_ in (10.0, 30.0, 100.0, 200.0):
+    be_ = p0_ * math.exp(edge.breakeven_log(p0_))
+    assert abs(edge.net_profit(p0_, be_)) < 1e-6 and edge.net_profit(p0_, be_ * 1.01) > 0 and edge.net_profit(p0_, be_ * 0.99) < 0, p0_
+assert edge.breakeven_log(10.0) > edge.breakeven_log(200.0) > 0, "bij een goedkope kaart moet de prijs veel meer stijgen om de kosten te dekken"
+assert abs(math.exp(edge.breakeven_log(10.0)) - 1 - 0.436) < 0.005, "een kaart van 10 euro moet ruim 40% stijgen"
+
+# marktbeweging: zes kaarten die elke dag 1% stijgen -> over 30 dagen log(1,01^30)
+d57 = date(2026, 1, 1)
+rising = {f"m{k}": [((d57 + timedelta(days=i)).isoformat(), 100 * 1.01 ** i) for i in range(60)] for k in range(6)}
+mk57 = edge.market_returns(rising)
+assert abs(mk57[(d57 + timedelta(days=45)).isoformat()] - 30 * math.log(1.01)) < 1e-9, mk57
+assert (d57 + timedelta(days=10)).isoformat() not in mk57, "in de eerste 30 dagen nog geen marktbeweging"
+assert edge.market_returns({"x": rising["m0"]}) == {}, "minder dan 5 kaarten: geen marktcijfer"
+assert edge.market_at(mk57, (d57 + timedelta(days=47)).isoformat()) is not None and edge.market_at(mk57, (d57 + timedelta(days=5)).isoformat()) is None
+
+# sprongen
+calm = [((d57 + timedelta(days=i)).isoformat(), 50.0 + (i % 3)) for i in range(60)]
+jumpy = [((d57 + timedelta(days=i)).isoformat(), 50.0 if i not in (30, 31, 40, 41, 50, 51) else (200.0 if i % 10 == 0 else 50.0 + (150.0 if i in (30, 40, 50) else 0))) for i in range(60)]
+assert edge.jump_count(calm) == 0 and edge.jump_count(jumpy) >= 3, (edge.jump_count(calm), edge.jump_count(jumpy))
+
+# geen vooruitkijken: de kenmerken van een meetmoment veranderen niet als de prijzen NA dat moment anders worden
+ser57 = {f"o{k}": ou_series(k, base=20 + 5 * k) for k in range(60)}
+smp57 = edge.collect_samples(ser57)
+assert len(smp57) > 300, len(smp57)
+cut57 = (date(2025, 6, 1) + timedelta(days=300)).isoformat()
+altered = {pid: [(d, p if d < cut57 else p * 3) for d, p in pts] for pid, pts in ser57.items()}
+smp57b = {(s["pid"], s["date"]): s for s in edge.collect_samples(altered)}
+same = [s for s in smp57 if s["end_date"] < cut57]
+assert len(same) > 100 and all((s["pid"], s["date"]) in smp57b and smp57b[(s["pid"], s["date"])]["f"] == s["f"] and smp57b[(s["pid"], s["date"])]["y"] == s["y"] for s in same), \
+    "kenmerken en uitkomst van een meetmoment hangen niet af van wat er daarna gebeurt"
+
+# het model leert terugkeer naar het gemiddelde: een prijs ver onder zijn gemiddelde krijgt een hogere verwachting dan eentje ver erboven
+m57 = edge.fit(smp57)
+assert m57 and m57["n"] == len(smp57) and m57["beta"][edge.FEATURES.index("depth")] > 0, m57 and m57["beta"]
+deep = {"depth": 0.30, "mom14": 0.0, "logp": math.log(60), "mkt30": 0.0, "cv14": 0.03, "jumps": 0.0}
+high = {**deep, "depth": -0.30}
+assert edge.predict_return(m57, deep) > edge.predict_return(m57, high) and abs(edge.predict_return(m57, deep)) <= edge.MAX_PRED
+pd_, ph_ = edge.prob_ge(m57, deep, edge.breakeven_log(60)), edge.prob_ge(m57, high, edge.breakeven_log(60))
+assert 0 < ph_ < pd_ < 1, (pd_, ph_)
+assert edge.fit(smp57[:10]) is None, "te weinig metingen: geen model"
+
+# eerlijk toetsen: de test begint na de training, met een gat ertussen
+tr57, te57, cut_ = edge._split(smp57)
+assert max(s["end_date"] for s in tr57) < cut_ <= min(s["date"] for s in te57), "uitkomsten van trainingsmomenten vallen niet in de testperiode"
+wf57 = edge.walk_forward(smp57)
+assert wf57 and wf57["n_test"] > 100 and wf57["coef"]["depth"] > 0, wf57 and wf57["coef"]
+assert wf57["top_win"] > wf57["top_exp"] and wf57["skill_win"] > 0 and wf57["z"] >= 2, (wf57["top_win"], wf57["top_exp"], wf57["skill_win"], wf57["z"])   # het model weet meer dan het kostenbewuste basismodel
+assert wf57["calib"] and all(0 <= pm <= 1 and 0 <= rl <= 1 for _, _, _, pm, rl in wf57["calib"])
+logs57 = []
+edge.report_walk_forward(wf57, logs57.append)
+assert any("Oordeel" in l and "weet op ongeziene data meer" in l for l in logs57) and any("kalibratie" in l for l in logs57) and any("kostenbewuste basismodel" in l for l in logs57), logs57
+assert edge.walk_forward(smp57[:60]) is None
+logs57b = []
+edge.report_walk_forward(None, logs57b.append)
+assert "te weinig metingen" in logs57b[0]
+# een zuivere random walk: een eerlijke toets mag er hooguit af en toe (toeval) een voordeel in zien, niet structureel
+claims = 0
+for sd_ in range(11, 17):
+    w_ = edge.walk_forward(edge.collect_samples({f"w{k}": rw_series(sd_ * 100 + k, base=20 + 5 * k) for k in range(60)}))
+    if w_ and w_["skill_win"] > 0 and w_["z"] >= 2:
+        claims += 1
+assert claims <= 1, f"{claims} van 6 random walks lijken voorspelbaar: de toets is te goedgelovig"
+logs57c = []
+edge.report_splits(smp57, logs57c.append)
+txt57 = "\n".join(logs57c)
+assert "per prijsklasse" in txt57 and "hoe diep onder het gemiddelde" in txt57 and "marktbeweging" in txt57 and "springerige" in txt57, txt57
+edge.report_splits([], logs57c.append)
+
+# elke nacht: voorspellingen voor alle kaarten, en niets als er te weinig is om op te trainen
+sh57 = edge.shadow(ser57, "2026-07-25", log=quiet)
+assert len(sh57) > 50 and all(0 < v["p_win"] < 1 and 0 < v["p_win0"] < 1 and 0 < v["p_up10"] < 1 and v["model"] == edge.VERSION and -1 < v["exp_ret"] < 1 for v in sh57.values()), list(sh57.items())[:2]
+assert edge.shadow({"x": ser57["o0"]}, "2026-07-25", log=quiet) == {}, "te weinig metingen om te trainen"
+
+# ============ 58. compute_today legt de voorspellingen vast; zonder de nieuwe kolommen blijven de gewone signalen staan ============
+fake58, store58 = new_store()
+fd58 = sorted(config.FAMOUS_DEX_IDS)[0]
+store58.upsert_products([{"product_id": f"e-{k}", "kind": "card", "name": f"E{k}", "set_name": "Test", "number": str(k), "dex_id": fd58} for k in range(60)])
+for k in range(60):
+    store58.upsert_prices([{"product_id": f"e-{k}", "date": d, "source": "pkmnprices", "grade_key": "nm", "price": p} for d, p in ser57[f"o{k}"]])
+today58 = ser57["o0"][-1][0]
+logs58 = []
+assert signals.compute_today(store58, today58, log=logs58.append) == 60, logs58
+r58 = fake58.t["card_signals"][("e-3", today58)]
+assert 0 < r58["p_win"] < 1 and 0 < r58["p_win0"] < 1 and r58["model"] == edge.VERSION and r58["s_onder_gemiddelde"] in (-1, 0, 1), r58
+assert any("Eigen model (edge-1)" in l for l in logs58), logs58
+
+class NoEdgeCols(SupabaseStore):
+    def upsert(self, table, rows, on_conflict, chunk=500):
+        if table == "card_signals" and any("p_win" in r for r in rows):
+            raise RuntimeError("column p_win does not exist")
+        return super().upsert(table, rows, on_conflict, chunk)
+fake58b, _ = new_store()
+store58b = NoEdgeCols("https://x.supabase.co", "sb_secret_test", session=fake58b)
+store58b.upsert_products([{"product_id": f"e-{k}", "kind": "card", "name": f"E{k}", "dex_id": fd58} for k in range(60)])
+for k in range(60):
+    store58b.upsert_prices([{"product_id": f"e-{k}", "date": d, "source": "pkmnprices", "grade_key": "nm", "price": p} for d, p in ser57[f"o{k}"]])
+logs58b = []
+assert signals.compute_today(store58b, today58, log=logs58b.append) == 60
+assert len(fake58b.t["card_signals"]) == 60 and "p_win" not in fake58b.t["card_signals"][("e-3", today58)] and "p_win0" not in fake58b.t["card_signals"][("e-3", today58)], "de gewone signalen zijn opgeslagen, zonder het eigen model"
+assert any("p_win" in l and "schema.sql" in l for l in logs58b), logs58b
+config.EDGE_ENABLED = False
+fake58c, store58c = new_store()
+store58c.upsert_products([{"product_id": "e-0", "kind": "card", "name": "E0", "dex_id": fd58}])
+store58c.upsert_prices([{"product_id": "e-0", "date": d, "source": "pkmnprices", "grade_key": "nm", "price": p} for d, p in ser57["o0"]])
+signals.compute_today(store58c, today58, log=quiet)
+config.EDGE_ENABLED = True
+assert "p_win" not in fake58c.t["card_signals"][("e-0", today58)], "met het eigen model uit worden de oude signalen niet aangeraakt"
+
+# ============ 59. De echte toets: voorspellingen van minstens 31 dagen oud naast wat er daarna gebeurde ============
+fake59, store59 = new_store()
+store59.upsert_products([{"product_id": f"e-{k}", "kind": "card", "name": f"E{k}", "dex_id": fd58} for k in range(20)])
+as_of = date(2025, 6, 1) + timedelta(days=250)
+rows59, expected = [], []
+for k in range(20):
+    pts_ = ser57[f"o{k}"]
+    i_ = next(i for i, (d, _) in enumerate(pts_) if d == as_of.isoformat())
+    rows59.append({"product_id": f"e-{k}", "date": as_of.isoformat(), "price": pts_[i_][1], "p_win": 0.40 if k % 2 else 0.05, "p_win0": 0.15, "p_up10": 0.3, "exp_ret": 0.02, "model": edge.VERSION})
+    later_ = [p for d, p in pts_ if as_of.isoformat() < d <= (as_of + timedelta(days=30)).isoformat()]
+    expected.append(edge.net_profit(pts_[i_][1], later_[-1]) > 0)
+rows59.append({"product_id": "e-0", "date": (date.fromisoformat(today58) - timedelta(days=5)).isoformat(), "price": 50.0, "p_win": 0.9, "p_up10": 0.9, "exp_ret": 0.1, "model": edge.VERSION})   # te recent: telt niet mee
+rows59.append({"product_id": "e-1", "date": as_of.isoformat() + "", "price": None, "p_win": 0.5})   # zonder prijs: telt niet mee
+store59.upsert("card_signals", [r for r in rows59 if r.get("price")], "product_id,date")
+fake59.t["card_signals"][("e-1", "2000-01-01")] = {"product_id": "e-1", "date": "2000-01-01", "price": None, "p_win": None}   # voorspelling zonder kans: telt niet mee
+ser59 = {f"e-{k}": ser57[f"o{k}"] for k in range(60)}   # dezelfde reeksen, onder de product_id's van de database
+logs59 = []
+ev59 = edge.evaluate_stored(store59, today58, ser59, logs59.append)
+assert ev59["n"] == 20 and abs(ev59["win_rate"] - sum(expected) / 20) < 1e-9 and "z" in ev59 and "skill" in ev59, (ev59, sum(expected))
+assert any("echt vooruit getoetst" in l and "20 voorspellingen" in l for l in logs59) and any("kalibratie" in l for l in logs59), logs59
+logs59b = []
+fake_empty, store_empty = new_store()
+assert edge.evaluate_stored(store_empty, today58, ser59, logs59b.append) is None and "nog geen" in logs59b[0], logs59b
+class BrokenSignals(SupabaseStore):
+    def select(self, table, params=None):
+        if table == "card_signals":
+            raise RuntimeError("column p_win does not exist")
+        return super().select(table, params)
+logs59c = []
+assert edge.evaluate_stored(BrokenSignals("https://x.supabase.co", "sb_secret_test", session=fake59), today58, ser59, logs59c.append) is None and "schema.sql" in logs59c[0], logs59c
+
+# ============ 60. Prijsbetrouwbaarheid: wanneer is een laagste prijs verdacht ============
+def nm_rows_(prices, d0_=date(2026, 8, 1)):
+    return [{"date": (d0_ + timedelta(days=i)).isoformat(), "price": p} for i, p in enumerate(prices)]
+steady = nm_rows_([20.0 + (i % 5) * 0.4 for i in range(60)])
+a_ok = reliability.assess(steady, {steady[-1]["date"]: 21.0}, {"a", "b", "c", "d"})
+assert a_ok["flags"] == [] and a_ok["severity"] == 0 and abs(a_ok["ratio"] - steady[-1]["price"] / 21.0) < 1e-9, a_ok
+a_ratio = reliability.assess(steady, {steady[-1]["date"]: 4.0})
+assert "afwijking" in a_ratio["flags"] and a_ratio["ratio"] > 2, a_ratio
+a_low = reliability.assess(steady, {steady[-1]["date"]: 90.0})
+assert "afwijking" in a_low["flags"], "ook een prijs die ver ONDER het verkoopgemiddelde ligt valt op"
+assert "afwijking" not in reliability.assess(steady, {"2020-01-01": 4.0})["flags"], "een verkoopgemiddelde van lang geleden zegt niets"
+flat = nm_rows_([20.0 + (i % 5) * 0.4 for i in range(50)] + [31.0] * 10)
+assert "vast" in reliability.assess(flat, None)["flags"] and reliability.assess(flat, None)["flat_days"] >= 7
+assert "vast" not in reliability.assess(nm_rows_([20.0 + (i % 5) * 0.4 for i in range(57)] + [31.0] * 3), None)["flags"]
+spiky = nm_rows_([20.0, 21.0, 20.5, 21.0, 20.0, 21.0, 1450.0, 21.0, 20.0, 1450.0, 21.0, 20.5, 1450.0, 21.0, 20.0, 21.0, 20.5, 21.0, 20.0, 21.0, 21.5])
+a_sp = reliability.assess(spiky, None)
+assert a_sp["flags"] == ["springt"] and a_sp["jumps"] == 6, a_sp   # 3 pieken in 21 punten (14%) blijft onder de grens van 20% voor 'pieken'; 'springt' ziet het wel
+spikier = nm_rows_([20.0, 21.0, 1450.0, 21.0, 20.0, 1450.0, 21.0, 20.5, 1450.0, 21.0, 20.0, 1450.0, 21.0, 20.0, 1450.0, 21.0, 20.5, 21.0, 20.0, 1450.0, 21.0, 20.0, 21.0, 21.5])
+a_sp2 = reliability.assess(spikier, None)
+assert "springt" in a_sp2["flags"] and "pieken" in a_sp2["flags"] and a_sp2["severity"] >= 4 and a_sp2["spike_share"] >= 0.2, a_sp2
+a_few = reliability.assess(steady, None, {"alleen"})
+assert a_few["flags"] == ["weinig verkopers"] and a_few["severity"] == 1, a_few
+assert reliability.assess(nm_rows_([20.0] * 3), None) is None, "te weinig punten"
+
+# het hele overzicht, met eigen kaarten (collectie) apart
+fake60, store60 = new_store()
+store60.upsert_products([{"product_id": f"v-{k}", "kind": "card", "name": f"V{k}", "set_name": "Testset", "number": str(k), "dex_id": fd58} for k in range(8)])
+base60 = date(2026, 6, 1)
+for k in range(8):
+    pr_ = [20.0 + (i % 5) * 0.4 for i in range(110)]
+    if k in (2, 5):
+        for j in (60, 75, 90):
+            pr_[j] = 1450.0
+    store60.upsert_prices([{"product_id": f"v-{k}", "date": (base60 + timedelta(days=i)).isoformat(), "source": "pkmnprices", "grade_key": "nm", "price": pr_[i]} for i in range(110)])
+    store60.upsert_prices([{"product_id": f"v-{k}", "date": (base60 + timedelta(days=i)).isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 20.0, "avg30": 20.0, "avg7": 20.0} for i in range(40, 110)])
+fake60.t["collection"][(1,)] = {"id": "c60", "product_id": "v-5", "user_id": "u"}
+inputs60 = signals.load_inputs(store60, [f"v-{k}" for k in range(8)], (base60 - timedelta(days=5)).isoformat())
+logs60 = []
+out60, own60 = reliability.report(store60, inputs60, {}, (base60 + timedelta(days=109)).isoformat(), log=logs60.append)
+assert {pid for pid, a in out60.items() if a["severity"] >= 2} == {"v-2", "v-5"}, {pid: a["flags"] for pid, a in out60.items()}
+assert "v-5" in own60 and own60["v-5"]["flags"], own60
+txt60 = "\n".join(logs60)
+assert "de 2 verdachtste" in txt60 and "je eigen kaarten" in txt60 and "geen bewijs van manipulatie" in txt60 and "V5 (Testset #5)" in txt60, txt60
+
+# ============ 61. Alles samen: de uitgebreide analyse draait van begin tot eind ============
+logs61 = []
+prods61 = signals.famous_products(store58)
+inputs61 = signals.load_inputs(store58, prods61, (date.fromisoformat(today58) - timedelta(days=400)).isoformat())
+signals.extra_analysis(store58, today58, inputs61, prods61, log=logs61.append)
+txt61 = "\n".join(logs61)
+for needle in ("=== A. zoals het was", "=== B. met pieken eruit gehaald", "Eigen model, getraind op", "per prijsklasse", "=== Voorspellingen die we de afgelopen weken", "=== Betrouwbaarheid van de prijzen ===", "Prijsbetrouwbaarheid ("):
+    assert needle in txt61, (needle, txt61[:1500])
+
 print("alle tests geslaagd")

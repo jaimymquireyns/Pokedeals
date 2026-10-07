@@ -123,8 +123,8 @@ export async function detailView(root, pid, cid) {
   }
 
   // ---- laagste Near Mint-prijs (PkmnPrices) ----
-  const nmBox = nmRow && !graded && price ? h("div", { class: "nmbox" },
-    h("div", {}, h("div", { class: "k", text: "Near Mint vanaf" }), h("div", { class: "s", text: `Laagste aanbod, ${fmtDateLong(nmRow.date)}` })),
+  const nmBox = nmRow && !graded && price ? h("a", { class: "nmbox", target: "_blank", rel: "noopener", href: cardmarketHref(p, { nearMint: true }), "aria-label": "Near Mint-aanbiedingen op Cardmarket bekijken" },
+    h("div", {}, h("div", { class: "k", text: "Near Mint vanaf" }), h("div", { class: "s", text: `Laagste aanbod, ${fmtDateLong(nmRow.date)} · tik voor Cardmarket` })),
     h("div", { class: "r" }, h("div", { class: "v num", text: eur(Number(nmRow.price)) }), h("div", { class: "s", text: `${signed(Number(nmRow.price) / price - 1)} t.o.v. trend` }))) : null;
 
   // ---- kans, met een periode-kiezer (los van de standaardperiode in Instellingen) ----

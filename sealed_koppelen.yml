@@ -1,0 +1,39 @@
+name: Sealed koppelen aan PkmnPrices (eenmalig)
+
+# Koppelt onze sealed producten (boosterboxen, ETB's, ...) aan PkmnPrices, zodat ze een plaatje, een setnaam en prijsgeschiedenis krijgen.
+# De koppeling is exact: PkmnPrices geeft per product het Cardmarket-nummer mee, en dat staat ook in onze lijst.
+# Kost ongeveer 12.000 PkmnPrices-credits (1 per product in de lijst plus 1 per detailverzoek), dus draai het op een moment dat je
+# dagbudget niet nodig is (bijvoorbeeld net na de reset). Hervatbaar: producten die al gekoppeld zijn worden overgeslagen, dus is het
+# budget eerder op, dan draai je het later gewoon opnieuw. Daarna vult de dagelijkse update de sealed-geschiedenis zelf aan.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_credits:
+        description: "Maximaal aantal PkmnPrices-credits dat deze taak mag gebruiken"
+        default: "15000"
+
+concurrency:
+  group: pokedeals-data
+  cancel-in-progress: false
+
+jobs:
+  sealed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: collector/requirements.txt
+      - run: pip install -r collector/requirements.txt
+      - name: Sealed koppelen
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
+          MAX_CREDITS: ${{ github.event.inputs.max_credits }}
+        run: python enrich.py --sealed --max-credits "${MAX_CREDITS:-15000}"

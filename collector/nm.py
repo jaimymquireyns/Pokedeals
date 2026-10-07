@@ -244,7 +244,8 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
         if config.is_digital_set(p.get("set_id")):
             continue    # Pokémon TCG Pocket: bestaat niet op papier, dus ook niet bij PkmnPrices
         miss = p.get("pk_miss_on")
-        if miss and (t0 - date.fromisoformat(str(miss)[:10])).days < config.PK_MISS_RETRY_DAYS:
+        retry_days = config.PK_MISS_RETRY_DAYS_FAMOUS if p.get("dex_id") in config.FAMOUS_DEX_IDS else config.PK_MISS_RETRY_DAYS
+        if miss and (t0 - date.fromisoformat(str(miss)[:10])).days < retry_days:
             recent_miss += 1    # onlangs al gezocht en niet gevonden: niet elke nacht opnieuw credits aan uitgeven
             continue
         try:
@@ -275,7 +276,7 @@ def _map_and_refresh(store, pk, today, targets, products, log, flush_every=150, 
     if by_rule:
         log("  gekoppeld via: " + ", ".join(f"{k}: {v}" for k, v in sorted(by_rule.items())))
     if recent_miss:
-        log(f"  ({recent_miss} kaarten overgeslagen: onlangs al gezocht bij PkmnPrices zonder resultaat; opnieuw na {config.PK_MISS_RETRY_DAYS} dagen)")
+        log(f"  ({recent_miss} kaarten overgeslagen: onlangs al gezocht bij PkmnPrices zonder resultaat; opnieuw na {config.PK_MISS_RETRY_DAYS} dagen, beroemde Pokémon na {config.PK_MISS_RETRY_DAYS_FAMOUS})")
 
     all_rows, examples = [], []
     if not refresh_price:

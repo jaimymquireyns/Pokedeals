@@ -93,6 +93,8 @@ FAMOUS_HISTORY_DAYS = 180
 # Opschonen van de Near Mint-reeks. De Near Mint-'prijs' van PkmnPrices blijkt de laagste vraagprijs te zijn, geen
 # verkoopgemiddelde: als de goedkope exemplaren verdwijnen springt hij naar een absurd bedrag en blijft daar weken
 # staan (Lapras EUR1.450, Snorlax EUR1.949,99). Punten die zo'n piek zijn, tellen niet mee in analyses die dat aanzetten.
+EDGE_ENABLED = True            # eigen voorspelmodel (edge.py): elke dag voorspellingen vastleggen in card_signals om ze na 30 dagen echt te toetsen
+EDGE_HISTORY_DAYS = 400        # zoveel dagen prijsgeschiedenis om het model op te trainen (de backtest gebruikt dezelfde)
 CLEAN_NM = False             # voor de dagelijkse kansberekening; de signalen-backtest vergelijkt altijd beide versies
 CLEAN_FACTOR = 3.0           # een punt dat meer dan zoveel keer boven zijn referentie ligt, is een piek
 CLEAN_WINDOW_DAYS = 90       # referentie zonder Cardmarket-gemiddelde: de mediaan van de behouden punten van de laatste zoveel dagen
@@ -113,7 +115,9 @@ GRADED_RECHECK_DAYS = 14     # een kaart/graad met verkopen: pas na zoveel dagen
 GRADED_RECHECK_EMPTY_DAYS = 45   # een kaart/graad zonder enige verkoop: pas na zoveel dagen opnieuw
 GRADED_MAX_UNPARSED = 20     # noodrem: zoveel opvragingen achter elkaar WEL verkopen teruggekregen maar GEEN prijspunt herkend = de uitlezing klopt niet, stoppen
 PK_MISS_RETRY_DAYS = 30      # een kaart die PkmnPrices niet kon vinden, pas na zoveel dagen opnieuw zoeken (kostte elke nacht ~1 credit per kaart)
+PK_MISS_RETRY_DAYS_FAMOUS = 7    # beroemde Pokémon zijn belangrijker en PkmnPrices vult zijn lijst aan: die proberen we elke week opnieuw (de rest na PK_MISS_RETRY_DAYS)
 CM_LINKS_BUDGET = 1500       # PkmnPrices-credits per dag om per kaart de exacte Cardmarket-pagina op te zoeken (1 credit per kaart; ~6.000 kaarten = ongeveer 4 nachten)
+CM_RETRY_DAYS = 7              # een kaart die je gebruikt (collectie, watchlist, aanbiedingen) of van een beroemde Pokémon, waar PkmnPrices geen Cardmarket-adres voor had: elke week opnieuw proberen
 SNAPSHOT_PK_BUDGET = 6000    # PkmnPrices-credits per dag voor de marktmomentopname (alleen kandidaten; PokemonPriceTracker staat op het gratis plan)
 SNAPSHOT_PER_PAGE = 20       # aanbiedingen per kaart per opvraging; PkmnPrices rekent per rij, dus dit is ook het maximum aan credits per kaart
 SNAPSHOT_MAX_MINUTES = 40     # de aparte signalentaak krijgt 60 minuten van GitHub; de momentopname stopt ruim daarvoor

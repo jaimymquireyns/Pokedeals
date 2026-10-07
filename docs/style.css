@@ -346,3 +346,6 @@ dialog#scan{margin:0;width:100%;height:100%;max-width:none;max-height:none;backg
 .legend .lg.gain::before{border-top-color:var(--up)}
 .salesbox .chartcard{padding-top:8px}
 .salesbox .chartcard .seg{margin-bottom:8px}
+a.nmbox{color:inherit;text-decoration:none}
+.salefilters{padding:8px 16px 0;display:grid;gap:6px}
+.salefilters .seg{width:100%}

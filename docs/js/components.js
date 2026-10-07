@@ -14,8 +14,9 @@ export const gradeTag = (c) => (gradeLabel(c) ? h("span", { class: "gr", text: g
  * op naam en nummer (die kan meerdere kaarten van dezelfde Pokémon tonen). Alleen echte Cardmarket-adressen. */
 export const CM_PREFIX = "https://www.cardmarket.com/";
 export const hasExactCm = (p) => typeof p.cm_url === "string" && p.cm_url.startsWith(CM_PREFIX);
-export function cardmarketHref(p) {
-  if (hasExactCm(p)) return p.cm_url;
+export function cardmarketHref(p, { nearMint = false } = {}) {
+  // nearMint: Cardmarket kan de aanbiedingen op conditie filteren met minCondition (2 = Near Mint of beter); kent een pagina dat niet, dan wordt het genegeerd
+  if (hasExactCm(p)) return nearMint ? p.cm_url + (p.cm_url.includes("?") ? "&" : "?") + "minCondition=2" : p.cm_url;
   const q = [p.name, p.kind === "card" && p.number ? p.number : ""].join(" ").trim();
   return `${CM_PREFIX}en/Pokemon/Products/Search?searchString=${encodeURIComponent(q)}`;
 }
