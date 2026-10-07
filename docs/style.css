@@ -332,3 +332,17 @@ dialog#scan{margin:0;width:100%;height:100%;max-width:none;max-height:none;backg
 .dealgain{display:flex;align-items:baseline;gap:6px;margin-top:2px;font-size:13px;flex-wrap:wrap}
 .dealgain b{font-size:14px}
 .mini.warn{color:var(--amber)}
+/* ---- zoekbalken, filters op Home, grafiek op Verkocht ---- */
+.searchrow{padding:10px 16px 0}
+.sbox.fbox{width:100%}
+.fcount{padding:6px 16px 0;margin:0}
+.filters{display:grid;gap:6px;margin:12px 0 4px}
+.filters .seg{width:100%}
+.filterrow{display:flex;gap:10px;align-items:center;margin-top:4px}
+.filterrow .seg{flex:1}
+.emptyfilter{list-style:none;text-align:center;padding:6px 0 14px}
+.legend{display:flex;gap:16px;justify-content:center;font-size:13px;color:var(--muted);margin-top:6px}
+.legend .lg::before{content:"";display:inline-block;width:18px;height:0;border-top:3px solid var(--ink);vertical-align:middle;margin-right:6px}
+.legend .lg.gain::before{border-top-color:var(--up)}
+.salesbox .chartcard{padding-top:8px}
+.salesbox .chartcard .seg{margin-bottom:8px}

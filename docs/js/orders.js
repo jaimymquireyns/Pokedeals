@@ -113,7 +113,10 @@ export function openPurchaseOrder({ onDone } = {}) {
 
 // ---------------------------------------------------------------- verkoop
 /** Stap 1: kaarten uit je collectie aanvinken (met aantal). Stap 2: de bestelling invullen. */
-export function openSaleOrder(items, { onDone } = {}) {
+export function openSaleOrder(rawItems, { onDone } = {}) {
+  // A–Z op naam, dan op set en nummer: zo vind je een kaart snel terug in een lange lijst
+  const items = [...rawItems].sort((a, b) => String(a.name).localeCompare(String(b.name), "nl") || String(a.set_name || "").localeCompare(String(b.set_name || ""), "nl")
+    || String(a.number || "").localeCompare(String(b.number || ""), "nl", { numeric: true }));
   const pick = new Map();   // collection id -> aantal
   const list = h("div", { class: "olines" });
   const next = h("button", { class: "cta", type: "button", text: "Verder", onclick: () => {

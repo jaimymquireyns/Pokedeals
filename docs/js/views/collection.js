@@ -1,6 +1,6 @@
 import { isLoggedIn, rest } from "../api.js";
 import { lineChart, stepPoints } from "../chart.js";
-import { brandmark, collRow, detailHash, emptyNote, go, gradeTag } from "../components.js";
+import { brandmark, collRow, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery } from "../components.js";
 import { attention, costEach, gradeKey } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { openPurchaseOrder, openSaleOrder } from "../orders.js";
@@ -10,7 +10,7 @@ import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store,
 let ui = { tab: "bezit", kind: "alles", sort: "up", measure: "buy", range: "1M", attentionOpen: false, expanded: {}, ...store.get("pd:coll", {}) };
 const saveUi = () => store.set("pd:coll", ui);
 
-const SORTS = [["az", "A–Z"], ["set", "Set en nummer"], ["low", "Laagste waarde"], ["high", "Hoogste waarde"], ["up", "Grootste stijging"], ["down", "Grootste daling"]];
+const SORTS = [["az", "A–Z"], ["za", "Z–A"], ["new", "Nieuwste (laatst toegevoegd)"], ["set", "Set en nummer"], ["low", "Laagste waarde"], ["high", "Hoogste waarde"], ["up", "Grootste stijging"], ["down", "Grootste daling"]];
 const RANGES = [["1M", "1M"], ["3M", "3M"], ["1J", "1J"], ["MAX", "Max"]];
 const numCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "nl", { numeric: true });
 
@@ -29,8 +29,13 @@ export async function collectionView(root) {
 
   const val = (c) => (c.value_each ?? costEach(c)) * c.quantity;
   const gain = (c) => (ui.measure === "30d" ? (c.value_each && c.value_30d_ago ? c.value_each / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / costEach(c) - 1 : null));
+  // Het moment van toevoegen (created_at); zonder dat veld (de weergave is nog niet bijgewerkt) vallen we terug op de aankoopdatum.
+  // Een kaart met meerdere aankopen telt mee met zijn laatst toegevoegde aankoop.
+  const addedAt = (c) => String((c.copies ? c.copies.reduce((m, x) => (String(x.created_at || x.purchase_date || "") > m ? String(x.created_at || x.purchase_date || "") : m), "") : (c.created_at || c.purchase_date)) || "");
   const cmp = {
     az: (a, b) => a.name.localeCompare(b.name, "nl"),
+    za: (a, b) => b.name.localeCompare(a.name, "nl"),
+    new: (a, b) => addedAt(b).localeCompare(addedAt(a)) || a.name.localeCompare(b.name, "nl"),   // wanneer het aan de collectie is toegevoegd, niet de aankoopdatum
     set: (a, b) => (a.set_name || "").localeCompare(b.set_name || "", "nl") || numCmp(a.number, b.number),
     low: (a, b) => val(a) - val(b), high: (a, b) => val(b) - val(a),
     up: (a, b) => (gain(b) ?? -9) - (gain(a) ?? -9), down: (a, b) => (gain(a) ?? 9) - (gain(b) ?? 9),
@@ -57,10 +62,16 @@ export async function collectionView(root) {
   const list = h("ul", { class: "list" });
   const sortBtn = h("button", { class: "sortb", type: "button" });
 
+  let query = "";   // zoekbalk: wordt gewist zodra je van scherm wisselt
+  const countNote = h("p", { class: "mini fcount", hidden: true });
+  const searchBar = filterBox("Zoek op naam, set of nummer", (v) => { query = v; drawList(); });
   const drawList = () => {
     sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));
     sortBtn.setAttribute("aria-label", "Sorteren, nu: " + SORTS.find((s) => s[0] === ui.sort)[1]);
-    const vis = groups().filter((c) => ui.kind === "alles" || c.kind === ui.kind).sort(cmp[ui.sort]);
+    const ofKind = groups().filter((c) => ui.kind === "alles" || c.kind === ui.kind);
+    const vis = ofKind.filter((c) => matchQuery(query, [c.name, c.set_name, c.number, c.condition, c.grade_company ? `${c.grade_company} ${c.grade}` : ""], c.set_name)).sort(cmp[ui.sort]);
+    countNote.hidden = !query.trim();
+    countNote.textContent = `${vis.length} van ${ofKind.length} gevonden`;
     const groupRow = (g) => {
       const multi = g.copies.length > 1;
       const ggain = ui.measure === "30d"
@@ -86,7 +97,7 @@ export async function collectionView(root) {
         h("span", { class: "num", text: eur(costEach(c)) })));
       return h("li", { class: "collgroup" }, head, h("div", { class: "copies" }, ...copyRows));
     };
-    list.replaceChildren(...(vis.length ? vis.map(groupRow) : [emptyNote(items.length ? "Niets in deze selectie." : "Je collectie is leeg. Voeg kaarten toe via Zoeken of de camera.")]));
+    list.replaceChildren(...(vis.length ? vis.map(groupRow) : [emptyNote(query.trim() ? `Niets gevonden voor "${query.trim()}".` : items.length ? "Niets in deze selectie." : "Je collectie is leeg. Voeg kaarten toe via Zoeken of de camera.")]));
   };
 
   async function drawChart() {
@@ -163,7 +174,9 @@ export async function collectionView(root) {
       drawAttn(); return box;
     })() : null,
     h("div", { class: "chartcard" }, segment(RANGES, ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"), chartBox),
+    h("div", { class: "searchrow" }, searchBar.box),
     h("div", { class: "stick" }, segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], ui.kind, (k) => { ui.kind = k; saveUi(); drawList(); }), sortBtn),
+    countNote,
     list)));
   if (!owned) renderSales(salesBox, { onChange: reload });
   drawList();

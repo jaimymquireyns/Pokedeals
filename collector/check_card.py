@@ -66,14 +66,18 @@ def check(store, pk, product_id, log=print, today=None, listings=True, graded=Fa
         log(f"  ! prijsonderzoek mislukt: {type(e).__name__}: {e}")
 
 
-def show_graded(pk, pk_id, product_id, today, log=print):
-    """Toont het ruwe antwoord van PkmnPrices voor gegradeerde eBay-verkopen, plus wat onze uitlezing (graded_history.
-    parse_sales) daarvan maakt. Aanleiding: de uitlezing herkende niets (0 prijspunten uit ruim 9.000 opvragingen)."""
+def show_graded(pk, pk_id, product_id, today, log=print, usd_eur=None):
+    """Toont het ruwe antwoord van PkmnPrices voor gegradeerde eBay-verkopen, wat onze uitlezing (graded_history.parse_sales) daarvan
+    maakt, en of de cursor voor een tweede pagina werkt (kost 20 credits extra)."""
     import json
 
     import graded_history
-    for label, params in (("PSA 10", {"graded": "true", "grader": "PSA", "grade": "10", "per_page": 5}),
-                          ("alle gegradeerde (zonder filter)", {"graded": "true", "per_page": 5})):
+    if usd_eur is None:
+        import fx
+        import requests
+        usd_eur, _ = fx.usd_to_eur(requests.Session())
+    for i, (label, params) in enumerate((("PSA 10", {"graded": "true", "grader": "PSA", "grade": "10"}),
+                                         ("alle gegradeerde (zonder filter)", {"graded": "true"}))):
         log(f"  --- gegradeerde eBay-verkopen: {label} ---")
         try:
             body = pk.call(f"/cards/{pk_id}/listings/ebay", params)
@@ -82,17 +86,29 @@ def show_graded(pk, pk_id, product_id, today, log=print):
             continue
         rows = body.get("data") if isinstance(body, dict) else body
         rows = rows if isinstance(rows, list) else []
-        if isinstance(body, dict):
-            log(f"    antwoord bevat: {', '.join(sorted(body))}")
-            if body.get("pagination"):
-                log(f"    paginering: {json.dumps(body['pagination'], ensure_ascii=False)[:200]}")
-        log(f"    {len(rows)} verkopen teruggekregen")
+        pag = (body.get("pagination") or {}) if isinstance(body, dict) else {}
+        log(f"    {len(rows)} verkopen teruggekregen; paginering: {json.dumps(pag, ensure_ascii=False)[:160]}")
         if rows and isinstance(rows[0], dict):
             log(f"    velden per verkoop: {', '.join(sorted(rows[0]))}")
-        for r in rows[:3]:
-            log("    " + json.dumps(r, ensure_ascii=False)[:500])
-        parsed = graded_history.parse_sales(product_id, "PSA", "10", rows, today)
-        log(f"    onze uitlezing herkent daarvan: {len(parsed)} prijspunten" + (f"  (bijv. {parsed[0]['date']}: EUR{parsed[0]['price']})" if parsed else "   <-- NIETS: de veldnamen kloppen niet"))
+        for r in rows[:2]:
+            log("    " + json.dumps(r, ensure_ascii=False)[:420])
+        if i == 0:
+            stats = {}
+            parsed = graded_history.parse_sales(product_id, "PSA", "10", rows, today, usd_eur=usd_eur, stats=stats)
+            log(f"    onze uitlezing (USD->EUR {usd_eur:.4f}): {len(parsed)} prijspunten; overgeslagen: {stats}"
+                + (f"; bijv. {parsed[0]['date']}: EUR{parsed[0]['price']} (${parsed[0]['native']})" if parsed else "   <-- NIETS herkend"))
+            variants = sorted({str(r.get('variant')) for r in rows if isinstance(r, dict)})
+            log(f"    uitvoeringen in dit antwoord: {', '.join(variants) or '-'}; gekozen: {graded_history.pick_variant(rows) or '-'}")
+            if pag.get("has_more") and pag.get("next_cursor"):
+                try:
+                    b2 = pk.call(f"/cards/{pk_id}/listings/ebay", {**params, "cursor": pag["next_cursor"]})
+                    r2 = b2.get("data") if isinstance(b2, dict) else []
+                    r2 = r2 if isinstance(r2, list) else []
+                    same = bool(r2 and rows and r2[0].get("id") == rows[0].get("id"))
+                    log(f"    pagina 2 via cursor: {len(r2)} verkopen; eerste id {r2[0].get('id') if r2 else '-'}; "
+                        + ("GELIJK aan pagina 1: de cursor werkt NIET" if same else "anders dan pagina 1: de cursor werkt"))
+                except Exception as e:
+                    log(f"    ! pagina 2 opvragen mislukt: {e}")
 
 
 def explain_unlinked(pk, product, log=print):

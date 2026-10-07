@@ -1,5 +1,6 @@
 // Herbruikbare stukjes: labels, kansbalken en lijstrijen.
-import { eur, h, icon, pp, signed, thumb } from "./ui.js";
+import { debounce, eur, h, icon, pp, signed, thumb } from "./ui.js";
+import { SET_ALIASES } from "./cardsearch.js";
 import { costEach, gradeLabel } from "./model.js";
 
 export const go = (hash) => { location.hash = hash; };
@@ -24,6 +25,26 @@ export const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
   return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null;
 };
+
+const normText = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Zoekt in een lijst: elk woord dat je typt moet ergens voorkomen (naam, set, nummer, enz.). Een setafkorting als '30c' of 'obf' telt
+ * ook als de setnaam erbij past, net als bij Zoeken. Leeg = alles. fields: lijst teksten van deze regel; set: de setnaam. */
+export function matchQuery(q, fields, set = "") {
+  const toks = normText(q).split(/\s+/).filter(Boolean);
+  if (!toks.length) return true;
+  const hay = normText(fields.filter(Boolean).join(" "));
+  const setN = normText(set);
+  return toks.every((t) => hay.includes(t) || (SET_ALIASES[t] && setN.includes(normText(SET_ALIASES[t]))));
+}
+
+/** Zoekbalk boven een lijst; roept onInput aan terwijl je typt (met een korte pauze). Geeft { box, input } terug. */
+export function filterBox(placeholder, onInput, value = "") {
+  const input = h("input", { type: "search", placeholder, "aria-label": placeholder, value, autocomplete: "off", autocapitalize: "off", spellcheck: "false" });
+  const fire = debounce(() => onInput(input.value), 120);
+  input.addEventListener("input", fire);
+  return { box: h("label", { class: "sbox fbox" }, icon("search"), input), input };
+}
 
 /** Logo + naam, bovenaan elk scherm. */
 export const brandmark = () => h("div", { class: "brandmark" },

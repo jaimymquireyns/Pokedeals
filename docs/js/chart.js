@@ -29,7 +29,7 @@ function niceTicks(lo, hi, n = 3) {
  * series: [{ pts: [[ms, y], ...], stroke, width, dash }]  hlines: [{ y, label, dash }]
  * area:   { upper: pts, lower: pts, fill }  (vlak tussen twee lijnen)
  */
-export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Grafiek" }) {
+export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Grafiek", scrubSeries = null }) {
   const L = 50, R = 6, T = 10, B = 24;
   const all = [...series.flatMap((s) => s.pts), ...(area ? [...area.upper, ...area.lower] : [])];
   const xs = all.map((p) => p[0]);
@@ -43,7 +43,8 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
   const path = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join("");
 
   const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, class: "chart", role: "img", "aria-label": label });
-  for (const t of niceTicks(lo, hi)) {
+  for (const t0 of niceTicks(lo, hi)) {
+    const t = Math.abs(t0) < 1e-9 ? 0 : t0;   // geen '€ -0' op de nullijn
     svg.append(el("line", { class: "grid", x1: L, x2: width - R, y1: Y(t), y2: Y(t) }));
     svg.append(el("text", { x: L - 6, y: Y(t) + 4, "text-anchor": "end" }, eur(t).replace(/,00$/, "")));
   }
@@ -62,6 +63,44 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
   const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
   svg.append(el("text", { x: L, y: height - 6 }, fmtDate(iso(x0))));
   svg.append(el("text", { x: width - R, y: height - 6, "text-anchor": "end" }, fmtDate(iso(x1))));
+
+  // ---- schuifbalk met meerdere lijnen (bijv. kost en winst): tik of sleep om op elke datum alle waarden te zien ----
+  const multi = scrubSeries && scrubSeries.length > 1 ? scrubSeries.map((i) => series[i]).filter((s) => s?.pts?.length > 1) : null;
+  if (multi && multi.length > 1) {
+    const base = multi[0].pts;
+    const guide = el("line", { class: "scrubline", x1: 0, x2: 0, y1: T, y2: height - B, style: "display:none" });
+    const dots = multi.map((s) => el("circle", { class: "scrubdot", r: 4, style: `display:none;fill:${s.stroke}` }));
+    const tagBg = el("rect", { class: "scrubtag", rx: 6, style: "display:none" });
+    const texts = [el("text", { class: "scrubtxt", style: "display:none;font-weight:700" }), ...multi.map(() => el("text", { class: "scrubtxt", style: "display:none;font-weight:800" }))];
+    svg.append(guide, ...dots, tagBg, ...texts);
+    const atX = (pts, px) => pts.reduce((b, p) => (Math.abs(p[0] - px) < Math.abs(b[0] - px) ? p : b), pts[0]);
+    const showM = (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const mx = Math.min(Math.max(((clientX - rect.left) / rect.width) * width, L), width - R);
+      const target = x0 + ((mx - L) / (width - L - R)) * (x1 - x0);
+      const px = atX(base, target)[0], gx = X(px);
+      guide.setAttribute("x1", gx); guide.setAttribute("x2", gx); guide.style.display = "";
+      const lines = [fmtDate(iso(px))];
+      multi.forEach((s, i) => {
+        const p = atX(s.pts, px);
+        dots[i].setAttribute("cx", X(p[0])); dots[i].setAttribute("cy", Y(p[1])); dots[i].style.display = "";
+        lines.push(`${s.name || "Waarde"} ${eur(p[1])}`);
+      });
+      const boxW = Math.max(...lines.map((l) => l.length)) * 6.3 + 14, boxH = 14 + lines.length * 14;
+      const bx = Math.min(Math.max(gx - boxW / 2, L), width - R - boxW);
+      tagBg.setAttribute("x", bx); tagBg.setAttribute("y", T); tagBg.setAttribute("width", boxW); tagBg.setAttribute("height", boxH); tagBg.style.display = "";
+      texts.forEach((t, i) => { t.setAttribute("x", bx + 7); t.setAttribute("y", T + 13 + i * 14); t.textContent = lines[i]; t.style.display = ""; });
+    };
+    const hideM = () => { for (const n of [guide, ...dots, tagBg, ...texts]) n.style.display = "none"; };
+    svg.style.touchAction = "pan-y";
+    svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture(e.pointerId); showM(e); });
+    svg.addEventListener("pointermove", (e) => { if (e.buttons || e.pointerType === "touch") showM(e); });
+    svg.addEventListener("pointerup", hideM);
+    svg.addEventListener("pointercancel", hideM);
+    svg.addEventListener("pointerleave", (e) => { if (!e.buttons) hideM(); });
+    return svg;
+  }
 
   // ---- schuifbalk: sleep of tik over de grafiek om de prijs op elke dag te zien ----
   const scrub = series[0]?.pts?.length > 1 ? series[0].pts : null;
