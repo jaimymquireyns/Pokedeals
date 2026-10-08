@@ -158,6 +158,8 @@ export const ADVICE_FLAG_TEXT = {
   "aanbod verdwijnt": "het aanbod is de laatste 2 weken plots gehalveerd: mogelijk opgekocht",
   "te goedkoop": "de goedkoopste aanbieding is verdacht laag: mogelijk een andere versie, slechte staat of een lokvogel",
   "niet bevestigd": "de hoge prijs komt niet terug in de echte verkopen",
+  onwaarschijnlijk: "de prijs zou meer dan 3 keer zo hoog of laag zijn als normaal: waarschijnlijk klopt de koppeling met Cardmarket niet",
+  "trend wijkt af": "Cardmarkets trendprijs ligt ver van wat de kaart nu echt kost (de goedkoopste Near Mint-aanbiedingen); een paar uitschieters trekken hem scheef",
 };
 
 /** Wat je overhoudt als je nu koopt (met verzending) en verkoopt op de normale prijs (min commissie en verpakking), als deel van wat je betaalde. */
@@ -201,6 +203,7 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
         reasons: [where, sales, pText, `Koop je er nu één bij en verkoop je die als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Geen aanwijsbare reden voor de daling gevonden (geen herdruk, de rest van de set en de markt staan gewoon). Zulke dalingen herstellen meestal, maar niet altijd."] };
       return { label: "Houden", tone: "hold", short: "De prijs staat tijdelijk laag: nu verkopen zet verlies vast.", reasons: [where, sales, pText, "Prijzen die ver onder normaal staan, herstellen meestal."] };
     }
+    if (Math.abs(ratio) > 0.25) return { label: "Houden", tone: "hold", short: "De prijs schommelt sterk de laatste week: nog geen duidelijk beeld.", reasons: [where, sales, pText, "We geven pas een advies als een hoge of lage prijs een hele week aanhoudt."].filter(Boolean) };
     return { label: "Houden", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where, pText].filter(Boolean) };
   }
   if (a.state === "laag" && ctxDrop.length) {
@@ -216,6 +219,7 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
     return { label: "Afwachten", tone: "hold", short: price < ADVICE.minBuyPrice ? "Onder normaal, maar te goedkoop: de kosten eten de winst op." : "Onder normaal, maar na kosten blijft er te weinig over.", reasons: [where, sales] };
   }
   if (a.state === "hoog") return { label: "Afwachten", tone: "hold", short: "De prijs staat nu ruim boven normaal: geen goed moment om te kopen.", reasons: [where, sales] };
+  if (Math.abs(ratio) > 0.25) return { label: "Afwachten", tone: "hold", short: "De prijs schommelt sterk de laatste week: nog geen duidelijk beeld.", reasons: [where, sales, "We geven pas een advies als een hoge of lage prijs een hele week aanhoudt."] };
   return { label: "Afwachten", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where] };
 }
 

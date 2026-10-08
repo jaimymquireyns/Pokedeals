@@ -975,7 +975,7 @@ spy = SpySess()
 nm.find_card(pkmnprices.PkmnPrices("pk", session=spy), {"name": "Charizard ex", "number": "125", "set_name": "S"})
 assert spy.seen[0]["number"] == "125" and spy.seen[0]["per_page"] == 15, spy.seen[0]
 assert len(spy.seen) == 1, "max_pages=1: er wordt geen 2e pagina meer opgehaald, ook al zijn er meer beschikbaar"
-assert config.PK_BUDGET <= 70000, "dagbudget van de geplande taken blijft bewust onder het echte Pro-plan (75.000), zodat er credits overblijven om zelf mee te testen"
+assert config.PK_BUDGET <= 72000, "dagbudget van de geplande taken blijft onder het echte Pro-plan (75.000), zodat er een paar duizend credits overblijven om zelf mee te testen"
 
 # ============ 22. extra_targets: een kaart met meerdere periodes komt maar 1x in de lijst ============
 fc_multi = [{"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0},
@@ -3008,5 +3008,23 @@ assert advice.after_peak(_flat_nm, _T) == 1.0 and advice.after_peak(_flat_nm[:5]
 _ctx3 = advice.context_flags({"p": {"state": "laag", "ratio": 0.7}, **{f"m{i}": {"state": "normaal", "ratio": 1.0} for i in range(20)}},
                              {"p": {"kind": "card", "name": "Pp", "set_id": "x"}}, _sets, _T, nm={"p": _peak_nm})
 assert [k for k, _ in _ctx3["p"]] == ["na een piek"], _ctx3
+
+# -- trendprijs tegen wat de kaart echt kost: Charizard G Lv.65 (trend 165, aanbiedingen rond 50) --
+a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), None, _T, ask=50)
+assert a["state"] == "verdacht" and "trend wijkt af" in a["flags"], a
+a = advice.assess(_raw([100] * 20), None, _T, ask=95)
+assert a["state"] == "normaal", "trend en aanbiedingen liggen dicht bij elkaar: gewoon"
+# meer dan 3x normaal, ook als de week gemengd is: verdacht (niet 'normaal')
+a = advice.assess(_raw([100] * 12 + [100, 900, 900, 950, 1000, 1000, 1000, 1000]), None, _T)
+assert a["state"] == "verdacht" and "onwaarschijnlijk" in a["flags"], a
+
+# -- advies-gegevens: eigen kaarten eerst, dan koopkandidaten (duurste eerst), dan hoog, dan verdacht; goedkope kaarten niet --
+import advice_data
+fakeD, storeD = new_store()
+storeD.upsert_products([{"product_id": x, "kind": "card", "name": x} for x in ("own", "l1", "l2", "h1", "v1", "cheap")])
+for pid, st, pr in (("l1", "laag", 20), ("l2", "laag", 80), ("h1", "hoog", 50), ("v1", "verdacht", 500), ("cheap", "laag", 4)):
+    fakeD.t["advice"][(pid, _T)] = {"product_id": pid, "date": _T, "state": st, "price": pr}
+fakeD.t["collection"][("c",)] = {"id": "c", "product_id": "own", "quantity": 1}
+assert advice_data.targets(storeD, _T, log=quiet) == ["own", "l2", "l1", "h1", "v1"]
 
 print("alle tests geslaagd")

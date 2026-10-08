@@ -46,14 +46,15 @@ def candidates(store, today):
     return tracked, [r["product_id"] for r in new]
 
 
-def run(store, pk, today, log=print, deadline=None):
+def run(store, pk, today, log=print, deadline=None, only=None, budget=None):
+    """only: een eigen lijst kaarten (bijv. de kaarten met een advies), in plaats van de gewone kandidaten; budget: eigen creditlimiet."""
     if pk is None:
         log("Marktmomentopname: geen PKMN_API_KEY, overgeslagen.")
         return 0
     start = pk.credits
-    budget, per_page = config.SNAPSHOT_PK_BUDGET, config.SNAPSHOT_PER_PAGE
+    budget, per_page = (budget or config.SNAPSHOT_PK_BUDGET), config.SNAPSHOT_PER_PAGE
     over = lambda: pk.over_budget() or pk.credits - start + per_page > budget or (deadline is not None and time.time() >= deadline)
-    tracked, new = candidates(store, today)
+    tracked, new = (list(only), []) if only is not None else candidates(store, today)
     done_today = {r["product_id"] for r in store.select("market_snapshots", {"select": "product_id", "date": f"eq.{today}"})}
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
     order = [pid for pid in tracked + new if pid in products and pid not in done_today]

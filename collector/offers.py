@@ -108,14 +108,14 @@ def parse_offers(product_id, rows, today, limit=LIMIT):
     return out
 
 
-def run(store, pk, today, log=print, deadline=None, only=None):
+def run(store, pk, today, log=print, deadline=None, only=None, max_age_days=REFRESH_DAYS):
     """only: als je maar een specifieke, kleine lijst kaarten wilt (bijv. alleen je collectie, als eerste
     prioriteitsronde), geef die dan hier mee in plaats van de volledige prioriteitslijst te gebruiken."""
     cands = only if only is not None else candidates(store)
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
     cands = [pid for pid in cands if pid in products]
-    todo = stale(store, cands, today)
-    log(f"Laagste aanbiedingen: {len(cands)} kaarten in aanmerking, {len(todo)} zijn aan de beurt (ouder dan {REFRESH_DAYS} dagen of nog nooit opgehaald)")
+    todo = stale(store, cands, today, max_age_days=max_age_days)
+    log(f"Laagste aanbiedingen: {len(cands)} kaarten in aanmerking, {len(todo)} zijn aan de beurt (ouder dan {max_age_days} dagen of nog nooit opgehaald)")
 
     done, rows_total, save_fails = 0, 0, 0
     for pid in todo:
