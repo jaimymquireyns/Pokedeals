@@ -307,6 +307,26 @@ def main():
             page.wait_for_selector("dialog#scan:not([open])", state="attached")
             check(len(mock.db["collection"]) == 3, "gescande kaart toegevoegd na bevestigen")
 
+            print("Scan: foto uit de galerij")
+            import base64
+            png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+            page.locator(".camb").click()
+            page.wait_for_selector(".scan video")
+            check(page.locator(".scan input[type=file]:not([capture])").count() == 1, "galerij-kiezer zonder 'capture' (opent de galerij, niet de camera)")
+            check("Gallery" in page.inner_text(".vf-top"), "knop 'Gallery' rechtsboven")
+            page.locator(".scan input[type=file]:not([capture])").set_input_files({"name": "kaart.png", "mimeType": "image/png", "buffer": png})
+            page.wait_for_selector(".scanpanel .addform")
+            check("Charizard ex" in page.inner_text(".scanpanel .found"), "foto uit de galerij herkend")
+            page.keyboard.press("Escape")
+            page.wait_for_selector("dialog#scan:not([open])", state="attached")
+            print("Scan: geen camera beschikbaar")
+            page.evaluate("() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error('denied')); }")
+            page.locator(".camb").click()
+            page.wait_for_selector(".pickbtns")
+            check("Take photo" in page.inner_text(".pickbtns") and "From gallery" in page.inner_text(".pickbtns"), "zonder camera: knoppen 'Take photo' en 'From gallery'")
+            page.keyboard.press("Escape")
+            page.wait_for_selector("dialog#scan:not([open])", state="attached")
+
             print("Collectie")
             for c in mock.db["collection"]:
                 c["purchase_date"] = "2026-08-01"      # zodat er al een grafiek te tekenen valt
