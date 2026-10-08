@@ -29,7 +29,9 @@ async function findCandidates(parsed) {
     if (seen.size && [...seen.values()].some((x) => parsed.number && normNum(x.number) === normNum(parsed.number) && (!parsed.total || String(x.set_total) === String(Number(parsed.total))))) break;
   }
   // nummer verkeerd gelezen, maar naam en settotaal wel ('159/128' i.p.v. 149/128): alle kaarten met die naam uit sets van die grootte
-  if (parsed.name && parsed.total && !rankCandidates(parsed, [...seen.values()]).some((x) => normNum(x.number) === normNum(parsed.number))) {
+  const best = rankCandidates(parsed, [...seen.values()])[0];
+  const term = (searchTerm(parsed) || "").toLowerCase();
+  if (parsed.name && parsed.total && term && !(best && normNum(best.number) === normNum(parsed.number) && String(best.name).toLowerCase().includes(term))) {
     const word = searchTerm(parsed) || "";
     try {
       const extra = await rest.get(`v_search?select=*&kind=eq.card&name=ilike.*${encodeURIComponent(word.replace(/[*,()]/g, ""))}*&set_total=eq.${Number(parsed.total)}&limit=40`);

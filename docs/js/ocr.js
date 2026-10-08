@@ -39,11 +39,13 @@ export function rankCandidates(parsed, rows) {
   return rows.map((r) => {
     const n = norm(r.name);
     let s = 0;
-    if (full && n === full) s += 3; else if (first && n.startsWith(first)) s += 2; else if (first && n.includes(first)) s += 1;
+    // de naam weegt het zwaarst: een verkeerd gelezen cijfer komt vaker voor dan een kaart met een heel andere naam
+    if (full && n === full) s += 4; else if (first && n.startsWith(first)) s += 3; else if (first && n.includes(first)) s += 2;
+    else if (first) s -= 2;
     if (parsed.number && normNum(r.number) === normNum(parsed.number)) s += 3;
     if (parsed.total && r.set_total != null && String(Number(r.set_total)) === String(Number(parsed.total))) s += 2;
     return { ...r, score: s };
-  }).filter((r) => r.score > 0).sort((a, b) => b.score - a.score).slice(0, 6);
+  }).filter((r) => r.score > 0).sort((a, b) => b.score - a.score).slice(0, 6);   // (bij score 0 of lager: niets dat bij de foto past)
 }
 
 /** De onderrand van een kaart: nummer ("149/128", "TG05/TG30", "SWSH074") en setcode ("30C", "OBF", "PAF"). OCR haalt de streep
