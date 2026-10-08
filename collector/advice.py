@@ -319,7 +319,13 @@ def dry_run(store, today, log=print, top=15):
 
 
 if __name__ == "__main__":
+    # python advice.py          advies berekenen en opslaan (zoals in de dagelijkse update)
+    # python advice.py --proef  alleen berekenen en tonen, niets opslaan
     import os
+    import sys
     from store import SupabaseStore
     st = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
-    dry_run(st, date.today().isoformat())
+    if "--proef" in sys.argv:
+        dry_run(st, date.today().isoformat())
+    else:
+        run(st, date.today().isoformat())

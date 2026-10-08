@@ -1,0 +1,33 @@
+name: Advies berekenen
+
+# Rekent alleen het advies (kopen / verkopen / houden / verdacht) opnieuw uit, met de prijzen die er al zijn.
+# Kost geen PkmnPrices-credits en duurt een paar minuten. De dagelijkse update doet dit ook elke ochtend.
+on:
+  workflow_dispatch:
+    inputs:
+      proef:
+        description: "Alleen bekijken, niets opslaan? (ja/nee)"
+        default: "nee"
+
+concurrency:
+  group: pokedeals-advies
+  cancel-in-progress: false
+
+jobs:
+  advies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Advies berekenen
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PROEF: ${{ github.event.inputs.proef }}
+        run: |
+          if [ "$PROEF" = "ja" ]; then python advice.py --proef; else python advice.py; fi
