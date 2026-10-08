@@ -1,7 +1,7 @@
 import { isLoggedIn, rest } from "../api.js";
 import { lineChart, stepPoints } from "../chart.js";
-import { adviceChip, brandmark, collRow, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery } from "../components.js";
-import { adviceFor, attention, costEach, gradeKey } from "../model.js";
+import { adviceChip, brandmark, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery, moveCell } from "../components.js";
+import { adviceFor, attention, costEach, gradeKey, outlook } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { openPurchaseOrder, openSaleDetails } from "../orders.js";
 import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store, thumb } from "../ui.js";
@@ -28,6 +28,7 @@ export async function collectionView(root) {
 
   // advies per kaart (Verkopen / Houden / Verdacht); zonder adviestabel gewoon zonder
   const advRows = new Map();
+  const advStats = await rest.get("advice_stats?select=*").catch(() => []);
   const ids = [...new Set(items.map((c) => c.product_id))];
   for (let i = 0; i < ids.length; i += 100) {
     try {
@@ -36,6 +37,7 @@ export async function collectionView(root) {
   }
   const settings = getSettings();
   const adviceOf = (g) => adviceFor(advRows.get(g.product_id), { owned: g, s: settings });
+  const outlookOf = (g) => (g.grade_company ? null : outlook(advRows.get(g.product_id), advStats));
 
   const val = (c) => (c.value_each ?? costEach(c)) * c.quantity;
   const gain = (c) => (ui.measure === "30d" ? (c.value_each && c.value_30d_ago ? c.value_each / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / costEach(c) - 1 : null));
@@ -108,7 +110,6 @@ export async function collectionView(root) {
       const ggain = ui.measure === "30d"
         ? (g.value_each && g.value_30d_ago ? g.value_each / g.value_30d_ago - 1 : null)
         : (g._invested ? g._value / g._invested - 1 : null);
-      const cls = ggain == null ? "" : ggain < 0 ? " neg" : "";
       const head = h("button", { class: "rowc grouphead", type: "button", onclick: () => {
         if (selecting) { if (picked.has(g.key)) picked.delete(g.key); else picked.add(g.key); drawSel(); drawList(); return; }
         if (!multi) { go(detailHash(g.product_id, g.id)); return; }
@@ -116,13 +117,12 @@ export async function collectionView(root) {
       } },
         h("span", { class: "gthumb" }, thumb(g.image, "ph", g.kind === "sealed", g.kind === "sealed" ? "" : [g.name, g.number ? "#" + g.number : ""].filter(Boolean).join(" "))),
         h("div", { class: "body" },
-          h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g), adviceChip(adviceOf(g), true)),
+          h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g)),
           h("span", { class: "set", text: (g.set_name || "") + (g.number && g.kind === "card" ? ` #${g.number}` : "") }),
-          h("span", { class: "set", text: multi ? `${g.copies.length} aankopen · ${g.quantity} stuks` : `${g.quantity > 1 ? g.quantity + "x, " : ""}gekocht voor ${eur(g.purchase_price)}` })),
-        h("div", { class: "p" },
-          h("span", { class: "v num", text: eur(g._value) }),
-          h("span", { class: "pc" + cls, text: ggain == null ? "prijs onbekend" : signed(ggain) }),
-          multi ? icon("chev", ui.expanded[g.key] ? "flip" : "") : null));
+          multi || g.quantity > 1 || adviceChip(adviceOf(g)) ? h("span", { class: "meta" }, adviceChip(adviceOf(g)),
+            multi ? h("span", { class: "set", text: `${g.copies.length} aankopen` }) : g.quantity > 1 ? h("span", { class: "set", text: `${g.quantity}x` }) : null,
+            multi ? icon("chev", ui.expanded[g.key] ? "flip" : "") : null) : null),
+        moveCell({ value: eur(g._value), change: ggain, outlook: outlookOf(g) }));
       if (selecting) {
         const box = h("input", { type: "checkbox", class: "selbox", "aria-label": `${g.name} selecteren`, checked: picked.has(g.key) ? "checked" : null,
           onchange: (e) => { if (e.target.checked) picked.add(g.key); else picked.delete(g.key); drawSel(); drawList(); } });
@@ -188,12 +188,12 @@ export async function collectionView(root) {
       const body = h("ul", { class: "advlist", hidden: !ui.adviceOpen }, ...list.map(({ g, a }) => h("li", {},
         h("button", { type: "button", class: "advrow", onclick: () => go(detailHash(g.product_id, g.copies[0].id)) },
           thumb(g.image, "ph", g.kind === "sealed"),
-          h("span", { class: "bl" }, h("b", { text: g.name }), h("small", { text: a.short })),
-          h("span", { class: "r" }, adviceChip(a), h("span", { class: "num", text: eur(g._value) }))))));
+          h("span", { class: "bl" }, h("b", { text: g.name }), h("span", {}, adviceChip(a))),
+          moveCell({ value: eur(g._value), outlook: outlookOf(g) })))));
       const sell = list.filter((x) => x.a.tone === "sell").length, buy = list.filter((x) => x.a.tone === "buy").length, warn = list.length - sell - buy;
       return h("div", { class: "attn" },
         h("button", { class: "attnhead", type: "button", onclick: (e) => { ui.adviceOpen = !ui.adviceOpen; saveUi(); body.hidden = !ui.adviceOpen; e.currentTarget.querySelector(".icw").replaceWith(icon("chev", ui.adviceOpen ? "flip" : "")); } },
-          h("h3", { text: `Advies: ${[sell ? `${sell}× verkopen` : "", buy ? `${buy}× bijkopen` : "", warn ? `${warn}× verdacht` : ""].filter(Boolean).join(", ")}` }), icon("chev", ui.adviceOpen ? "flip" : "")),
+          h("h3", { text: `Advies: ${[sell ? `${sell}× nu verkopen` : "", buy ? `${buy}× bijkopen` : "", warn ? `${warn}× let op` : ""].filter(Boolean).join(", ")}` }), icon("chev", ui.adviceOpen ? "flip" : "")),
         body);
     })(),
     attn.length ? (() => {

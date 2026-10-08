@@ -167,9 +167,9 @@ export const recoveryGain = (price, normal, s = DEFAULT_SETTINGS) =>
   (normal * (1 - s.fee_pct / 100) - PACKAGING - (price + shipCost(price))) / (price + shipCost(price));
 
 /** a: rij uit v_advice (of null); owned: collectieregel (of groep) als je de kaart hebt. Geeft { label, tone, short, reasons }.
- * label: "Verkopen" | "Kopen" | "Houden" | "Afwachten" | "Verdacht"; tone: sell | buy | hold | warn. */
+ * label: "Nu verkopen" | "Goede koop" | "Bijkopen" | "Bewaren" | "Afwachten" | "Let op"; tone: sell | buy | hold | warn. */
 export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
-  const hold = owned ? "Houden" : "Afwachten";
+  const hold = owned ? "Bewaren" : "Afwachten";
   if (owned && owned.grade_company) return { label: hold, tone: "hold", short: "Geen advies voor gegradeerde kaarten.", reasons: ["Het advies kijkt naar Cardmarket-prijzen van gewone kaarten; voor gegradeerde kaarten zijn er te weinig verkopen om het betrouwbaar te maken."] };
   if (!a || a.state === "onbekend" || !a.normal || !a.price) {
     return { label: hold, tone: "hold", short: "Nog te weinig prijsgegevens voor een advies.", reasons: ["We hebben minstens een paar weken prijzen en een normale prijs nodig om iets te zeggen."] };
@@ -180,7 +180,7 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
   const sales = a.sales7 ? `Echte verkopen de laatste week: gemiddeld ${eur(Number(a.sales7))}; op ${a.sale_days} van de laatste 14 dagen verkocht.` : "De laatste week geen verkoopgemiddelde bekend.";
   if (a.state === "verdacht") {
     const why = (a.flags || []).map((f) => ADVICE_FLAG_TEXT[f] || f);
-    return { label: "Verdacht", tone: "warn", short: "De prijs lijkt gestuurd of onbetrouwbaar: geen advies.",
+    return { label: "Let op", tone: "warn", short: "De prijs lijkt gestuurd of onbetrouwbaar: geen advies.",
       reasons: [where, ...why.map((w) => w.charAt(0).toUpperCase() + w.slice(1) + "."), "Daarom geven we hier bewust geen kopen- of verkopenadvies."] };
   }
   // achtergrondcontrole (collector/advice.py): heeft de daling of stijging een aanwijsbare reden?
@@ -191,20 +191,20 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
     const net = price * (1 - s.fee_pct / 100) - PACKAGING, cost = costEach(owned), profit = cost ? net / cost - 1 : null;
     const pText = profit == null ? "" : `Verkoop je nu, dan hou je na commissie en verpakking ongeveer ${eur(net)} per stuk over: ${signed(profit)} op wat je betaalde (${eur(cost)}).`;
     if (a.state === "hoog" && profit != null && profit >= ADVICE.sellProfit) {
-      return { label: "Verkopen", tone: "sell", short: `Prijs staat ruim boven normaal en je maakt ${signed(profit)} winst.`,
+      return { label: "Nu verkopen", tone: "sell", short: `Prijs staat ruim boven normaal en je maakt ${signed(profit)} winst.`,
         reasons: [where, sales, pText, ...ctxReasons, "Prijzen die zo ver boven normaal staan, zakken meestal weer terug."] };
     }
-    if (a.state === "hoog") return { label: "Houden", tone: "hold", short: "De prijs is hoog, maar na kosten hou je nog te weinig over.", reasons: [where, sales, pText, ...ctxReasons] };
+    if (a.state === "hoog") return { label: "Bewaren", tone: "hold", short: "De prijs is hoog, maar na kosten hou je nog te weinig over.", reasons: [where, sales, pText, ...ctxReasons] };
     if (a.state === "laag") {
       const gain = recoveryGain(price, normal, s);
-      if (ctxDrop.length) return { label: "Houden", tone: "hold", short: `De prijs staat laag, maar daar is een reden voor: ${ctxDrop[0].text}.`,
+      if (ctxDrop.length) return { label: "Bewaren", tone: "hold", short: `De prijs staat laag, maar daar is een reden voor: ${ctxDrop[0].text}.`,
         reasons: [where, sales, pText, ...ctxReasons, "Daarom raden we bijkopen nu af: zo'n daling herstelt minder vaak vanzelf. Verkopen zet wel verlies vast."] };
       if (price >= ADVICE.minBuyPrice && gain >= ADVICE.buyGain) return { label: "Bijkopen", tone: "buy", short: `Tijdelijk ${signed(-ratio).replace("+", "")} onder normaal; bijkopen levert ${signed(gain)} op als hij herstelt.`,
         reasons: [where, sales, pText, `Koop je er nu één bij en verkoop je die als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Geen aanwijsbare reden voor de daling gevonden (geen herdruk, de rest van de set en de markt staan gewoon). Zulke dalingen herstellen meestal, maar niet altijd."] };
-      return { label: "Houden", tone: "hold", short: "De prijs staat tijdelijk laag: nu verkopen zet verlies vast.", reasons: [where, sales, pText, "Prijzen die ver onder normaal staan, herstellen meestal."] };
+      return { label: "Bewaren", tone: "hold", short: "De prijs staat tijdelijk laag: nu verkopen zet verlies vast.", reasons: [where, sales, pText, "Prijzen die ver onder normaal staan, herstellen meestal."] };
     }
-    if (Math.abs(ratio) > 0.25) return { label: "Houden", tone: "hold", short: "De prijs schommelt sterk de laatste week: nog geen duidelijk beeld.", reasons: [where, sales, pText, "We geven pas een advies als een hoge of lage prijs een hele week aanhoudt."].filter(Boolean) };
-    return { label: "Houden", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where, pText].filter(Boolean) };
+    if (Math.abs(ratio) > 0.25) return { label: "Bewaren", tone: "hold", short: "De prijs schommelt sterk de laatste week: nog geen duidelijk beeld.", reasons: [where, sales, pText, "We geven pas een advies als een hoge of lage prijs een hele week aanhoudt."].filter(Boolean) };
+    return { label: "Bewaren", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where, pText].filter(Boolean) };
   }
   if (a.state === "laag" && ctxDrop.length) {
     return { label: "Afwachten", tone: "hold", short: `Onder normaal, maar met een reden: ${ctxDrop[0].text}.`,
@@ -213,7 +213,7 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
   if (a.state === "laag") {
     const gain = recoveryGain(price, normal, s);
     if (price >= ADVICE.minBuyPrice && gain >= ADVICE.buyGain) {
-      return { label: "Kopen", tone: "buy", short: `${signed(-ratio).replace("+", "")} onder normaal; ${signed(gain)} winst als hij herstelt.`,
+      return { label: "Goede koop", tone: "buy", short: `${signed(-ratio).replace("+", "")} onder normaal; ${signed(gain)} winst als hij herstelt.`,
         reasons: [where, sales, `Koop je nu (met ongeveer ${eur(shipCost(price))} verzending) en verkoop je als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Geen aanwijsbare reden voor de daling gevonden (geen herdruk, de rest van de set en de markt staan gewoon). Zulke dalingen herstellen meestal, maar niet altijd."] };
     }
     return { label: "Afwachten", tone: "hold", short: price < ADVICE.minBuyPrice ? "Onder normaal, maar te goedkoop: de kosten eten de winst op." : "Onder normaal, maar na kosten blijft er te weinig over.", reasons: [where, sales] };
@@ -234,3 +234,33 @@ export function adviceTrack(stats, state) {
   if (ctrl && ctrl.n >= 30 && st.n >= 30 && pct(st) <= pct(ctrl)) return base + " Dat is nog niet beter dan toeval: neem dit advies met een korrel zout.";
   return base;
 }
+
+// ---------------------------------------------------------------- vooruitzicht in één oogopslag (balkje rood → groen)
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+/** Verwachte beweging en de kans dat die echt gebeurt, voor het balkje in de lijsten. Alleen bij een kaart die al een week
+ * ruim onder (laag) of boven (hoog) zijn normale prijs staat: dan verwachten we dat hij terugkeert naar normaal.
+ * move: verwachte stijging (+) of daling (−) tot de normale prijs, als fractie. chance: 0..1.
+ * Zolang er geen gecontroleerde uitkomsten zijn, telt de kans hoeveel controles de kaart doorstaat (verkopen, aantal
+ * verkoopdagen, eigen Near Mint-geschiedenis, geen reden voor de daling, geen waarschuwingen). Vanaf 30 uitkomsten
+ * (advice_stats) vertrekt de kans van hoe vaak dit soort advies echt uitkwam, en schuiven de controles hem wat op of neer. */
+export function outlook(a, stats = null) {
+  if (!a || (a.state !== "laag" && a.state !== "hoog")) return null;
+  const price = Number(a.price), normal = Number(a.normal);
+  if (!price || !normal) return null;
+  const move = normal / price - 1;
+  let score = 0.5;
+  score += 0.15 * clamp((Number(a.sale_days) || 0) / 14, 0, 1);                       // vaak verkocht: de prijs is echt
+  const s7 = Number(a.sales7) || 0;
+  if (s7 && Math.abs(s7 / price - 1) <= 0.15) score += 0.1;                             // de verkopen liggen rond de huidige prijs
+  if (a.basis === "nm") score += 0.05;                                                  // normaal komt uit 90 dagen eigen geschiedenis
+  score -= 0.2 * Math.min((a.context || []).length, 2);                                 // er is een reden voor de beweging
+  score -= 0.1 * Math.min((a.flags || []).length, 2);                                   // kleine waarschuwingen
+  if (Math.abs(move) > 0.8) score -= 0.1;                                               // heel grote afstand: herstelt zelden helemaal
+  const st = (stats || []).find((x) => x.source === "live" && x.state === a.state);
+  const chance = st && st.n >= 30 ? st.hits / st.n + (score - 0.5) * 0.6 : score;
+  return { move, chance: clamp(chance, 0.05, 0.95) };
+}
+
+/** Prijsverandering tussen twee prijzen, als fractie (of null). */
+export const change = (now, before) => (now && before ? now / before - 1 : null);
