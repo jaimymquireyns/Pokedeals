@@ -778,6 +778,7 @@ def main():
             check(len(facts) >= 3 and page.locator(".advbox li.fact.good").count() >= 1 and any("If it recovers" in f for f in facts) and any("No signs of manipulation" in f for f in facts),
                   f"'Why?' toont een kort lijstje (li.fact) in plaats van zinnen: {facts}")
             page.screenshot(path=str(SHOTS / "why.png"), full_page=True)
+            check("Usually €45.50" in page.inner_text(".page"), "stippellijn met de normale prijs (Usually) in de grafiek")
             # daling met een reden (herdruk): geen koop- of bijkoopadvies, wel de reden
             mock.db["advice"] = [{"product_id": own["product_id"], "date": today, "state": "laag", "price": round(cost * 0.6, 2), "normal": round(cost, 2), "sales7": round(cost * 0.62, 2),
                                   "sale_days": 12, "flags": [], "basis": "trend", "context": ["herdruk: in Nieuwe Set (2026-09-16)"]}]

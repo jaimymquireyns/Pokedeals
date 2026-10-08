@@ -241,7 +241,9 @@ export function adviceFacts(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
   const price = Number(a.price), normal = Number(a.normal), ratio = price / normal - 1;
   const out = [{ tone: "info", label: "Now vs usual", value: `${eur(price)} / ${eur(normal)} (${signed(ratio)})` }];
   if (a.sales7) out.push({ tone: (a.sale_days || 0) >= 5 ? "good" : "warn", label: "Sold last week", value: `${eur(Number(a.sales7))} · ${a.sale_days || 0}/14 days` });
+  else if (a.sale_days) out.push({ tone: a.sale_days >= 5 ? "good" : "warn", label: "Sold on", value: `${a.sale_days}/14 days` });
   else out.push({ tone: "warn", label: "Sold last week", value: "no sales" });
+  if (a.basis === "nm") out.push({ tone: "info", label: "Based on Near Mint listings", value: "" });
   const flags = a.flags || [];
   if (flags.length) for (const f of flags) out.push({ tone: "bad", label: FLAG_SHORT[f] || f, value: "" });
   else out.push({ tone: "good", label: "No signs of manipulation", value: "" });

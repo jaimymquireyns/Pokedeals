@@ -355,10 +355,22 @@ fake.post("https://x/rest/v1/collection", json=[
     {"user_id": uid, "product_id": "t1-flat", "quantity": 2, "purchase_price": 45.0, "purchase_date": day(3)}])
 fake.post("https://x/rest/v1/user_settings", json=[{"user_id": uid, "fee_pct": 5, "ship_eur": 1.5, "net_only": False, "net_min_pct": 3, "digest": True, "price_alerts": True}])
 sender.sent.clear()
-config.DIGEST_MIN_P_UP = 0.3      # de nagebootste markt is rustig; zo tellen er toch kansen mee
+PK["advice"] = ["product_id", "date"]; fake.t.setdefault("advice", {})
+# ochtendmelding op basis van het advies: eigen kaart wordt 'Buy more', andere 'Sell now', plus een nieuwe sterke deal
+fake.post("https://x/rest/v1/advice", json=[
+    {"product_id": "t1-down", "date": day(32), "state": "laag", "price": 30.0, "normal": 60.0, "flags": [], "context": []},
+    {"product_id": "t1-flat", "date": day(32), "state": "hoog", "price": 80.0, "normal": 50.0, "flags": [], "context": []},
+    {"product_id": "t1-up", "date": day(32), "state": "laag", "price": 20.0, "normal": 50.0, "flags": [], "context": []}])
 assert alerts.send_digest(store, sender, day(32), log=quiet) == 1
 body = sender.sent[0][1]["body"]
-assert "attention" in body and "opportunit" in body, body
+assert "Sell now:" in body and "Buy more:" in body and "2 new strong deals" in body and sender.sent[0][1]["url"].endswith("#/collection"), body
+assert "Down" in body or "t1-down" in body or "+" in body, body
+# stond het gisteren al zo, dan is het geen nieuws: geen tweede melding
+fake.post("https://x/rest/v1/advice", json=[{"product_id": pid, "date": day(31), "state": st, "price": 1.0, "normal": 1.0, "flags": [], "context": []}
+                                            for pid, st in (("t1-down", "laag"), ("t1-flat", "hoog"), ("t1-up", "laag"))])
+sender.sent.clear()
+assert alerts.send_digest(store, sender, day(32), log=quiet) == 0, sender.sent
+fake.t["advice"].clear()
 assert alerts.attention([{"name": "x", "value_each": 100, "purchase_price": 50, "p_up": 0.1, "p_down": 0.1}])[0][1] == "winst nemen"
 assert alerts.attention([{"name": "x", "value_each": 100, "purchase_price": 50, "p_up": 0.6, "p_down": 0.1}]) == []
 
@@ -3014,6 +3026,18 @@ a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), None, _T, ask=50)
 assert a["state"] == "verdacht" and "trend wijkt af" in a["flags"], a
 a = advice.assess(_raw([100] * 20), None, _T, ask=95)
 assert a["state"] == "normaal", "trend en aanbiedingen liggen dicht bij elkaar: gewoon"
+# scheve trend, maar wel Near Mint-geschiedenis: dan beoordelen we op Near Mint (basis 'nm')
+_nmser = lambda old, new: [{"date": (_date.fromisoformat(_T) - _td(days=d)).isoformat(), "price": (new if d < 7 else old)} for d in range(0, 90)]
+a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), _nmser(50, 50), _T, ask=50)
+assert a["state"] == "normaal" and a["basis"] == "nm" and abs(a["normal"] - 50) < 1e-9, a
+a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), _nmser(50, 30), _T, ask=31)
+assert a["state"] == "laag" and a["basis"] == "nm" and a["price"] == 30 and a["sales7"] is None, a
+a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), _nmser(50, 30), _T, ask=31, sellers=1)
+assert a["state"] == "verdacht" and a["flags"] == ["weinig verkopers"], a
+a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), _nmser(50, 50)[:10], _T, ask=50)
+assert a["state"] == "verdacht" and "trend wijkt af" in a["flags"], "te weinig Near Mint-geschiedenis: blijft verdacht"
+a = advice.assess(_raw([100] * 12 + [165] * 8, sales7=160), _nmser(50, 50), _T, ask=10)
+assert a["state"] == "verdacht", "Near Mint past ook niet bij de aanbiedingen: blijft verdacht"
 # meer dan 3x normaal, ook als de week gemengd is: verdacht (niet 'normaal')
 a = advice.assess(_raw([100] * 12 + [100, 900, 900, 950, 1000, 1000, 1000, 1000]), None, _T)
 assert a["state"] == "verdacht" and "onwaarschijnlijk" in a["flags"], a

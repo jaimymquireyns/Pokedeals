@@ -193,6 +193,7 @@ export async function detailView(root, pid, cid) {
   drawChance();
 
   // ---- grafiek; volgt dezelfde periode als de periodeknoppen hierboven ----
+  let usual = null;   // { y, nm }: gezet zodra het advies binnen is
   const chartSec = h("div", { class: "sec" }, h("h3", { text: "Price history" }));
   function drawChart() {
     chartSec.replaceChildren(h("h3", { text: "Price history" }));
@@ -205,7 +206,10 @@ export async function detailView(root, pid, cid) {
     }
     if (rows.length >= 2) {
       chartSec.append(lineChart({ series: [{ pts: rows.map((r) => [new Date(r.date + "T00:00:00Z").getTime(), Number(r.price)]), stroke: "var(--up)" }],
-        hlines: c ? [{ y: Number(c.purchase_price), label: `Purchase ${eur(Number(c.purchase_price))}` }] : [], label: "Price history" }));
+        hlines: [...(c ? [{ y: Number(c.purchase_price), label: `Purchase ${eur(Number(c.purchase_price))}` }] : []),
+          // 'Usually': de normale prijs uit het advies, alleen als hij over dezelfde reeks gaat als de grafiek (Near Mint of trend)
+          ...(usual && usual.nm === useNm ? [{ y: usual.y, label: `Usually ${eur(usual.y)}`, color: "var(--amber)", dash: "2 4", side: "left" }] : [])],
+        label: "Price history" }));
       if (!useNm && src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "TCGplayer prices, converted to euro." }));
     } else chartSec.append(h("p", { class: "p14 muted", text: "Not enough price history for a chart in this period." }));
   }
@@ -250,6 +254,7 @@ export async function detailView(root, pid, cid) {
   const advRes = await advP;
   const adv = advRes ? adviceFor(advRes[0], { owned: c, s }) : null;
   const olk = advRes && !graded ? outlook(advRes[0], advRes[1]) : null;
+  if (advRes?.[0]?.normal && !graded && advRes[0].state !== "onbekend") { usual = { y: Number(advRes[0].normal), nm: advRes[0].basis === "nm" }; drawChart(); }
   if (olk) moveSlot.append(outlookBar(olk));
   const advSec = adv ? adviceBox(adv, adviceTrack(advRes[1], advRes[0]?.state === "hoog" ? "hoog" : "laag"), graded ? [] : adviceFacts(advRes[0], { owned: c, s })) : null;
 

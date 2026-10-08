@@ -26,7 +26,7 @@ function niceTicks(lo, hi, n = 3) {
 }
 
 /**
- * series: [{ pts: [[ms, y], ...], stroke, width, dash }]  hlines: [{ y, label, dash }]
+ * series: [{ pts: [[ms, y], ...], stroke, width, dash }]  hlines: [{ y, label, dash, color, side: "left" | "right" }]
  * area:   { upper: pts, lower: pts, fill }  (vlak tussen twee lijnen)
  */
 export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Chart", scrubSeries = null }) {
@@ -53,8 +53,9 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
     svg.append(el("polygon", { points: poly, fill: area.fill || "#0E8A5B", opacity: ".14" }));
   }
   for (const h of hlines) {
-    svg.append(el("line", { x1: L, x2: width - R, y1: Y(h.y), y2: Y(h.y), stroke: "var(--ink)", "stroke-width": 1.6, "stroke-dasharray": "5 4" }));
-    if (h.label) svg.append(el("text", { x: width - R, y: Y(h.y) + 14, "text-anchor": "end", style: "fill:var(--ink);font-weight:700" }, h.label));
+    const col = h.color || "var(--ink)", left = h.side === "left";
+    svg.append(el("line", { x1: L, x2: width - R, y1: Y(h.y), y2: Y(h.y), stroke: col, "stroke-width": 1.6, "stroke-dasharray": h.dash || "5 4" }));
+    if (h.label) svg.append(el("text", { x: left ? L + 4 : width - R, y: Y(h.y) - 5, "text-anchor": left ? "start" : "end", style: `fill:${col};font-weight:700` }, h.label));
   }
   for (const s of series) {
     svg.append(el("path", { d: path(s.pts), fill: "none", stroke: s.stroke, "stroke-width": s.width || 3,

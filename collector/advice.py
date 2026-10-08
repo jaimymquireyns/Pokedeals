@@ -120,6 +120,11 @@ def assess(raw, nm=None, today=None, sellers=None, listings=None, lowest_offer=N
     # trend ver omhoog trekken terwijl je hem voor een fractie kunt kopen (Charizard G Lv.65: trend 165, te koop vanaf 36).
     if ask and out["price"] and not (1 / config.ADVICE_ASK_MISMATCH <= out["price"] / ask <= config.ADVICE_ASK_MISMATCH):
         flags.append("trend wijkt af")
+    if "trend wijkt af" in flags and "onwaarschijnlijk" not in flags and nm:
+        # de trendprijs is scheef, maar de Near Mint-vraagprijzen zijn er wel: beoordeel de kaart daarop (zie assess_nm)
+        alt = assess_nm(nm, today, out["sale_days"], [f for f in flags if f in ("weinig verkopers", "aanbod verdwijnt")], ask)
+        if alt:
+            return alt
     if "onwaarschijnlijk" in flags or "trend wijkt af" in flags:   # hoe het ook staat: met deze prijzen klopt er iets niet
         out["state"], out["flags"] = "verdacht", flags
         return out
@@ -148,6 +153,47 @@ def assess(raw, nm=None, today=None, sellers=None, listings=None, lowest_offer=N
     else:
         out["state"] = "normaal"
     out["flags"] = flags
+    return out
+
+
+def assess_nm(nm, today, sale_days, flags, ask=None):
+    """Tweede kans voor een kaart waarvan Cardmarkets trendprijs scheef zit (een paar dure uitschieters): dezelfde regels, maar op
+    de Near Mint-vraagprijzen van PkmnPrices (appels met appels: nu tegen de mediaan van de eigen 90 dagen, zonder pieken).
+    Die prijzen zijn vraagprijzen, geen verkopen; daarom telt alleen of er geregeld verkocht wordt (sale_days), niet tegen welke
+    prijs. flags: de waarschuwingen die los van de trend gelden (weinig verkopers, aanbod verdwijnt).
+    Geeft een assess-uitkomst met basis 'nm', of None als er te weinig Near Mint-geschiedenis is."""
+    import analysis
+    t = _d(today)
+    pts = [{"date": str(r["date"])[:10], "price": _f(r.get("price"))} for r in nm or [] if str(r["date"])[:10] <= today and _f(r.get("price"))]
+    if not pts:
+        return None
+    kept, _ = analysis.clean_nm_rows(pts)
+    start, end = (t - timedelta(days=config.ADVICE_NORMAL_DAYS)).isoformat(), (t - timedelta(days=config.ADVICE_CONFIRM_DAYS)).isoformat()
+    window = [r["price"] for r in kept if start <= r["date"] < end]
+    recent = [r["price"] for r in kept if r["date"] > end]
+    if len(window) < config.ADVICE_MIN_NM_POINTS or len(recent) < config.ADVICE_MIN_RECENT or (t - _d(kept[-1]["date"])).days > 3:
+        return None
+    normal, price = _median(window), kept[-1]["price"]
+    # de laatste Near Mint-prijs moet passen bij wat er nu echt te koop staat, anders is ook deze reeks niet te vertrouwen
+    if ask and not (1 / config.ADVICE_ASK_MISMATCH <= price / ask <= config.ADVICE_ASK_MISMATCH):
+        return None
+    out = {"state": "normaal", "price": price, "normal": normal, "ratio": _median(recent) / normal, "sales7": None,
+           "sale_days": sale_days, "flags": list(flags), "basis": "nm"}
+    if not (1 / config.ADVICE_MAX_RATIO <= out["ratio"] <= config.ADVICE_MAX_RATIO):
+        out["flags"].append("onwaarschijnlijk")
+        out["state"] = "verdacht"
+        return out
+    high = all(p >= config.ADVICE_HIGH * normal for p in recent)
+    dip = all(p <= config.ADVICE_LOW * normal for p in recent)
+    if high or dip:
+        if out["flags"]:
+            out["state"] = "verdacht"
+        elif high:
+            out["state"] = "hoog" if sale_days >= 3 else "verdacht"
+            if out["state"] == "verdacht":
+                out["flags"].append("niet bevestigd")
+        else:
+            out["state"] = "laag" if sale_days >= config.ADVICE_MIN_SALE_DAYS else "normaal"
     return out
 
 
@@ -355,6 +401,18 @@ def run(store, today, log=print):
     rows, counts = [], {s: 0 for s in STATES}
     results = {pid: assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), listings=listings.get(pid), lowest_offer=lows.get(pid), ask=asks.get(pid))
                for pid in sorted(ids)}
+    # tweede ronde: kaarten met een scheve trendprijs opnieuw beoordelen op hun Near Mint-geschiedenis
+    skewed = [pid for pid, a in results.items() if "trend wijkt af" in a["flags"]]
+    if skewed:
+        try:
+            nm_sk = load_nm(store, skewed, (t - timedelta(days=config.ADVICE_NORMAL_DAYS + 10)).isoformat())
+            for pid in skewed:
+                results[pid] = assess(raw.get(pid, []), nm_sk.get(pid), today, sellers=sellers.get(pid), listings=listings.get(pid),
+                                      lowest_offer=lows.get(pid), ask=asks.get(pid))
+            log(f"Scheve trendprijs: {len(skewed)} kaarten opnieuw beoordeeld op Near Mint; nog verdacht: "
+                f"{sum(1 for pid in skewed if results[pid]['state'] == 'verdacht')}.")
+        except Exception as e:
+            log(f"  (Near Mint-herbeoordeling overgeslagen: {e})")
     try:
         products = {p["product_id"]: p for p in store.select("products", {"select": "product_id,kind,name,set_id,dex_id", "order": "product_id.asc"})}
         laag_ids = [pid for pid, a in results.items() if a["state"] == "laag"]
@@ -431,7 +489,7 @@ def evaluate(store, today, log=print):
     h = config.ADVICE_HORIZON_DAYS
     cutoff = (t - timedelta(days=h)).isoformat()
     try:
-        old = store.select("advice", {"select": "product_id,date,state,price,normal,context,control", "state": "in.(hoog,laag,normaal)",
+        old = store.select("advice", {"select": "product_id,date,state,price,normal,context,control,basis", "state": "in.(hoog,laag,normaal)",
                                       "date": f"lte.{cutoff}", "order": "product_id.asc,date.asc"})
     except Exception:   # oudere database zonder de kolommen context/control
         old = store.select("advice", {"select": "product_id,date,state,price,normal", "state": "in.(hoog,laag)",
@@ -460,10 +518,14 @@ def evaluate(store, today, log=print):
         picked.append((key, rule, r))
     res = {k: [] for k in STAT_KEYS}
     if picked:
-        raw = load_raw(store, {r["product_id"] for _, _, r in picked}, min(r["date"] for _, _, r in picked))
+        since = min(r["date"] for _, _, r in picked)
+        raw = load_raw(store, {r["product_id"] for _, _, r in picked}, since)
+        nm_ids = {r["product_id"] for _, _, r in picked if r.get("basis") == "nm"}
+        nmr = load_nm(store, nm_ids, since) if nm_ids else {}
         for key, rule, r in picked:
             target = (_d(r["date"]) + timedelta(days=h)).isoformat()
-            later = next((x for x in raw.get(r["product_id"], []) if target <= x["date"] <= (_d(target) + timedelta(days=7)).isoformat()), None)
+            series = nmr.get(r["product_id"], []) if r.get("basis") == "nm" else raw.get(r["product_id"], [])
+            later = next((x for x in series if target <= str(x["date"])[:10] <= (_d(target) + timedelta(days=7)).isoformat()), None)
             o = outcome(rule, _f(r["price"]), _f(later["price"]) if later else None)
             if o:
                 res[key].append(o)

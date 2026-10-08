@@ -171,5 +171,8 @@ ADVICE_MARKET_DROP = 0.90       # de hele markt staat gemiddeld minstens 10% ond
 ADVICE_CONTROL_SHARE = 0.05     # zoveel van de gewone kaarten bewaren we als controlegroep
 ADVICE_PEAK = 1.30              # Near Mint-geschiedenis: de laatste 6 weken minstens 30% boven de 3 maanden daarvoor = de 'normale' prijs was zelf een piek
 ADVICE_ASK_MISMATCH = 2.0       # trendprijs meer dan 2x boven (of onder) de mediaan van de 5 goedkoopste Near Mint-aanbiedingen: verdacht
+NOTIFY_SELL_PROFIT = 0.15       # melding 'Sell now' vanaf zoveel winst na kosten (zoals ADVICE.sellProfit in de app)
+NOTIFY_DEAL_GAIN = 0.25         # melding over een nieuwe deal pas vanaf zoveel winst na kosten als de prijs herstelt
+ADVICE_MIN_NM_POINTS = 20       # scheve trendprijs: minstens zoveel Near Mint-punten in die 90 dagen om op Near Mint te beoordelen
 ADVICE_ASK_MAX_AGE = 7          # die aanbiedingen tellen alleen als ze hooguit zoveel dagen oud zijn
 ADVICE_SNAPSHOT_BUDGET = 30000  # credits per dag voor het aantal aanbiedingen van de kaarten met een advies (max 20 per kaart)
