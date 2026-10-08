@@ -96,14 +96,17 @@ export function openScan({ onAdded }) {
   const video = h("video", { autoplay: true, playsinline: true, muted: true });
   const status = h("div", { class: "vf-hint", text: "Place the card in the frame" });
   const panel = h("div", { class: "scanpanel", hidden: true });
-  const file = h("input", { type: "file", accept: "image/*", capture: "environment", hidden: true });
+  // twee bestandskiezers: zonder 'capture' opent de galerij, met 'capture' de camera-app van de telefoon (werkt ook als de camera
+  // in de app zelf niet start, bijvoorbeeld zonder toestemming of in sommige browsers)
+  const file = h("input", { type: "file", accept: "image/*", hidden: true });
+  const camFile = h("input", { type: "file", accept: "image/*", capture: "environment", hidden: true });
   const shutter = h("button", { class: "shutter", type: "button", "aria-label": "Take photo" });
   const dlg = h("div", { class: "scan" },
     video,
     h("div", { class: "vf-top" }, h("button", { class: "round", type: "button", "aria-label": "Close", onclick: () => closeSheet("scan") }, icon("x")),
-      h("button", { class: "round txt", type: "button", onclick: () => file.click(), text: "Choose photo" })),
+      h("button", { class: "round txt", type: "button", onclick: () => file.click() }, icon("image"), " Gallery")),
     status, h("div", { class: "frame" }, h("i", { class: "corner c1" }), h("i", { class: "corner c2" }), h("i", { class: "corner c3" }), h("i", { class: "corner c4" })),
-    h("div", { class: "shutterbar" }, shutter), file, panel);
+    h("div", { class: "shutterbar" }, shutter), file, camFile, panel);
 
   async function recognise(source, w, h_, crop) {
     stop();
@@ -151,16 +154,27 @@ export function openScan({ onAdded }) {
   }
 
   shutter.onclick = () => recognise(video, video.videoWidth, video.videoHeight, true);
-  file.onchange = () => {
-    const f = file.files[0];
+  const fromFile = (input) => () => {
+    const f = input.files[0];
     if (!f) return;
     const img = new Image();
     img.onload = () => recognise(img, img.naturalWidth, img.naturalHeight, false);
+    img.onerror = () => { status.textContent = "Couldn't open this photo. Try another one."; };
     img.src = URL.createObjectURL(f);
+  };
+  file.onchange = fromFile(file);
+  camFile.onchange = fromFile(camFile);
+  // geen camera in de app: twee grote knoppen in plaats van de sluiter
+  const noCamera = () => {
+    status.textContent = "Take a photo of the card, or pick one from your gallery";
+    dlg.querySelector(".shutterbar").replaceChildren(h("div", { class: "pickbtns" },
+      h("button", { type: "button", class: "cta", onclick: () => camFile.click() }, icon("camera"), " Take photo"),
+      h("button", { type: "button", class: "btn", onclick: () => file.click() }, icon("image"), " From gallery")));
   };
 
   openSheet(dlg, { id: "scan", onClose: stop });
   navigator.mediaDevices?.getUserMedia?.({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } }, audio: false })
-    .then((s) => { stream = s; video.srcObject = s; })
-    .catch(() => { status.textContent = "No camera access. Choose a photo from your gallery."; shutter.hidden = true; });
+    .then((s) => { stream = s; video.srcObject = s; video.play?.().catch(() => {}); })
+    .catch(noCamera);
+  if (!navigator.mediaDevices?.getUserMedia) noCamera();
 }
