@@ -2,7 +2,7 @@
 import { addForm } from "./add.js";
 import { rest } from "./api.js";
 import { SET_ALIASES, searchCards } from "./cardsearch.js";
-import { normNum, parseBottom, parseCardText, rankCandidates, scanQueries } from "./ocr.js";
+import { normNum, parseBottom, parseCardText, rankCandidates, scanQueries, searchTerm } from "./ocr.js";
 import { closeSheet, debounce, h, icon, openSheet } from "./ui.js";
 
 const TESS = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
@@ -30,7 +30,7 @@ async function findCandidates(parsed) {
   }
   // nummer verkeerd gelezen, maar naam en settotaal wel ('159/128' i.p.v. 149/128): alle kaarten met die naam uit sets van die grootte
   if (parsed.name && parsed.total && !rankCandidates(parsed, [...seen.values()]).some((x) => normNum(x.number) === normNum(parsed.number))) {
-    const word = parsed.name.split(" ").find((w) => w.length >= 3) || "";
+    const word = searchTerm(parsed) || "";
     try {
       const extra = await rest.get(`v_search?select=*&kind=eq.card&name=ilike.*${encodeURIComponent(word.replace(/[*,()]/g, ""))}*&set_total=eq.${Number(parsed.total)}&limit=40`);
       extra.forEach((r) => { if (!seen.has(r.product_id)) seen.set(r.product_id, { ...r, hits: 1, best: 50 }); });
