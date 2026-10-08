@@ -358,6 +358,7 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=Non
         step("lange periodes berekenen", lambda: build_forecasts(store, today, log=log, combos=config.LONG_GRID))
     else:
         log("Lange periodes (3-24 maanden) worden alleen op maandag herberekend; vandaag overgeslagen.")
+    step("advies (kopen/verkopen/houden)", lambda: __import__("advice").run(store, today, log=log))
     step("PkmnPrices-credits uitgeven", lambda: spend_pkmn_credits(store, today, log=log, time_budget=pk_time_budget))
     def _cm_names():
         import cm_names

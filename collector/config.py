@@ -143,3 +143,19 @@ PK_CREDITS_ONLY_TIME_BUDGET = 50 * 60  # late 'credits opmaken'-taak: die heeft 
 
 IMAGES_PK_BUDGET = 3000       # credits per run om ontbrekende kaartfoto's bij PkmnPrices te halen (1 per kaart)
 IMAGES_TIME_BUDGET = 600      # seconden per nacht voor het controleren en aanvullen van foto's
+
+
+# Advies (advice.py): kopen / verkopen / houden / verdacht. Eenvoudige regels, na 30 dagen gecontroleerd (zie advice.evaluate).
+ADVICE_MIN_TRACK = 2.0          # alleen producten vanaf deze prijs beoordelen (plus alles in iemands collectie of watchlist)
+ADVICE_NORMAL_DAYS = 90         # 'normaal' = de mediaan van de Near Mint-prijs over zoveel dagen (zonder pieken, zonder de laatste week)
+ADVICE_MIN_NM_POINTS = 20       # minstens zoveel Near Mint-punten, anders Cardmarkets oudste 30-daagse verkoopgemiddelde als 'normaal'
+ADVICE_CONFIRM_DAYS = 7         # een hoge of lage prijs moet al zoveel dagen aanhouden (een piek van een dag telt niet)
+ADVICE_MIN_RECENT = 3           # minstens zoveel prijspunten binnen die week
+ADVICE_HIGH = 1.25              # 'hoog': elke prijs van de laatste week minstens 25% boven normaal
+ADVICE_LOW = 0.80               # 'laag': elke prijs van de laatste week minstens 20% onder normaal
+ADVICE_SALES_CONFIRM_HIGH = 1.15   # en de echte verkopen (7-daags gemiddelde) liggen minstens 15% boven normaal
+ADVICE_SALES_CONFIRM_LOW = 0.90    # of minstens 10% onder normaal
+ADVICE_SALES_MISMATCH = 1.6     # vraagprijs meer dan 1,6x boven of onder het verkoopgemiddelde: verdacht
+ADVICE_MIN_SALE_DAYS = 5        # voor 'laag' (kopen): op minstens zoveel van de laatste 14 dagen verkocht
+ADVICE_HORIZON_DAYS = 30        # na zoveel dagen kijken we of het advies klopte
+ADVICE_KEEP_DAYS = 400          # zo lang bewaren we het advies (voor de controle en de geschiedenis)
