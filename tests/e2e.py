@@ -58,7 +58,7 @@ def main():
             page.goto(base)
             page.wait_for_selector(".dealsec .dealrow")
             check("Cheap listings" in page.inner_text(".dealsec"), "vak met goedkope aanbiedingen")
-            check("-43%" in page.inner_text(".dealsec") and "Charizard" in page.inner_text(".dealsec") and "200.00" in page.inner_text(".dealsec"), "de uitschieter (base1-4): 200 tegen de tweede goedkoopste (350) = -43%")
+            check("−43%" in page.inner_text(".dealsec") and "Charizard" in page.inner_text(".dealsec") and "200.00" in page.inner_text(".dealsec"), "de uitschieter (base1-4): 200 tegen de tweede goedkoopste (350) = -43%")
             check("113.50" in page.inner_text(".dealsec").replace("\xa0", " ") or "113.5" in page.inner_text(".dealsec").replace("\xa0", " "), "winst na verzending (15), commissie en verpakking getoond: 350 x 0,94 - 0,50 - (200 + 15) = 113,50")
             check("Umbreon VMAX" not in page.inner_text(".dealsec"), "610 tegen 640 is 30 euro goedkoper, maar na pakketverzending (15) en commissie verlies: geen koopje")
             check("Blissey V" not in page.inner_text(".dealsec"), "10 tegen 13 haalt de 20%, maar de verzending (3) en kosten eten de winst op: geen koopje")
@@ -701,7 +701,9 @@ def main():
             first.get_by_role("button", name="Edit", exact=True).click(); page.wait_for_selector(".orderform")
             page.locator(".orderform input[aria-label='Seller name']").fill("Testverkoper")
             page.locator(".orderform input[aria-label='Price each']").first.fill("12.34")
-            page.get_by_role("button", name="Wijzigingen opslaan").click(); page.wait_for_selector(".buycard")
+            page.get_by_role("button", name="Save changes").click(); page.wait_for_selector(".orderform", state="detached")
+            try: page.wait_for_selector(".buylist .buycard:has-text('Testverkoper')", timeout=5000)   # de lijst wordt na het opslaan opnieuw geladen
+            except Exception: pass
             fixed = [r for r in mock.db["collection"] if r.get("purchase_seller") == "Testverkoper"]
             check(fixed and any(abs(float(r["purchase_price"]) - 12.34) < 1e-9 for r in fixed), f"aankoop aangepast: verkoper en prijs opgeslagen ({len(fixed)} regels)")
             check("Testverkoper" in page.inner_text(".buylist"), "aangepaste aankoop staat meteen in de lijst")
@@ -725,9 +727,9 @@ def main():
             check(page.url.endswith("#/verkocht"), "Verkocht opent een eigen pagina")
             page.locator(".salecard", has_text="Carla").get_by_role("button", name="Edit", exact=True).click(); page.wait_for_selector(".orderform")
             page.locator(".orderform input[aria-label='Buyer']").fill("Carla B")
-            page.locator(".orderform input[aria-label='Totaalprijs']").fill("55")
+            page.locator(".orderform input[aria-label='Total price']").fill("55")
             page.locator(".orderform input[aria-label='Cost']").first.fill("28")
-            page.get_by_role("button", name="Wijzigingen opslaan").click(); page.wait_for_selector(".salecard:has-text('Carla B')")
+            page.get_by_role("button", name="Save changes").click(); page.wait_for_selector(".salecard:has-text('Carla B')")
             sale = next(x for x in mock.db["sales"] if x["id"] == "s-edit"); item = next(x for x in mock.db["sale_items"] if x["id"] == "si-edit")
             check(sale["buyer"] == "Carla B" and float(sale["total_price"]) == 55 and float(item["price_share"]) == 55 and float(item["cost_total"]) == 28,
                   f"verkoop aangepast: {sale['buyer']}, {sale['total_price']}, deel {item['price_share']}, kost {item['cost_total']}")
@@ -766,17 +768,24 @@ def main():
             box = page.inner_text(".advbox")
             check("Caution" in box and "no advice" in box.lower(), f"verdachte kaart: geen kopen/verkopen: {box[:120]!r}")
             page.get_by_role("button", name="Why?").click()
-            check("1 or 2 sellers" in page.inner_text(".advbox"), "uitleg noemt de reden (weinig verkopers)")
+            check("Only 1 or 2 sellers" in page.inner_text(".advbox .facts"), "uitleg noemt de reden (weinig verkopers) in het lijstje")
             page.goto(base + "#/detail/" + buy); page.wait_for_selector(".advbox")
             check("Good buy" in page.inner_text(".advbox"), "detail van de deal toont Good buy")
             check(page.locator(".dh .olk").count() == 1, "kansbalkje naast de prijs op de kaartpagina")
             page.screenshot(path=str(SHOTS / "detail_deal.png"))
+            page.locator(".advbox").get_by_role("button", name="Why?").click()
+            facts = page.locator(".advbox ul.facts > li.fact").all_inner_texts()
+            check(len(facts) >= 3 and page.locator(".advbox li.fact.good").count() >= 1 and any("If it recovers" in f for f in facts) and any("No signs of manipulation" in f for f in facts),
+                  f"'Why?' toont een kort lijstje (li.fact) in plaats van zinnen: {facts}")
+            page.screenshot(path=str(SHOTS / "why.png"), full_page=True)
             # daling met een reden (herdruk): geen koop- of bijkoopadvies, wel de reden
             mock.db["advice"] = [{"product_id": own["product_id"], "date": today, "state": "laag", "price": round(cost * 0.6, 2), "normal": round(cost, 2), "sales7": round(cost * 0.62, 2),
                                   "sale_days": 12, "flags": [], "basis": "trend", "context": ["herdruk: in Nieuwe Set (2026-09-16)"]}]
             page.goto(base + "#/detail/" + own["product_id"] + "?c=" + own["id"]); page.wait_for_selector(".advbox")
             box = page.inner_text(".advbox")
             check("Hold" in box and "new version" in box, f"daling met een reden: Hold, met de reden erbij: {box[:140]!r}")
+            page.locator(".advbox").get_by_role("button", name="Why?").click()
+            check("New print just released" in page.inner_text(".advbox .facts"), "'Why?'-lijstje noemt de herdruk kort: " + page.inner_text(".advbox .facts").replace("\n", " | "))
             mock.db["advice"][0]["context"] = []
             page.reload(); page.wait_for_selector(".advbox")
             check("Buy more" in page.inner_text(".advbox"), "daling zonder reden bij een eigen kaart: Buy more")

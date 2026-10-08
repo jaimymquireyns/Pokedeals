@@ -83,7 +83,8 @@ export function openSheet(content, { onClose, id = "sheet" } = {}) {
   let d = document.getElementById(id);
   if (!d) { d = h("dialog", { id, class: "dsheet" }); document.body.append(d); }
   d.replaceChildren(content);
-  d.onclose = () => { d.replaceChildren(); onClose?.(); };
+  // het close-event komt pas later binnen: is het blad intussen al opnieuw geopend (het ene blad opent het volgende), dan niets wissen
+  d.onclose = () => { if (d.open) return; d.replaceChildren(); onClose?.(); };
   d.onclick = (e) => { if (e.target === d) d.close(); };
   if (!d.open) d.showModal();
   return d;

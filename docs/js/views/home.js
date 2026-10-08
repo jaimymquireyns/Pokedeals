@@ -91,7 +91,7 @@ function marketRow(d, watchId, onHeart) {
         h("span", { class: "set", text: setLine(d) }),
         d.variant && d.variant !== "Normal" ? h("span", {}, h("span", { class: "tag", text: d.variant })) : null),
       h("span", { class: "mv" }, h("span", { class: "v num", text: eur(d.cheapest) }),
-        h("span", { class: "arw up", "aria-label": `${Math.round(d.discount * 100)}% below the next cheapest` }, `-${Math.round(d.discount * 100)}%`),
+        h("span", { class: "arw up", "aria-label": `${Math.round(d.discount * 100)}% below the next cheapest` }, `−${Math.round(d.discount * 100)}%`),
         h("span", { class: "gain num", "aria-label": "profit after costs", text: "+" + eur(d.gain) }))),
     h("button", { class: "heartb" + (watchId ? " on" : ""), type: "button", "aria-label": watchId ? "Remove from watchlist" : "Add to watchlist", onclick: onHeart }, icon("heart", watchId ? "filled" : ""))));
 }

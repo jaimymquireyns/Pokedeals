@@ -1,5 +1,5 @@
 // Berekeningen aan de kant van de app: netto winst, uitleg bij de kans en 'aandacht nodig'.
-import { days, eur, pp, signed } from "./ui.js";
+import { days, eur, pp, signed, signedEur } from "./ui.js";
 
 export const DEFAULT_SETTINGS = { fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10, attn_pct: 15 };
 
@@ -185,7 +185,7 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
       reasons: [where, ...why.map((w) => w.charAt(0).toUpperCase() + w.slice(1) + "."), "So we deliberately give no buy or sell advice here."] };
   }
   // achtergrondcontrole (collector/advice.py): heeft de daling of stijging een aanwijsbare reden?
-  const ctx = (a.context || []).map((c) => { const [k, ...rest] = String(c).split(": "); return { k, text: (CONTEXT_TEXT[k] || k) + (rest.length ? ` (${rest.join(": ")})` : "") }; });
+  const ctx = (a.context || []).map((c) => { const [k, ...rest] = String(c).split(": "); return { k, text: CONTEXT_TEXT[k] || k, detail: rest.join(": ") }; });
   const ctxDrop = a.state === "laag" ? ctx : [];
   const ctxReasons = ctx.map((c) => c.text.charAt(0).toUpperCase() + c.text.slice(1) + ".");
   if (owned) {
@@ -222,6 +222,43 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
   if (a.state === "hoog") return { label: "Wait", tone: "hold", short: "The price is well above normal: not a good time to buy.", reasons: [where, sales] };
   if (Math.abs(ratio) > 0.25) return { label: "Wait", tone: "hold", short: "The price swung a lot this week: no clear picture yet.", reasons: [where, sales, "We only give advice once a high or low price holds for a full week."] };
   return { label: "Wait", tone: "hold", short: "Nothing special: the price is around normal.", reasons: [where] };
+}
+
+// Korte versies voor het 'Why?'-lijstje op de kaartpagina: per controle een vinkje of kruisje met een paar woorden.
+export const CONTEXT_SHORT = {
+  herdruk: "New print just released", "nieuwe set": "Set is still new", "set daalt": "Whole set is falling", "pokemon daalt": "This Pokémon is falling everywhere",
+  "markt daalt": "Whole market is falling", "na een piek": "Falling back after a peak", "set stijgt": "Whole set is rising (hype)", "pokemon stijgt": "This Pokémon is rising everywhere (hype)",
+};
+export const FLAG_SHORT = {
+  afwijking: "Asking prices don't match sales", springt: "Several big price jumps", "weinig verkopers": "Only 1 or 2 sellers",
+  "aanbod verdwijnt": "Listings suddenly halved", "te goedkoop": "Cheapest listing looks off", "niet bevestigd": "High price not seen in sales",
+  onwaarschijnlijk: "Card link probably wrong", "trend wijkt af": "Trend price skewed by outliers",
+};
+
+/** Het 'Why?'-lijstje: korte regels { tone: good | bad | warn | info, label, value }. Geen volzinnen. */
+export function adviceFacts(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
+  if (!a || !a.price || !a.normal || a.state === "onbekend") return [];
+  const price = Number(a.price), normal = Number(a.normal), ratio = price / normal - 1;
+  const out = [{ tone: "info", label: "Now vs usual", value: `${eur(price)} / ${eur(normal)} (${signed(ratio)})` }];
+  if (a.sales7) out.push({ tone: (a.sale_days || 0) >= 5 ? "good" : "warn", label: "Sold last week", value: `${eur(Number(a.sales7))} · ${a.sale_days || 0}/14 days` });
+  else out.push({ tone: "warn", label: "Sold last week", value: "no sales" });
+  const flags = a.flags || [];
+  if (flags.length) for (const f of flags) out.push({ tone: "bad", label: FLAG_SHORT[f] || f, value: "" });
+  else out.push({ tone: "good", label: "No signs of manipulation", value: "" });
+  if (a.state === "laag" || a.state === "hoog") {
+    const ctx = (a.context || []).map((c) => String(c).split(": ")[0]);
+    if (ctx.length) for (const k of ctx) out.push({ tone: "bad", label: CONTEXT_SHORT[k] || k, value: "" });
+    else out.push({ tone: "good", label: a.state === "laag" ? "No reason for the drop found" : "No reason for the rise found", value: "" });
+  }
+  if (owned && !owned.grade_company) {
+    const cost = costEach(owned), net = price * (1 - s.fee_pct / 100) - PACKAGING;
+    if (cost) out.push({ tone: net >= cost ? "good" : "bad", label: "If you sell now", value: `${signedEur(net - cost)} (${signed(net / cost - 1)})` });
+  }
+  if (a.state === "laag" && !flags.length) {
+    const cost = price + shipCost(price), back = normal * (1 - s.fee_pct / 100) - PACKAGING;
+    out.push({ tone: back > cost ? "good" : "bad", label: owned ? "Buy one more, if it recovers" : "If it recovers", value: `${signedEur(back - cost)} (${signed(back / cost - 1)})` });
+  }
+  return out;
 }
 
 /** Zin over hoe vaak het advies klopte (advice_stats, bron 'live'), met het toeval (willekeurige gewone kaarten) ernaast. */

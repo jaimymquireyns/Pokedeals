@@ -2,7 +2,7 @@ import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
 import { adviceBox, arrow, cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, outlookBar, pill } from "../components.js";
-import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFor, adviceTrack, breakEven, change, outlook, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
+import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFacts, adviceFor, adviceTrack, breakEven, change, outlook, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
@@ -251,7 +251,7 @@ export async function detailView(root, pid, cid) {
   const adv = advRes ? adviceFor(advRes[0], { owned: c, s }) : null;
   const olk = advRes && !graded ? outlook(advRes[0], advRes[1]) : null;
   if (olk) moveSlot.append(outlookBar(olk));
-  const advSec = adv ? adviceBox(adv, adviceTrack(advRes[1], advRes[0]?.state === "hoog" ? "hoog" : "laag")) : null;
+  const advSec = adv ? adviceBox(adv, adviceTrack(advRes[1], advRes[0]?.state === "hoog" ? "hoog" : "laag"), graded ? [] : adviceFacts(advRes[0], { owned: c, s })) : null;
 
   // ---- knoppen ----
   const btns = h("div", { class: "btns" });

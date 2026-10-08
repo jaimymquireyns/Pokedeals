@@ -107,11 +107,14 @@ export const note = (title, ...body) => h("div", { class: "note" }, title ? h("s
 export const adviceChip = (adv, always = false) =>
   adv && (always || adv.tone !== "hold") ? h("span", { class: "advchip " + adv.tone, text: adv.label }) : null;
 
-/** Blok 'Advies' op de detailpagina: het label en één korte zin; de redenen en hoe vaak dit advies klopte achter 'Waarom?'. */
-export function adviceBox(adv, trackLine) {
+/** Blok 'Advies' op de detailpagina: het label en één korte zin; onder 'Why?' een kort lijstje met vinkjes en kruisjes. */
+export function adviceBox(adv, trackLine, facts = []) {
+  const mark = { good: "✓", bad: "✗", warn: "!", info: "•" };
+  const rows = facts.length ? facts : adv.reasons.filter(Boolean).map((r) => ({ tone: "info", label: r, value: "" }));
   const more = h("div", { class: "advmore", hidden: true },
-    h("ul", { class: "advwhy" }, ...adv.reasons.filter(Boolean).map((r) => h("li", { text: r }))),
-    h("p", { class: "mini", text: trackLine + " An estimate, not a guarantee or financial advice." }));
+    h("ul", { class: "facts" }, ...rows.map((f) => h("li", { class: "fact " + f.tone },
+      h("span", { class: "fm", "aria-hidden": "true", text: mark[f.tone] || "•" }), h("span", { class: "fl", text: f.label }), f.value ? h("b", { class: "fv num", text: f.value }) : null))),
+    h("p", { class: "mini", text: trackLine + " Not financial advice." }));
   const toggleBtn = h("button", { class: "linkbtn", type: "button", text: "Why?", onclick: () => { more.hidden = !more.hidden; toggleBtn.textContent = more.hidden ? "Why?" : "Less"; } });
   return h("div", { class: "sec advbox " + adv.tone },
     h("div", { class: "advhead" }, h("span", { class: "advchip big " + adv.tone, text: adv.label }), toggleBtn),
