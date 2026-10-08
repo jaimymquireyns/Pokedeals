@@ -2886,4 +2886,96 @@ assert images.pokemontcg_image(_ImgSess(_png(245, 342)), {"set_id": "sm7.5", "nu
 assert images.pokemontcg_image(_ImgSess(_png(640, 892)), {"set_id": "mep", "number": "72"}) is None, "standaardplaatje = geen foto"
 assert images.pokemontcg_image(_ImgSess(b"<html>"), {"set_id": "mep", "number": "72"}) is None
 
+# ============ Advies (advice.py): hoog / laag / verdacht / normaal, met bescherming tegen gestuurde prijzen ============
+import advice
+from datetime import date as _date, timedelta as _td
+_T = "2026-10-08"
+def _raw(prices, sales7=None, avg1=True, avg30=None, low=None):
+    """prices: trendprijs per dag, de laatste is vandaag."""
+    n = len(prices)
+    return [{"date": (_date.fromisoformat(_T) - _td(days=n - 1 - i)).isoformat(), "source": "tcgdex", "price": p,
+             "avg1": (p if avg1 else None), "avg7": (sales7 if sales7 is not None else p), "avg30": (avg30 if avg30 is not None else p), "low": low}
+            for i, p in enumerate(prices)]
+def _nm(level, days=80, end_gap=8):
+    return [{"date": (_date.fromisoformat(_T) - _td(days=end_gap + i)).isoformat(), "price": level} for i in range(days)]
+# normaal: prijs rond het niveau
+a = advice.assess(_raw([100] * 20), _nm(100), _T)
+assert a["state"] == "normaal" and a["basis"] == "avg30" and abs(a["normal"] - 100) < 1e-9, a
+# met genoeg eigen Cardmarket-geschiedenis: de mediaan van de trendprijs (zonder de laatste week)
+a = advice.assess(_raw([100] * 40 + [140] * 8, sales7=135, avg30=60), None, _T)
+assert a["basis"] == "trend" and abs(a["normal"] - 100) < 1e-9 and a["state"] == "hoog", a
+# meer dan 3x normaal: waarschijnlijk een verkeerde koppeling, geen advies
+a = advice.assess(_raw([100] * 12 + [400] * 8, sales7=390), None, _T)
+assert a["state"] == "verdacht" and "onwaarschijnlijk" in a["flags"], a
+# hoog: een week ruim boven normaal, bevestigd door verkopen
+a = advice.assess(_raw([100] * 12 + [140] * 8, sales7=135), _nm(100), _T)
+assert a["state"] == "hoog", a
+# een piek van één dag telt niet
+a = advice.assess(_raw([100] * 19 + [160]), _nm(100), _T)
+assert a["state"] == "normaal", a
+# hoge vraagprijs maar de verkopen gaan niet mee: verdacht (niet bevestigd / afwijking)
+a = advice.assess(_raw([100] * 12 + [140] * 8, sales7=80), _nm(100), _T)
+assert a["state"] == "verdacht" and ("afwijking" in a["flags"] or "niet bevestigd" in a["flags"]), a
+a = advice.assess(_raw([100] * 12 + [130] * 8, sales7=105), _nm(100), _T)
+assert a["state"] == "verdacht" and a["flags"] == ["niet bevestigd"], a
+# hoog, maar maar 2 verkopers: verdacht
+a = advice.assess(_raw([100] * 12 + [140] * 8, sales7=135), _nm(100), _T, sellers=2)
+assert a["state"] == "verdacht" and "weinig verkopers" in a["flags"], a
+# aanbod gehalveerd: verdacht
+_l = [((_date.fromisoformat(_T) - _td(days=d)).isoformat(), n) for d, n in ((14, 40), (8, 38), (0, 15))]
+a = advice.assess(_raw([100] * 12 + [140] * 8, sales7=135), _nm(100), _T, listings=_l)
+assert a["state"] == "verdacht" and "aanbod verdwijnt" in a["flags"], a
+# laag: een week ruim onder normaal, verkopen gaan mee, geregeld verkocht
+a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75), _nm(100), _T)
+assert a["state"] == "laag", a
+# laag, maar bijna niets verkocht: geen koopadvies
+a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75, avg1=False), _nm(100), _T)
+assert a["state"] == "normaal", a
+# laag met een verdacht goedkope aanbieding (lokvogel / andere versie): verdacht
+a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75, low=10), _nm(100), _T)
+assert a["state"] == "laag", "Cardmarkets 'low' (alle condities) telt niet als verdacht"
+a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75), _nm(100), _T, lowest_offer=30)
+assert a["state"] == "verdacht" and "te goedkoop" in a["flags"], a
+# te weinig gegevens
+assert advice.assess(_raw([100, 101]), None, _T)["state"] == "onbekend"
+assert advice.assess([], None, _T)["state"] == "onbekend"
+# de Near Mint-vraagprijs telt niet mee voor 'normaal' (andere maatstaf)
+assert advice.normal_price(_raw([100] * 20), _nm(5), _T) == (100, "avg30")
+# uitkomst na 30 dagen
+assert advice.outcome("laag", 70, 100)[0] is True and advice.outcome("laag", 70, 72)[0] is False
+assert advice.outcome("hoog", 140, 110)[0] is True and advice.outcome("hoog", 140, 150)[0] is False
+assert advice.outcome("normaal", 100, 100) is None
+assert advice.buy_gain(70, 100) > 0.1 and advice.buy_gain(95, 100) < 0
+
+# -- advies: een hele ronde (beoordelen, opslaan, na 30 dagen controleren) tegen de nep-database --
+PK["advice"] = ["product_id", "date"]; PK["advice_stats"] = ["source", "state"]
+fakeA, storeA = new_store()
+storeA.upsert_products([{"product_id": "hi", "kind": "card", "name": "Hoog"}, {"product_id": "lo", "kind": "card", "name": "Laag"},
+                        {"product_id": "mid", "kind": "card", "name": "Gewoon"}, {"product_id": "own", "kind": "card", "name": "Mijn kaart"}])
+def _put(pid, prices, sales7=None, end=_T):
+    rows = []
+    n = len(prices)
+    for i, pr in enumerate(prices):
+        d = (_date.fromisoformat(end) - _td(days=n - 1 - i)).isoformat()
+        rows.append({"product_id": pid, "date": d, "source": "tcgdex", "grade_key": "raw", "price": pr, "avg1": pr,
+                     "avg7": sales7 if (sales7 and i >= n - 8) else pr, "avg30": 100, "low": None})
+    storeA.upsert_prices(rows)
+_put("hi", [100] * 30 + [140] * 8, sales7=135)
+_put("lo", [100] * 30 + [70] * 8, sales7=75)
+_put("mid", [100] * 38)
+_put("own", [100] * 38)
+fakeA.t["collection"][("c1",)] = {"id": "c1", "product_id": "own", "quantity": 1}
+cnt = advice.run(storeA, _T, log=quiet)
+saved = {r["product_id"]: r["state"] for r in fakeA.t["advice"].values()}
+assert saved == {"hi": "hoog", "lo": "laag", "own": "normaal"}, saved   # 'mid' is normaal en van niemand: niet opgeslagen
+assert cnt["hoog"] == 1 and cnt["laag"] == 1 and cnt["normaal"] == 2, cnt
+assert fakeA.t["advice_stats"][("live", "laag")]["n"] == 0, "nog geen advies van 30 dagen oud"
+# 31 dagen later: 'lo' is hersteld (koop klopte), 'hi' is verder gestegen (verkoopadvies klopte niet)
+_later = (_date.fromisoformat(_T) + _td(days=31)).isoformat()
+storeA.upsert_prices([{"product_id": "lo", "date": (_date.fromisoformat(_T) + _td(days=30)).isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 100},
+                      {"product_id": "hi", "date": (_date.fromisoformat(_T) + _td(days=30)).isoformat(), "source": "tcgdex", "grade_key": "raw", "price": 150}])
+advice.evaluate(storeA, _later, log=quiet)
+st = {k[1]: v for k, v in fakeA.t["advice_stats"].items()}
+assert st["laag"]["n"] == 1 and st["laag"]["hits"] == 1 and st["hoog"]["n"] == 1 and st["hoog"]["hits"] == 0, st
+
 print("alle tests geslaagd")

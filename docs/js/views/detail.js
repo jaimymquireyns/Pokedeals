@@ -1,8 +1,8 @@
 import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
-import { cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, pill } from "../components.js";
-import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, breakEven, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
+import { adviceBox, cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, pill } from "../components.js";
+import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFor, adviceTrack, breakEven, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
@@ -15,6 +15,11 @@ export async function detailView(root, pid, cid) {
   root.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
   const s = getSettings();
   let p, c = null, fcRows = [], hist = [], nmHist = [], al = null, nmRow = null, watchId = null, offerRows = [];
+  // advies: los opgehaald; ontbreekt de tabel nog (schema.sql niet opnieuw gedraaid), dan gewoon zonder
+  const advP = Promise.all([
+    rest.get(`v_advice?select=*&product_id=eq.${enc(pid)}`).then((r) => r[0] || null),
+    rest.get("advice_stats?select=*"),
+  ]).catch(() => null);
   try {
     const owned = cid ? rest.get(`v_collection?select=*&id=eq.${enc(cid)}`).then((r) => r[0] || null) : Promise.resolve(null);
     [p, c, fcRows] = await Promise.all([
@@ -233,6 +238,11 @@ export async function detailView(root, pid, cid) {
   };
   drawAlert();
 
+  // ---- advies ----
+  const advRes = await advP;
+  const adv = advRes ? adviceFor(advRes[0], { owned: c, s }) : null;
+  const advSec = adv ? adviceBox(adv, adviceTrack(advRes[1], advRes[0]?.state === "hoog" ? "hoog" : "laag")) : null;
+
   // ---- knoppen ----
   const btns = h("div", { class: "btns" });
   if (isLoggedIn()) {
@@ -268,7 +278,7 @@ export async function detailView(root, pid, cid) {
 
   root.replaceChildren(h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
-    head, idgrid, stats, nmBox,
+    head, advSec, idgrid, stats, nmBox,
     !c ? h("p", { class: "mini pad2", text: "De trendprijs is Cardmarkets gemiddelde voor alle talen en condities. Het goedkoopste aanbod (Near Mint) kan een stuk lager liggen, zeker bij dure kaarten met weinig verkopen." }) : null,
     graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
     periodBar, chartSec, SHOW_PREDICTIONS ? chance : null, SHOW_PREDICTIONS ? why : null, breakEvenBox, offersSec, alertSec, btns));

@@ -349,6 +349,30 @@ create view v_watchlist with (security_invoker = on) as
         order by date desc limit 1) lp on true
     left join forecasts f on f.product_id = w.product_id and f.horizon_days = 30 and f.threshold_pct = 10;
 
+
+-- Advies per product (advice.py): hoog / laag / verdacht / normaal / onbekend, elke dag vastgelegd en na 30 dagen gecontroleerd
+create table if not exists advice (
+    product_id text not null references products(product_id) on delete cascade,
+    date date not null,
+    state text not null,
+    price numeric, normal numeric, sales7 numeric, sale_days int,
+    flags text[] not null default '{}',
+    basis text,                                  -- waar 'normaal' vandaan komt: nm (90 dagen Near Mint) of avg30 (Cardmarket)
+    primary key (product_id, date)
+);
+create index if not exists advice_state_date on advice (date, state);
+create table if not exists advice_stats (        -- hoe vaak het advies klopte (live = echte uitkomsten na 30 dagen)
+    source text not null, state text not null,
+    n int not null default 0, hits int not null default 0, avg_ret numeric, updated date,
+    primary key (source, state)
+);
+drop view if exists v_advice;
+create view v_advice with (security_invoker = on) as   -- het laatste advies per product (hooguit 3 dagen oud), met naam en foto
+    select distinct on (a.product_id) a.*, p.kind, p.name, p.set_name, p.number, p.image, p.cm_name
+    from advice a join products p using (product_id)
+    where a.date >= current_date - 3
+    order by a.product_id, a.date desc;
+
 -- ===================== Beveiliging =====================
 alter table sets enable row level security;
 alter table products enable row level security;
@@ -370,11 +394,13 @@ alter table watch_items enable row level security;
 alter table watch_folder_items enable row level security;
 alter table sales enable row level security;
 alter table sale_items enable row level security;
+alter table advice enable row level security;
+alter table advice_stats enable row level security;
 
 do $$
 declare t text;
 begin
-    foreach t in array array['sets','products','prices','forecasts','pokemon_interest','trackrecord_stats','trackrecord_signals','offers','market_snapshots','card_signals'] loop
+    foreach t in array array['sets','products','prices','forecasts','pokemon_interest','trackrecord_stats','trackrecord_signals','offers','market_snapshots','card_signals','advice','advice_stats'] loop
         execute format('drop policy if exists "public read" on %I', t);
         execute format('create policy "public read" on %I for select to anon, authenticated using (true)', t);
     end loop;
@@ -385,7 +411,8 @@ begin
 end $$;
 
 grant select on sets, products, prices, forecasts, pokemon_interest, trackrecord_stats, trackrecord_signals, offers, market_snapshots, card_signals to anon, authenticated;
-grant select on v_forecasts, v_search to anon, authenticated;
+grant select on v_forecasts, v_search, v_advice to anon, authenticated;
+grant select on advice, advice_stats to anon, authenticated;
 grant select on v_collection to authenticated;
 grant select on v_watchlist to authenticated;
 grant select on latest_prices to service_role;

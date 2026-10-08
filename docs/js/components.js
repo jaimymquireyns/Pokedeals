@@ -100,3 +100,19 @@ export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
 
 export const emptyNote = (text) => h("li", { class: "empty", text });
 export const note = (title, ...body) => h("div", { class: "note" }, title ? h("strong", { text: title }) : null, ...body);
+
+/** Klein label met het advies (Kopen / Verkopen / Verdacht); bij Houden/Afwachten niets, om de lijsten rustig te houden (tenzij always). */
+export const adviceChip = (adv, always = false) =>
+  adv && (always || adv.tone !== "hold") ? h("span", { class: "advchip " + adv.tone, text: adv.label }) : null;
+
+/** Blok 'Advies' op de detailpagina: het label, de korte uitleg, de redenen en hoe vaak dit advies klopte. */
+export function adviceBox(adv, trackLine) {
+  const more = h("ul", { class: "advwhy", hidden: true }, ...adv.reasons.filter(Boolean).map((r) => h("li", { text: r })));
+  const toggleBtn = h("button", { class: "linkbtn", type: "button", text: "Waarom?", onclick: () => { more.hidden = !more.hidden; toggleBtn.textContent = more.hidden ? "Waarom?" : "Minder"; } });
+  return h("div", { class: "sec advbox " + adv.tone },
+    h("div", { class: "advhead" }, h("h3", { text: "Advies" }), h("span", { class: "advchip big " + adv.tone, text: adv.label })),
+    h("p", { class: "p14", text: adv.short }),
+    more, toggleBtn,
+    h("p", { class: "mini", text: trackLine }),
+    h("p", { class: "mini", text: "Een inschatting op basis van eenvoudige regels, geen garantie en geen financieel advies." }));
+}

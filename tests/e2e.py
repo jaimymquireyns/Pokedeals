@@ -708,11 +708,39 @@ def main():
             page.locator(".orderform input[aria-label='Koper']").fill("Carla B")
             page.locator(".orderform input[aria-label='Totaalprijs']").fill("55")
             page.locator(".orderform input[aria-label='Kostprijs']").first.fill("28")
-            page.get_by_role("button", name="Wijzigingen opslaan").click(); page.wait_for_selector(".salecard")
+            page.get_by_role("button", name="Wijzigingen opslaan").click(); page.wait_for_selector(".salecard:has-text('Carla B')")
             sale = next(x for x in mock.db["sales"] if x["id"] == "s-edit"); item = next(x for x in mock.db["sale_items"] if x["id"] == "si-edit")
             check(sale["buyer"] == "Carla B" and float(sale["total_price"]) == 55 and float(item["price_share"]) == 55 and float(item["cost_total"]) == 28,
                   f"verkoop aangepast: {sale['buyer']}, {sale['total_price']}, deel {item['price_share']}, kost {item['cost_total']}")
             check("Carla B" in page.inner_text(".salelist"), "aangepaste verkoop staat meteen in de lijst")
+
+            print("Advies: kopen / verkopen / verdacht")
+            own = next(r for r in mock.db["collection"] if not r.get("grade_company"))
+            cost = float(own["purchase_price"]) + (float(own.get("purchase_shipping") or 0) + float(own.get("purchase_costs") or 0)) / max(int(own["quantity"]), 1)
+            today = "2026-10-08"
+            owned_ids = {r["product_id"] for r in mock.db["collection"]}
+            buy = next(pid for pid in ("base1-4", "sv03-125", "sv08-100", "swsh7-215") if pid not in owned_ids and pid != own["product_id"])
+            warn = next(pid for pid in ("swsh7-215", "base1-4", "sv08-100") if pid not in (own["product_id"], buy))
+            buy_name = next(p["name"] for p in mock.db["products"] if p["product_id"] == buy)
+            mock.db["advice"] = [
+                {"product_id": own["product_id"], "date": today, "state": "hoog", "price": round(cost * 1.6, 2), "normal": round(cost, 2), "sales7": round(cost * 1.55, 2), "sale_days": 12, "flags": [], "basis": "trend"},
+                {"product_id": buy, "date": today, "state": "laag", "price": 24, "normal": 45.5, "sales7": 25, "sale_days": 10, "flags": [], "basis": "trend"},
+                {"product_id": warn, "date": today, "state": "verdacht", "price": 900, "normal": 610, "sales7": 880, "sale_days": 9, "flags": ["weinig verkopers"], "basis": "trend"}]
+            mock.db["advice_stats"] = [{"source": "live", "state": "laag", "n": 10, "hits": 6, "avg_ret": 0.05, "updated": today}]
+            page.goto(base + "#/home"); page.reload(); page.wait_for_selector(".buysec .advrow")
+            txt = page.inner_text(".buysec")
+            check(buy_name in txt and "Kopen" in txt, f"startscherm toont koopkans met label Kopen: {txt[:160]!r}")
+            check("6 van 10" in txt, "hoe vaak het advies klopte staat erbij")
+            page.goto(base + "#/collection"); page.wait_for_selector(".rowc")
+            check("Verkopen" in page.inner_text(".page"), "collectie toont een verkoopadvies voor een kaart die ruim boven normaal staat")
+            page.goto(base + "#/detail/" + warn); page.wait_for_selector(".advbox")
+            box = page.inner_text(".advbox")
+            check("Verdacht" in box and "geen" in box.lower(), f"verdachte kaart: geen kopen/verkopen: {box[:120]!r}")
+            page.get_by_role("button", name="Waarom?").click()
+            check("1 of 2 verkopers" in page.inner_text(".advbox"), "uitleg noemt de reden (weinig verkopers)")
+            page.goto(base + "#/detail/" + buy); page.wait_for_selector(".advbox")
+            check("Kopen" in page.inner_text(".advbox"), "detail van de koopkans toont Kopen")
+            mock.db["advice"] = []; mock.db["advice_stats"] = []
 
             print("Verwijderen")
             page.goto(base + "#/collection"); page.wait_for_selector(".rowc")

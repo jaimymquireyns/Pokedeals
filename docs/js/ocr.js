@@ -33,7 +33,40 @@ export function rankCandidates(parsed, rows) {
     let s = 0;
     if (full && n === full) s += 3; else if (first && n.startsWith(first)) s += 2; else if (first && n.includes(first)) s += 1;
     if (parsed.number && normNum(r.number) === normNum(parsed.number)) s += 3;
-    if (parsed.total && r.set_total != null && String(r.set_total) === String(parsed.total)) s += 2;
+    if (parsed.total && r.set_total != null && String(Number(r.set_total)) === String(Number(parsed.total))) s += 2;
     return { ...r, score: s };
   }).filter((r) => r.score > 0).sort((a, b) => b.score - a.score).slice(0, 6);
+}
+
+/** De onderrand van een kaart: nummer ("149/128", "TG05/TG30", "SWSH074") en setcode ("30C", "OBF", "PAF"). OCR haalt de streep
+ * of een cijfer soms door elkaar (l/I/| voor 1, O voor 0); dat vangen we hier op. knownCodes: lijst bekende setcodes (kleine letters). */
+export function parseBottom(text, knownCodes = []) {
+  const t = String(text || "").replace(/[|]/g, "1");
+  const fix = (x) => x.replace(/[oO]/g, "0").replace(/[lI]/g, "1");
+  let number = null, total = null, setCode = null;
+  const m = t.match(/\b([A-Za-z]{0,3}[0-9OlI]{1,3})\s*[\/7]\s*([A-Za-z]{0,3}[0-9OlI]{2,3})\b/);
+  if (m) {
+    // letters ervoor die eigenlijk cijfers zijn ('l49' = 149, 'O5' = 05) horen bij het nummer, echte letters ('TG05') niet
+    const split = (x) => { const r = x.match(/^([A-Za-z]{0,3})(.*)$/); return /^[lIoO]+$/.test(r[1]) ? ["", r[1] + r[2]] : [r[1], r[2]]; };
+    const a = [null, ...split(m[1])], b = [null, ...split(m[2])];
+    number = (a[1] + fix(a[2])).toUpperCase();
+    total = (b[1] + fix(b[2])).toUpperCase();
+    if (!/^\d+$/.test(total)) total = null;     // 'TG30': geen settotaal om op te zoeken
+  } else {
+    const promo = t.match(/\b(SWSH|SVP|SV|SM|XY|BW|TG|GG|SL)\s?-?(\d{2,3})\b/i);
+    if (promo) number = (promo[1] + promo[2]).toUpperCase();
+  }
+  const codes = new Set(knownCodes);
+  for (const w of t.split(/[^A-Za-z0-9]+/)) {
+    const k = w.toLowerCase();
+    if (k.length >= 2 && k.length <= 4 && /[a-z]/.test(k) && codes.has(k)) { setCode = w.toUpperCase(); break; }
+  }
+  return { number, total, setCode };
+}
+
+/** Zoekopdrachten voor een gelezen kaart, van precies naar breed. Zoeken (cardsearch.js) begrijpt "149/128" en setcodes als "30c". */
+export function scanQueries(p) {
+  const name = (p.name || "").trim(), nr = p.number ? (p.total ? `${p.number}/${p.total}` : p.number) : "", code = p.setCode || "";
+  const qs = [[name, code, nr], [name, nr], [code, nr], [nr], [name, code], [name]].map((x) => x.filter(Boolean).join(" ").trim());
+  return [...new Set(qs.filter((q) => q.length >= 2 && !(q === nr && !p.total && !code)))];   // een los nummer zonder settotaal is te vaag
 }

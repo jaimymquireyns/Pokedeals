@@ -1,12 +1,12 @@
 import { isLoggedIn, rest } from "../api.js";
 import { lineChart, stepPoints } from "../chart.js";
-import { brandmark, collRow, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery } from "../components.js";
-import { attention, costEach, gradeKey } from "../model.js";
+import { adviceChip, brandmark, collRow, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery } from "../components.js";
+import { adviceFor, attention, costEach, gradeKey } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { openPurchaseOrder, openSaleDetails } from "../orders.js";
 import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store, thumb } from "../ui.js";
 
-let ui = { tab: "bezit", kind: "alles", sort: "up", measure: "buy", range: "1M", attentionOpen: false, expanded: {}, ...store.get("pd:coll", {}) };
+let ui = { tab: "bezit", adviceOpen: true, kind: "alles", sort: "up", measure: "buy", range: "1M", attentionOpen: false, expanded: {}, ...store.get("pd:coll", {}) };
 const saveUi = () => store.set("pd:coll", ui);
 
 const SORTS = [["az", "A–Z"], ["za", "Z–A"], ["new", "Nieuwste (laatst toegevoegd)"], ["set", "Set en nummer"], ["low", "Laagste waarde"], ["high", "Hoogste waarde"], ["up", "Grootste stijging"], ["down", "Grootste daling"]];
@@ -25,6 +25,17 @@ export async function collectionView(root) {
   } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Kon je collectie niet laden. Controleer je verbinding." })); console.error(e); return; }
   items = items.map((c) => ({ ...c, value_each: c.value_each == null ? null : Number(c.value_each), value_30d_ago: c.value_30d_ago == null ? null : Number(c.value_30d_ago),
     purchase_price: Number(c.purchase_price), purchase_shipping: Number(c.purchase_shipping || 0), purchase_costs: Number(c.purchase_costs || 0), p_up: c.p_up == null ? null : Number(c.p_up), p_down: c.p_down == null ? null : Number(c.p_down) }));
+
+  // advies per kaart (Verkopen / Houden / Verdacht); zonder adviestabel gewoon zonder
+  const advRows = new Map();
+  const ids = [...new Set(items.map((c) => c.product_id))];
+  for (let i = 0; i < ids.length; i += 100) {
+    try {
+      for (const r of await rest.get(`v_advice?select=*&product_id=in.(${ids.slice(i, i + 100).map(encodeURIComponent).join(",")})`)) advRows.set(r.product_id, r);
+    } catch { break; }
+  }
+  const settings = getSettings();
+  const adviceOf = (g) => adviceFor(advRows.get(g.product_id), { owned: g, s: settings });
 
   const val = (c) => (c.value_each ?? costEach(c)) * c.quantity;
   const gain = (c) => (ui.measure === "30d" ? (c.value_each && c.value_30d_ago ? c.value_each / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / costEach(c) - 1 : null));
@@ -54,7 +65,7 @@ export async function collectionView(root) {
       const currentTotal = copies.reduce((n, c) => n + (c.value_each ?? costEach(c)) * c.quantity, 0);
       const purchase_price = quantity ? investedTotal / quantity : first.purchase_price;
       const value_each = quantity ? currentTotal / quantity : first.value_each;
-      return { key, copies, ...first, quantity, purchase_price, purchase_shipping: 0, value_each, _invested: investedTotal, _value: currentTotal };
+      return { key, copies, ...first, quantity, purchase_price, purchase_shipping: 0, purchase_costs: 0, value_each, _invested: investedTotal, _value: currentTotal };
     });
   };
   const chartBox = h("div", { class: "chartbox" });
@@ -105,7 +116,7 @@ export async function collectionView(root) {
       } },
         h("span", { class: "gthumb" }, thumb(g.image, "ph", g.kind === "sealed", g.kind === "sealed" ? "" : [g.name, g.number ? "#" + g.number : ""].filter(Boolean).join(" "))),
         h("div", { class: "body" },
-          h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g)),
+          h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g), adviceChip(adviceOf(g))),
           h("span", { class: "set", text: (g.set_name || "") + (g.number && g.kind === "card" ? ` #${g.number}` : "") }),
           h("span", { class: "set", text: multi ? `${g.copies.length} aankopen · ${g.quantity} stuks` : `${g.quantity > 1 ? g.quantity + "x, " : ""}gekocht voor ${eur(g.purchase_price)}` })),
         h("div", { class: "p" },
@@ -170,6 +181,21 @@ export async function collectionView(root) {
       h("div", {}, h("div", { class: "lbl2", text: "Waarde nu" }), h("div", { class: "big num", text: eur(value) })),
       h("div", { class: "r" }, h("div", { class: "lbl2", text: "Winst" }), h("div", { class: "prof num" + (profit < 0 ? " neg" : ""), text: `${signedEur(profit)} · ${invested ? signed(profit / invested, 1) : "–"}` })),
       h("div", { class: "inv", text: `Geïnvesteerd ${eur(invested)} · ${items.reduce((s, c) => s + c.quantity, 0)} stuks` })),
+    (() => {   // Advies: kaarten om te verkopen of die verdacht zijn, bovenaan, met de korte reden
+      const list = groups().map((g) => ({ g, a: adviceOf(g) })).filter((x) => x.a.tone !== "hold")
+        .sort((x, y) => (x.a.tone === "sell" ? 0 : 1) - (y.a.tone === "sell" ? 0 : 1) || y.g._value - x.g._value);
+      if (!list.length) return null;
+      const body = h("ul", { class: "advlist", hidden: !ui.adviceOpen }, ...list.map(({ g, a }) => h("li", {},
+        h("button", { type: "button", class: "advrow", onclick: () => go(detailHash(g.product_id, g.copies[0].id)) },
+          thumb(g.image, "ph", g.kind === "sealed"),
+          h("span", { class: "bl" }, h("b", { text: g.name }), h("small", { text: a.short })),
+          h("span", { class: "r" }, adviceChip(a), h("span", { class: "num", text: eur(g._value) }))))));
+      const sell = list.filter((x) => x.a.tone === "sell").length, warn = list.length - sell;
+      return h("div", { class: "attn" },
+        h("button", { class: "attnhead", type: "button", onclick: (e) => { ui.adviceOpen = !ui.adviceOpen; saveUi(); body.hidden = !ui.adviceOpen; e.currentTarget.querySelector(".icw").replaceWith(icon("chev", ui.adviceOpen ? "flip" : "")); } },
+          h("h3", { text: `Advies: ${[sell ? `${sell}× verkopen` : "", warn ? `${warn}× verdacht` : ""].filter(Boolean).join(", ")}` }), icon("chev", ui.adviceOpen ? "flip" : "")),
+        body);
+    })(),
     attn.length ? (() => {
       const am = new Map();
       for (const a of attn) { const k = groupKey(a.it); if (!am.has(k)) am.set(k, []); am.get(k).push(a); }

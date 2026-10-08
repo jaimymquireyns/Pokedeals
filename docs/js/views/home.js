@@ -1,6 +1,6 @@
 import { getSession, rest } from "../api.js";
-import { brandmark, detailHash, emptyNote, go, kindTag, note, oppRow } from "../components.js";
-import { DEAL_MIN_GAIN, SHOW_PREDICTIONS, dealGain, isOpportunity, netGain, shipCost } from "../model.js";
+import { adviceChip, brandmark, detailHash, emptyNote, go, kindTag, note, oppRow } from "../components.js";
+import { DEAL_MIN_GAIN, SHOW_PREDICTIONS, adviceFor, adviceTrack, dealGain, isOpportunity, netGain, recoveryGain, shipCost } from "../model.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
 import { getSettings } from "../prefs.js";
 import { closeSheet, eur, fmtDate, h, icon, openSheet, segment, store, thumb, toast } from "../ui.js";
@@ -73,6 +73,34 @@ async function fetchRows(s) {
 }
 
 /** Home zolang de kansberekening verborgen is: alleen de goedkope aanbiedingen. */
+/** Koopkansen: kaarten die al een week ruim onder hun normale prijs staan, bevestigd door echte verkopen, zonder tekenen van
+ * een gestuurde prijs, en waarbij na kosten genoeg overblijft als ze herstellen (zie collector/advice.py en model.adviceFor). */
+function buySection() {
+  const box = h("div", { class: "sec buysec" }, h("h3", { text: "Koopkansen" }), h("p", { class: "muted p14", text: "Laden…" }));
+  (async () => {
+    let rows, stats;
+    try {
+      [rows, stats] = await Promise.all([rest.get("v_advice?select=*&state=eq.laag&price=gte.10&limit=500"), rest.get("advice_stats?select=*")]);
+    } catch { box.remove(); return; }   // adviestabel bestaat nog niet (schema.sql niet opnieuw gedraaid)
+    const s = getSettings();
+    const picks = rows.map((r) => ({ r, a: adviceFor(r, { s }), gain: recoveryGain(Number(r.price), Number(r.normal), s) }))
+      .filter((x) => x.a.label === "Kopen").sort((a, b) => b.gain - a.gain);
+    const SHOWN = 8;
+    const row = ({ r, a }) => h("li", {}, h("button", { type: "button", class: "advrow", onclick: () => go(detailHash(r.product_id)) },
+      thumb(r.image, "ph", r.kind === "sealed"),
+      h("span", { class: "bl" }, h("b", { text: r.name }), h("small", { text: [r.set_name, r.number && r.kind === "card" ? `#${r.number}` : ""].filter(Boolean).join(" · ") }), h("small", { text: a.short })),
+      h("span", { class: "r" }, adviceChip(a), h("span", { class: "num", text: eur(Number(r.price)) }))));
+    const list = h("ul", { class: "advlist" }, ...picks.slice(0, SHOWN).map(row));
+    const more = picks.length > SHOWN ? h("button", { class: "linkbtn", type: "button", text: `Toon alle ${picks.length}`, onclick: (e) => { list.replaceChildren(...picks.map(row)); e.target.remove(); } }) : null;
+    box.replaceChildren(...[h("h3", { text: "Koopkansen" }),
+      h("p", { class: "p14 muted", text: "Kaarten die al een week ruim onder hun normale prijs staan, terwijl echte verkopen dat bevestigen. Kaarten met tekenen van een gestuurde prijs vallen af." }),
+      picks.length ? list : h("p", { class: "p14", text: "Vandaag geen kaarten die aan alle voorwaarden voldoen. Dat is goed: liever geen advies dan een slecht advies." }),
+      more,
+      h("p", { class: "mini", text: adviceTrack(stats, "laag") })].filter(Boolean));
+  })();
+  return box;
+}
+
 async function dealsHome(root) {
   const status = h("p", { class: "muted sub", text: "Laden…" });
   const list = h("ul", { class: "dealslist" });
@@ -103,6 +131,7 @@ async function dealsHome(root) {
     brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Home" }), status),
     h("div", { class: "bar" }, h("span"), h("button", { class: "gear", type: "button", text: "Instellingen", onclick: () => go("#/settings") })),
+    buySection(),
     h("div", { class: "sec dealsec" },
       h("h3", { text: "Goedkope aanbiedingen" }),
       h("p", { class: "p14 muted", text: "Aanbiedingen die flink onder de tweede goedkoopste liggen, na verzending en kosten." }),
@@ -110,7 +139,7 @@ async function dealsHome(root) {
       explain,
       filtersBox,
       list),
-    h("p", { class: "fine muted", text: "De kansberekening (welke kaarten gaan stijgen) is tijdelijk verborgen tot ze betrouwbaar genoeg is. Geen financieel advies." })));
+    h("p", { class: "fine muted", text: "Het advies is een inschatting op basis van eenvoudige regels en wordt na 30 dagen gecontroleerd. Geen financieel advies." })));
 
   function draw() {
     sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));

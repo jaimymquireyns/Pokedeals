@@ -78,7 +78,7 @@ def build_db():
         {"set_id": "dp2", "name": "Mysterious Treasures"}, {"set_id": "swsh6", "name": "Chilling Reign"}, {"set_id": "ex1", "name": "Ruby & Sapphire"},
     ]
     return {"products": products, "forecasts": forecasts, "prices": prices, "trackrecord_stats": stats, "trackrecord_signals": signals,
-            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "offers": offers, "sets": sets, "sales": [], "sale_items": [],
+            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "offers": offers, "sets": sets, "sales": [], "sale_items": [], "advice": [], "advice_stats": [],
             "watch_items": [], "watch_folders": [], "watch_folder_items": [], "_log": []}
 
 
@@ -178,6 +178,12 @@ class Mock:
                             "value_30d_ago": sorted(old, key=lambda r: r["date"])[-1]["price"] if old else None,
                             **{k: f.get(k) for k in ("p_up", "p_down", "exp_change", "signal", "confidence", "mode", "n", "sigma", "avg7", "avg30", "mom30")}})
             return out
+        if name == "v_advice":
+            latest = {}
+            for a in d["advice"]:
+                if a["product_id"] not in latest or a["date"] > latest[a["product_id"]]["date"]:
+                    latest[a["product_id"]] = a
+            return [{**a, **{k: prod[a["product_id"]][k] for k in ("kind", "name", "set_name", "number", "image")}} for a in latest.values()]
         if name == "v_deals":
             by = {}
             for o in d["offers"]:
