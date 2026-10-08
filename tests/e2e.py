@@ -181,6 +181,9 @@ def main():
             check(len(r) == 2 and any("#77" in x for x in r) and any("#009" in x for x in r), f"'lugia 30th' toont gewone en vintage Lugia: {r}")
             r = zoek30("charizard 30th 63")
             check(len(r) == 1 and "#63" in r[0], f"'charizard 30th 63': set én nummer: {r}")
+            for term in ("63/128", "charizard 63/128 30C", "30C 63/128"):
+                r = zoek30(term)
+                check(r and "30th Celebration" in r[0] and "#63" in r[0], f"'{term}': het nummer zoals onderaan de kaart: {r[:2]}")
             r = zoek30("charizard bs4")
             check(r and "Base Set" in r[0], f"zonder expliciete set blijft 'bs4' = Base Set #4: {r[:1]}")
 
