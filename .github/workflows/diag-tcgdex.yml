@@ -1,0 +1,19 @@
+name: Diagnose TCGdex (tijdelijk)
+on:
+  push:
+    branches: [diag/tcgdex]
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          getent ahosts api.tcgdex.net || true
+          for u in /v2/en/sets/30th /v2/en/sets/30th-c /v2/en/cards/30th-149 /v2/en/cards/30th-B; do
+            echo "== $u"
+            curl -sS -D - "https://api.tcgdex.net$u" -o body.json | grep -i -E "^(HTTP|date|etag|server|via|x-)" || true
+            python3 -c "import json;d=json.load(open('body.json'));print('cards',len(d.get('cards',[])),'count',d.get('cardCount'),'trend',((d.get('pricing') or {}).get('cardmarket') or {}).get('trend'),'updated',d.get('updated'))"
+          done
+          for ip in $(getent ahostsv4 api.tcgdex.net | awk '{print $1}' | sort -u); do
+            echo "== via $ip"
+            curl -sS --resolve api.tcgdex.net:443:$ip https://api.tcgdex.net/v2/en/cards/30th-149 | python3 -c "import json,sys;d=json.load(sys.stdin);print('trend',((d.get('pricing') or {}).get('cardmarket') or {}).get('trend'))"
+          done
