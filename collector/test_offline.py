@@ -2977,5 +2977,27 @@ storeA.upsert_prices([{"product_id": "lo", "date": (_date.fromisoformat(_T) + _t
 advice.evaluate(storeA, _later, log=quiet)
 st = {k[1]: v for k, v in fakeA.t["advice_stats"].items()}
 assert st["laag"]["n"] == 1 and st["laag"]["hits"] == 1 and st["hoog"]["n"] == 1 and st["hoog"]["hits"] == 0, st
+assert set(st) == set(advice.STAT_KEYS) and st["laag_mild"]["n"] == 1 and st["controle"]["n"] == 0, st
+
+# -- achtergrondcontrole: heeft een daling een reden? --
+_res = {"a": {"state": "laag", "ratio": 0.7}, "b": {"state": "laag", "ratio": 0.7}, "c": {"state": "laag", "ratio": 0.75}, "d": {"state": "hoog", "ratio": 1.4}}
+_res.update({f"s{i}": {"state": "normaal", "ratio": 0.8} for i in range(8)})          # set 'oud' staat als geheel 20% lager
+_res.update({f"m{i}": {"state": "normaal", "ratio": 1.0} for i in range(30)})         # de rest van de markt staat gewoon
+_prods = {"a": {"kind": "card", "name": "Charizard", "set_id": "oud", "dex_id": 6},
+          "b": {"kind": "card", "name": "Mew", "set_id": "nieuw", "dex_id": 151},
+          "c": {"kind": "card", "name": "Lugia", "set_id": "x", "dex_id": 249},
+          "c2": {"kind": "card", "name": "Lugia", "set_id": "herdruk", "dex_id": 249},
+          "d": {"kind": "card", "name": "Pikachu", "set_id": "x", "dex_id": 25}}
+_prods.update({f"s{i}": {"kind": "card", "name": f"Kaart {i}", "set_id": "oud", "dex_id": 1000 + i} for i in range(8)})
+_sets = {"oud": {"name": "Oude set", "release_date": "2020-01-01"}, "nieuw": {"name": "Nieuwe set", "release_date": "2026-09-16"},
+         "x": {"name": "Set X", "release_date": "2019-01-01"}, "herdruk": {"name": "Herdruk-set", "release_date": "2026-08-01"}}
+_ctx = advice.context_flags(_res, _prods, _sets, _T)
+assert [k for k, _ in _ctx["a"]] == ["set daalt"], _ctx.get("a")
+assert [k for k, _ in _ctx["b"]] == ["nieuwe set"], _ctx.get("b")
+assert [k for k, _ in _ctx["c"]] == ["herdruk"] and "Herdruk-set" in _ctx["c"][0][1], _ctx.get("c")
+assert "d" not in _ctx, "een stijger zonder groepsbeweging heeft geen context"
+_ctx2 = advice.context_flags({**{f"m{i}": {"state": "normaal", "ratio": 0.8} for i in range(30)}, "c": {"state": "laag", "ratio": 0.7}}, {"c": {"kind": "card", "name": "Zzz", "set_id": "x"}}, _sets, _T)
+assert [k for k, _ in _ctx2["c"]] == ["markt daalt"], _ctx2
+assert advice.is_control("x", _T) in (True, False) and sum(advice.is_control(f"p{i}", _T) for i in range(4000)) in range(140, 260)
 
 print("alle tests geslaagd")

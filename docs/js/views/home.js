@@ -74,29 +74,76 @@ async function fetchRows(s) {
 
 /** Home zolang de kansberekening verborgen is: alleen de goedkope aanbiedingen. */
 /** Koopkansen: kaarten die al een week ruim onder hun normale prijs staan, bevestigd door echte verkopen, zonder tekenen van
- * een gestuurde prijs, en waarbij na kosten genoeg overblijft als ze herstellen (zie collector/advice.py en model.adviceFor). */
+ * een gestuurde prijs en zonder aanwijsbare reden voor de daling, en waarbij na kosten genoeg overblijft als ze herstellen
+ * (zie collector/advice.py en model.adviceFor). Met filters op prijs, winst en soort, en een volgorde. */
+const BUY_MAX = [["all", "Alles"], ["50", "€ 50"], ["100", "€ 100"], ["250", "€ 250"]];
+const BUY_GAIN = [["10", "10%+"], ["25", "25%+"], ["50", "50%+"]];
+const BUY_KIND = [["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]];
+const BUY_SORTS = [["gain", "Grootste winst bij herstel"], ["dip", "Diepste daling"], ["low", "Laagste prijs"], ["high", "Hoogste prijs"], ["sales", "Meest verkocht"]];
+export const BUY_DEFAULT = { max: "all", gain: "10", kind: "alles", sort: "gain" };
+
+export function filterBuys(picks, f) {
+  const max = f.max === "all" ? Infinity : Number(f.max), minGain = Number(f.gain) / 100;
+  const cmp = {
+    gain: (a, b) => b.gain - a.gain,
+    dip: (a, b) => a.price / a.normal - b.price / b.normal,
+    low: (a, b) => a.price - b.price,
+    high: (a, b) => b.price - a.price,
+    sales: (a, b) => (b.r.sale_days || 0) - (a.r.sale_days || 0) || b.gain - a.gain,
+  }[f.sort] || ((a, b) => b.gain - a.gain);
+  return picks.filter((x) => x.price <= max && x.gain >= minGain && (f.kind === "alles" || x.r.kind === f.kind)).sort(cmp);
+}
+
 function buySection() {
   const box = h("div", { class: "sec buysec" }, h("h3", { text: "Koopkansen" }), h("p", { class: "muted p14", text: "Laden…" }));
   (async () => {
     let rows, stats;
     try {
-      [rows, stats] = await Promise.all([rest.get("v_advice?select=*&state=eq.laag&price=gte.10&limit=500"), rest.get("advice_stats?select=*")]);
+      [rows, stats] = await Promise.all([rest.get("v_advice?select=*&state=eq.laag&price=gte.10&limit=1000"), rest.get("advice_stats?select=*")]);
     } catch { box.remove(); return; }   // adviestabel bestaat nog niet (schema.sql niet opnieuw gedraaid)
     const s = getSettings();
-    const picks = rows.map((r) => ({ r, a: adviceFor(r, { s }), gain: recoveryGain(Number(r.price), Number(r.normal), s) }))
-      .filter((x) => x.a.label === "Kopen").sort((a, b) => b.gain - a.gain);
+    const all = rows.map((r) => ({ r, a: adviceFor(r, { s }), price: Number(r.price), normal: Number(r.normal), gain: recoveryGain(Number(r.price), Number(r.normal), s) }))
+      .filter((x) => x.a.label === "Kopen");
+    const f = { ...BUY_DEFAULT, ...store.get("pd:buy", {}) };
+    const save = () => store.set("pd:buy", f);
     const SHOWN = 8;
+    let showAll = false;
     const row = ({ r, a }) => h("li", {}, h("button", { type: "button", class: "advrow", onclick: () => go(detailHash(r.product_id)) },
       thumb(r.image, "ph", r.kind === "sealed"),
       h("span", { class: "bl" }, h("b", { text: r.name }), h("small", { text: [r.set_name, r.number && r.kind === "card" ? `#${r.number}` : ""].filter(Boolean).join(" · ") }), h("small", { text: a.short })),
       h("span", { class: "r" }, adviceChip(a), h("span", { class: "num", text: eur(Number(r.price)) }))));
-    const list = h("ul", { class: "advlist" }, ...picks.slice(0, SHOWN).map(row));
-    const more = picks.length > SHOWN ? h("button", { class: "linkbtn", type: "button", text: `Toon alle ${picks.length}`, onclick: (e) => { list.replaceChildren(...picks.map(row)); e.target.remove(); } }) : null;
-    box.replaceChildren(...[h("h3", { text: "Koopkansen" }),
-      h("p", { class: "p14 muted", text: "Kaarten die al een week ruim onder hun normale prijs staan, terwijl echte verkopen dat bevestigen. Kaarten met tekenen van een gestuurde prijs vallen af." }),
-      picks.length ? list : h("p", { class: "p14", text: "Vandaag geen kaarten die aan alle voorwaarden voldoen. Dat is goed: liever geen advies dan een slecht advies." }),
-      more,
-      h("p", { class: "mini", text: adviceTrack(stats, "laag") })].filter(Boolean));
+    const list = h("ul", { class: "advlist" });
+    const count = h("p", { class: "mini fcount" });
+    const moreBtn = h("button", { class: "linkbtn", type: "button" });
+    const sortBtn = h("button", { class: "sortb", type: "button", onclick: () => {
+      const opts = h("div", { class: "opts" }, ...BUY_SORTS.map(([k, label]) => h("button", { type: "button", class: "opt", "aria-pressed": String(f.sort === k),
+        onclick: () => { f.sort = k; save(); closeSheet(); draw(); } }, h("span", { text: label }), f.sort === k ? icon("check") : null)));
+      openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Sorteren" }), opts));
+    } });
+    function draw() {
+      sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));
+      sortBtn.setAttribute("aria-label", "Sorteren, nu: " + BUY_SORTS.find((x) => x[0] === f.sort)[1]);
+      const picks = filterBuys(all, f);
+      count.textContent = `${picks.length} van ${all.length} koopkansen`;
+      list.replaceChildren(...(picks.length ? (showAll ? picks : picks.slice(0, SHOWN)).map(row)
+        : [h("li", { class: "emptyfilter" }, emptyNote(all.length ? "Geen koopkansen binnen deze filters." : "Vandaag geen kaarten die aan alle voorwaarden voldoen. Liever geen advies dan een slecht advies."),
+            all.length ? h("button", { class: "linkbtn", type: "button", text: "Filters wissen", onclick: () => { Object.assign(f, BUY_DEFAULT); save(); renderFilters(); draw(); } }) : null)]));
+      moreBtn.hidden = showAll || picks.length <= SHOWN;
+      moreBtn.textContent = `Toon alle ${picks.length}`;
+    }
+    moreBtn.onclick = () => { showAll = true; draw(); };
+    const filtersHolder = h("div");
+    const renderFilters = () => filtersHolder.replaceChildren(h("div", { class: "filters" },
+      h("div", { class: "lbl2", text: "Maximumprijs" }), segment(BUY_MAX, f.max, (v) => { f.max = v; save(); draw(); }, "small"),
+      h("div", { class: "lbl2", text: "Minimale winst als hij herstelt (na kosten)" }), segment(BUY_GAIN, f.gain, (v) => { f.gain = v; save(); draw(); }, "small"),
+      h("div", { class: "filterrow" }, segment(BUY_KIND, f.kind, (v) => { f.kind = v; save(); draw(); }, "small"), sortBtn)));
+    if (all.length) renderFilters();   // zonder koopkansen geen filters: niets om te filteren
+    box.replaceChildren(h("h3", { text: "Koopkansen" }),
+      h("p", { class: "p14 muted", text: "Kaarten die al een week ruim onder hun normale prijs staan, terwijl echte verkopen dat bevestigen. Kaarten met tekenen van een gestuurde prijs, of met een reden voor de daling (herdruk, nieuwe set, de hele set of markt daalt), vallen af." }),
+      filtersHolder, count, list, moreBtn,
+      h("p", { class: "mini", text: adviceTrack(stats, "laag") }),
+      h("p", { class: "mini", text: "Bij een grote daling: kijk altijd zelf even op Cardmarket voor je koopt." }));
+    draw();
   })();
   return box;
 }

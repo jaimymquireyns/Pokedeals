@@ -206,6 +206,91 @@ def candidates(store, log=print, today=None):
     return ids | personal, personal
 
 
+# ---------------------------------------------------------------- heeft een daling (of stijging) een reden?
+CONTEXT_TEXT = {
+    "herdruk": "er kwam onlangs een nieuwe versie van deze kaart uit",
+    "nieuwe set": "de set is nog nieuw: prijzen zakken de eerste maanden vaak verder",
+    "set daalt": "de hele set daalt",
+    "pokemon daalt": "alle kaarten van deze Pokémon dalen",
+    "markt daalt": "de hele markt daalt",
+    "set stijgt": "de hele set stijgt (hype)",
+    "pokemon stijgt": "alle kaarten van deze Pokémon stijgen (hype)",
+}
+
+
+def _norm_name(n):
+    return " ".join(str(n or "").lower().split())
+
+
+def context_flags(results, products, sets, today):
+    """Achtergrondcontrole: heeft een grote beweging een aanwijsbare reden? Kijkt naar herdrukken (zelfde naam in een set van
+    de laatste ADVICE_REPRINT_DAYS dagen), een nog jonge set, en of de hele set, alle kaarten van die Pokémon of de hele markt
+    meebewegen. results: {product_id: assess-uitkomst}; products: {product_id: product}; sets: {set_id: set}.
+    Geeft {product_id: [(vlag, toelichting)]} voor producten die laag of hoog staan."""
+    t = _d(today)
+    rel = {sid: (st.get("release_date") or "") for sid, st in sets.items()}
+    setname = {sid: st.get("name") or sid for sid, st in sets.items()}
+    ratios = {pid: a["ratio"] for pid, a in results.items() if a.get("ratio")}
+    def med_by(key):
+        groups = {}
+        for pid, r in ratios.items():
+            k = key(products.get(pid) or {})
+            if k:
+                groups.setdefault(k, []).append(r)
+        return {k: (_median(v), len(v)) for k, v in groups.items()}
+    by_set = med_by(lambda p: p.get("set_id"))
+    by_dex = med_by(lambda p: p.get("dex_id"))
+    market = _median(list(ratios.values()))
+    newest = {}   # naam -> (releasedatum, set) van de nieuwste druk
+    for pid, p in products.items():
+        if p.get("kind") != "card":
+            continue
+        d = rel.get(p.get("set_id"), "")
+        k = _norm_name(p.get("name"))
+        if d and k and (k not in newest or d > newest[k][0]):
+            newest[k] = (d, p.get("set_id"))
+    recent = (t - timedelta(days=config.ADVICE_REPRINT_DAYS)).isoformat()
+    young = (t - timedelta(days=config.ADVICE_YOUNG_SET_DAYS)).isoformat()
+    out = {}
+    for pid, a in results.items():
+        if a["state"] not in ("laag", "hoog"):
+            continue
+        p = products.get(pid) or {}
+        flags = []
+        mine = rel.get(p.get("set_id"), "")
+        nd = newest.get(_norm_name(p.get("name")))
+        if a["state"] == "laag":
+            if nd and mine and nd[0] > mine and nd[0] >= recent:
+                flags.append(("herdruk", f"in {setname.get(nd[1], nd[1])} ({nd[0]})"))
+            if mine and mine >= young:
+                flags.append(("nieuwe set", f"uitgekomen op {mine}"))
+            sm = by_set.get(p.get("set_id"))
+            if sm and sm[1] >= config.ADVICE_GROUP_MIN and sm[0] <= config.ADVICE_GROUP_DROP:
+                flags.append(("set daalt", f"{setname.get(p.get('set_id'), '')}: gemiddeld {(sm[0] - 1) * 100:+.0f}% t.o.v. normaal"))
+            dm = by_dex.get(p.get("dex_id"))
+            if dm and dm[1] >= config.ADVICE_GROUP_MIN and dm[0] <= config.ADVICE_GROUP_DROP:
+                flags.append(("pokemon daalt", f"gemiddeld {(dm[0] - 1) * 100:+.0f}% over {dm[1]} kaarten"))
+            if market and market <= config.ADVICE_MARKET_DROP:
+                flags.append(("markt daalt", f"gemiddeld {(market - 1) * 100:+.0f}%"))
+        else:
+            sm = by_set.get(p.get("set_id"))
+            if sm and sm[1] >= config.ADVICE_GROUP_MIN and sm[0] >= config.ADVICE_GROUP_RISE:
+                flags.append(("set stijgt", f"{setname.get(p.get('set_id'), '')}: gemiddeld {(sm[0] - 1) * 100:+.0f}%"))
+            dm = by_dex.get(p.get("dex_id"))
+            if dm and dm[1] >= config.ADVICE_GROUP_MIN and dm[0] >= config.ADVICE_GROUP_RISE:
+                flags.append(("pokemon stijgt", f"gemiddeld {(dm[0] - 1) * 100:+.0f}% over {dm[1]} kaarten"))
+        if flags:
+            out[pid] = flags
+    return out
+
+
+def is_control(pid, today, share=None):
+    """Een vaste, willekeurige steekproef van gewone kaarten (controlegroep): zo kunnen we straks zien of het advies beter is dan toeval."""
+    import zlib
+    share = config.ADVICE_CONTROL_SHARE if share is None else share
+    return zlib.crc32(f"{pid}|{today}".encode()) % 1000 < share * 1000
+
+
 def run(store, today, log=print):
     """Beoordeelt vandaag alle kandidaten en slaat het advies op. Bewaard worden de opvallende toestanden (hoog, laag, verdacht)
     van alles, en alle toestanden van kaarten die iemand heeft of volgt (die hebben altijd een uitleg nodig)."""
@@ -221,18 +306,48 @@ def run(store, today, log=print):
     except Exception:
         listings = {}
     rows, counts = [], {s: 0 for s in STATES}
-    for pid in sorted(ids):
-        a = assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), listings=listings.get(pid), lowest_offer=lows.get(pid))
+    results = {pid: assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), listings=listings.get(pid), lowest_offer=lows.get(pid))
+               for pid in sorted(ids)}
+    try:
+        products = {p["product_id"]: p for p in store.select("products", {"select": "product_id,kind,name,set_id,dex_id", "order": "product_id.asc"})}
+        ctx = context_flags(results, products, store.known_sets(), today)
+    except Exception as e:  # zonder context gaat het advies gewoon door
+        log(f"  (achtergrondcontrole overgeslagen: {e})")
+        ctx = {}
+    n_ctrl = 0
+    for pid, a in results.items():
         counts[a["state"]] += 1
-        if a["state"] in ("hoog", "laag", "verdacht") or pid in personal:
+        control = a["state"] == "normaal" and pid not in personal and a.get("price") and is_control(pid, today)
+        n_ctrl += bool(control)
+        if a["state"] in ("hoog", "laag", "verdacht") or pid in personal or control:
             rows.append({"product_id": pid, "date": today, "state": a["state"], "price": a["price"], "normal": a["normal"],
-                         "sales7": a["sales7"], "sale_days": a["sale_days"], "flags": a["flags"], "basis": a["basis"]})
-    for i in range(0, len(rows), 500):
-        store.upsert("advice", rows[i:i + 500], "product_id,date")
+                         "sales7": a["sales7"], "sale_days": a["sale_days"], "flags": a["flags"], "basis": a["basis"],
+                         "context": [f"{k}: {v}" for k, v in ctx.get(pid, [])], "control": bool(control)})
+    with_reason = sum(1 for pid, f in ctx.items() if results[pid]["state"] == "laag")
+    log(f"Achtergrondcontrole: {with_reason} van {counts['laag']} dalers hebben een aanwijsbare reden "
+        f"({', '.join(f'{k} {n}' for k, n in sorted(_count_flags(ctx).items()))}); controlegroep {n_ctrl} gewone kaarten.")
+    try:
+        for i in range(0, len(rows), 500):
+            store.upsert("advice", rows[i:i + 500], "product_id,date")
+    except RuntimeError as e:   # supabase/schema.sql nog niet opnieuw gedraaid: kolommen context/control ontbreken nog
+        if "context" not in str(e) and "control" not in str(e):
+            raise
+        log("! Advies: kolommen 'context'/'control' ontbreken; draai supabase/schema.sql opnieuw. Nu opgeslagen zonder die twee.")
+        rows = [{k: v for k, v in r.items() if k not in ("context", "control")} for r in rows if not r["control"]]
+        for i in range(0, len(rows), 500):
+            store.upsert("advice", rows[i:i + 500], "product_id,date")
     store.delete("advice", {"date": f"lt.{(t - timedelta(days=config.ADVICE_KEEP_DAYS)).isoformat()}"})
     log(f"Advies: {len(ids)} producten beoordeeld: " + ", ".join(f"{s} {n}" for s, n in counts.items()) + f"; {len(rows)} opgeslagen.")
     evaluate(store, today, log=log)
     return counts
+
+
+def _count_flags(ctx):
+    out = {}
+    for flags in ctx.values():
+        for k, _ in flags:
+            out[k] = out.get(k, 0) + 1
+    return out
 
 
 def outcome(state, price, later, fee_pct=None):
@@ -251,39 +366,68 @@ def outcome(state, price, later, fee_pct=None):
     return None
 
 
+STAT_KEYS = ("laag", "hoog", "laag_reden", "laag_diep", "laag_mild", "controle", "controle_daalt")
+
+
 def evaluate(store, today, log=print):
     """Vergelijkt het advies van 30+ dagen geleden met de prijs 30 dagen later en schrijft het resultaat naar advice_stats ('live').
-    Per product telt één advies per toestand per 7 dagen, zodat een kaart die wekenlang 'laag' staat niet 30 keer meetelt."""
+    Per product telt één advies per soort per 7 dagen, zodat een kaart die wekenlang 'laag' staat niet 30 keer meetelt.
+      laag            koopadvies (vanaf ADVICE_MIN_BUY, genoeg winst bij herstel, géén reden voor de daling): wie kocht, maakte winst
+      laag_reden      dalers mét een aanwijsbare reden (herdruk, hele set...): zo zien we of die achtergrondcontrole terecht afraadt
+      laag_diep/_mild het koopadvies uitgesplitst naar hoe diep de daling was (onder of boven 35% onder normaal)
+      hoog            verkoopadvies: de prijs zakte daarna
+      controle        willekeurige gewone kaarten, gekocht zoals bij 'laag': het toeval waar het koopadvies boven moet uitkomen
+      controle_daalt  willekeurige gewone kaarten die daarna zakten: het toeval voor het verkoopadvies"""
     t = date.fromisoformat(today)
     h = config.ADVICE_HORIZON_DAYS
-    old = store.select("advice", {"select": "product_id,date,state,price", "state": "in.(hoog,laag)",
-                                  "date": f"lte.{(t - timedelta(days=h)).isoformat()}", "order": "product_id.asc,date.asc"})
-    if not old:
-        log("Advies-controle: nog geen advies van 30+ dagen oud; de eerste uitkomsten komen vanzelf.")
-        store.upsert("advice_stats", [{"source": "live", "state": s, "n": 0, "hits": 0, "avg_ret": None, "updated": today} for s in ("hoog", "laag")], "source,state")
-        return {}
-    picked, seen = [], {}
+    cutoff = (t - timedelta(days=h)).isoformat()
+    try:
+        old = store.select("advice", {"select": "product_id,date,state,price,normal,context,control", "state": "in.(hoog,laag,normaal)",
+                                      "date": f"lte.{cutoff}", "order": "product_id.asc,date.asc"})
+    except Exception:   # oudere database zonder de kolommen context/control
+        old = store.select("advice", {"select": "product_id,date,state,price,normal", "state": "in.(hoog,laag)",
+                                      "date": f"lte.{cutoff}", "order": "product_id.asc,date.asc"})
+    groups = []
     for r in old:
-        key = (r["product_id"], r["state"])
-        if key in seen and (_d(r["date"]) - _d(seen[key])).days < 7:
+        price, normal = _f(r.get("price")), _f(r.get("normal"))
+        if r["state"] == "laag" and price:
+            if r.get("context"):
+                groups.append(("laag_reden", "laag", r))
+            elif price >= config.ADVICE_MIN_BUY and normal and buy_gain(price, normal) >= config.ADVICE_BUY_GAIN:
+                groups.append(("laag", "laag", r))
+                groups.append(("laag_diep" if price / normal <= 0.65 else "laag_mild", "laag", r))
+        elif r["state"] == "hoog":
+            groups.append(("hoog", "hoog", r))
+        elif r["state"] == "normaal" and r.get("control") and price:
+            if price >= config.ADVICE_MIN_BUY:
+                groups.append(("controle", "laag", r))
+            groups.append(("controle_daalt", "hoog", r))
+    picked, seen = [], {}
+    for key, rule, r in groups:
+        k = (r["product_id"], key)
+        if k in seen and (_d(r["date"]) - _d(seen[k])).days < 7:
             continue
-        seen[key] = r["date"]
-        picked.append(r)
-    since = min(r["date"] for r in picked)
-    raw = load_raw(store, {r["product_id"] for r in picked}, since)
-    res = {"hoog": [], "laag": []}
-    for r in picked:
-        target = (_d(r["date"]) + timedelta(days=h)).isoformat()
-        later = next((x for x in raw.get(r["product_id"], []) if target <= x["date"] <= (_d(target) + timedelta(days=7)).isoformat()), None)
-        o = outcome(r["state"], _f(r["price"]), _f(later["price"]) if later else None)
-        if o:
-            res[r["state"]].append(o)
+        seen[k] = r["date"]
+        picked.append((key, rule, r))
+    res = {k: [] for k in STAT_KEYS}
+    if picked:
+        raw = load_raw(store, {r["product_id"] for _, _, r in picked}, min(r["date"] for _, _, r in picked))
+        for key, rule, r in picked:
+            target = (_d(r["date"]) + timedelta(days=h)).isoformat()
+            later = next((x for x in raw.get(r["product_id"], []) if target <= x["date"] <= (_d(target) + timedelta(days=7)).isoformat()), None)
+            o = outcome(rule, _f(r["price"]), _f(later["price"]) if later else None)
+            if o:
+                res[key].append(o)
     stats = []
-    for s, xs in res.items():
+    for key in STAT_KEYS:
+        xs = res[key]
         n, hits = len(xs), sum(1 for ok, _ in xs if ok)
-        stats.append({"source": "live", "state": s, "n": n, "hits": hits, "avg_ret": round(sum(x for _, x in xs) / n, 4) if n else None, "updated": today})
-        log(f"Advies-controle {s}: {hits} van {n} klopte" + (f", gemiddeld {stats[-1]['avg_ret'] * 100:+.1f}%" if n else "") + ".")
+        stats.append({"source": "live", "state": key, "n": n, "hits": hits, "avg_ret": round(sum(x for _, x in xs) / n, 4) if n else None, "updated": today})
     store.upsert("advice_stats", stats, "source,state")
+    if not picked:
+        log("Advies-controle: nog geen advies van 30+ dagen oud; de eerste uitkomsten komen vanzelf.")
+    else:
+        log("Advies-controle: " + "; ".join(f"{x['state']} {x['hits']}/{x['n']}" + (f" ({x['avg_ret'] * 100:+.1f}%)" if x["n"] else "") for x in stats))
     return res
 
 
@@ -299,6 +443,16 @@ def dry_run(store, today, log=print, top=15):
         sellers, lows = {}, {}
     names = {p["product_id"]: f"{p.get('name')} ({p.get('set_name') or ''} {p.get('number') or ''})".strip() for p in store.products()}
     res = {pid: assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), lowest_offer=lows.get(pid)) for pid in ids}
+    try:
+        prods = {p["product_id"]: p for p in store.select("products", {"select": "product_id,kind,name,set_id,dex_id", "order": "product_id.asc"})}
+        ctx = context_flags(res, prods, store.known_sets(), today)
+        laag = [pid for pid, a in res.items() if a["state"] == "laag"]
+        log(f"  achtergrondcontrole: {sum(1 for pid in laag if pid in ctx)} van {len(laag)} dalers hebben een reden: {_count_flags(ctx)}")
+        for pid in sorted(laag, key=lambda x: -(res[x]["price"] or 0))[:10]:
+            if pid in ctx:
+                log(f"     {pid}: " + "; ".join(f"{k} ({v})" for k, v in ctx[pid]))
+    except Exception as e:
+        log(f"  (achtergrondcontrole mislukt: {e})")
     counts = {s: sum(1 for a in res.values() if a["state"] == s) for s in STATES}
     log(f"Advies (proef, niets opgeslagen): {len(ids)} producten: " + ", ".join(f"{s} {n}" for s, n in counts.items()))
     log(f"  basis 'normaal': trend {sum(1 for a in res.values() if a['basis'] == 'trend')}, avg30 {sum(1 for a in res.values() if a['basis'] == 'avg30')}")

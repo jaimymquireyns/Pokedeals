@@ -116,7 +116,7 @@ export async function collectionView(root) {
       } },
         h("span", { class: "gthumb" }, thumb(g.image, "ph", g.kind === "sealed", g.kind === "sealed" ? "" : [g.name, g.number ? "#" + g.number : ""].filter(Boolean).join(" "))),
         h("div", { class: "body" },
-          h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g), adviceChip(adviceOf(g))),
+          h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g), adviceChip(adviceOf(g), true)),
           h("span", { class: "set", text: (g.set_name || "") + (g.number && g.kind === "card" ? ` #${g.number}` : "") }),
           h("span", { class: "set", text: multi ? `${g.copies.length} aankopen · ${g.quantity} stuks` : `${g.quantity > 1 ? g.quantity + "x, " : ""}gekocht voor ${eur(g.purchase_price)}` })),
         h("div", { class: "p" },
@@ -183,17 +183,17 @@ export async function collectionView(root) {
       h("div", { class: "inv", text: `Geïnvesteerd ${eur(invested)} · ${items.reduce((s, c) => s + c.quantity, 0)} stuks` })),
     (() => {   // Advies: kaarten om te verkopen of die verdacht zijn, bovenaan, met de korte reden
       const list = groups().map((g) => ({ g, a: adviceOf(g) })).filter((x) => x.a.tone !== "hold")
-        .sort((x, y) => (x.a.tone === "sell" ? 0 : 1) - (y.a.tone === "sell" ? 0 : 1) || y.g._value - x.g._value);
+        .sort((x, y) => ({ sell: 0, buy: 1, warn: 2 }[x.a.tone] - { sell: 0, buy: 1, warn: 2 }[y.a.tone]) || y.g._value - x.g._value);
       if (!list.length) return null;
       const body = h("ul", { class: "advlist", hidden: !ui.adviceOpen }, ...list.map(({ g, a }) => h("li", {},
         h("button", { type: "button", class: "advrow", onclick: () => go(detailHash(g.product_id, g.copies[0].id)) },
           thumb(g.image, "ph", g.kind === "sealed"),
           h("span", { class: "bl" }, h("b", { text: g.name }), h("small", { text: a.short })),
           h("span", { class: "r" }, adviceChip(a), h("span", { class: "num", text: eur(g._value) }))))));
-      const sell = list.filter((x) => x.a.tone === "sell").length, warn = list.length - sell;
+      const sell = list.filter((x) => x.a.tone === "sell").length, buy = list.filter((x) => x.a.tone === "buy").length, warn = list.length - sell - buy;
       return h("div", { class: "attn" },
         h("button", { class: "attnhead", type: "button", onclick: (e) => { ui.adviceOpen = !ui.adviceOpen; saveUi(); body.hidden = !ui.adviceOpen; e.currentTarget.querySelector(".icw").replaceWith(icon("chev", ui.adviceOpen ? "flip" : "")); } },
-          h("h3", { text: `Advies: ${[sell ? `${sell}× verkopen` : "", warn ? `${warn}× verdacht` : ""].filter(Boolean).join(", ")}` }), icon("chev", ui.adviceOpen ? "flip" : "")),
+          h("h3", { text: `Advies: ${[sell ? `${sell}× verkopen` : "", buy ? `${buy}× bijkopen` : "", warn ? `${warn}× verdacht` : ""].filter(Boolean).join(", ")}` }), icon("chev", ui.adviceOpen ? "flip" : "")),
         body);
     })(),
     attn.length ? (() => {

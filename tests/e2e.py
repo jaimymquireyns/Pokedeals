@@ -731,6 +731,12 @@ def main():
             txt = page.inner_text(".buysec")
             check(buy_name in txt and "Kopen" in txt, f"startscherm toont koopkans met label Kopen: {txt[:160]!r}")
             check("6 van 10" in txt, "hoe vaak het advies klopte staat erbij")
+            page.locator(".buysec .seg button", has_text="Sealed").click()
+            check("Geen koopkansen binnen deze filters" in page.inner_text(".buysec"), "filter op soort werkt (geen sealed koopkansen)")
+            page.locator(".buysec").get_by_role("button", name="Filters wissen").click()
+            check(page.locator(".buysec .advrow").count() == 1, "filters wissen toont de koopkans weer")
+            page.reload(); page.wait_for_selector(".buysec .advrow")
+            check(page.locator(".buysec .seg button[aria-pressed=true]", has_text="Alles").count() >= 1, "filters blijven onthouden")
             page.goto(base + "#/collection"); page.wait_for_selector(".rowc")
             check("Verkopen" in page.inner_text(".page"), "collectie toont een verkoopadvies voor een kaart die ruim boven normaal staat")
             page.goto(base + "#/detail/" + warn); page.wait_for_selector(".advbox")
@@ -740,6 +746,15 @@ def main():
             check("1 of 2 verkopers" in page.inner_text(".advbox"), "uitleg noemt de reden (weinig verkopers)")
             page.goto(base + "#/detail/" + buy); page.wait_for_selector(".advbox")
             check("Kopen" in page.inner_text(".advbox"), "detail van de koopkans toont Kopen")
+            # daling met een reden (herdruk): geen koop- of bijkoopadvies, wel de reden
+            mock.db["advice"] = [{"product_id": own["product_id"], "date": today, "state": "laag", "price": round(cost * 0.6, 2), "normal": round(cost, 2), "sales7": round(cost * 0.62, 2),
+                                  "sale_days": 12, "flags": [], "basis": "trend", "context": ["herdruk: in Nieuwe Set (2026-09-16)"]}]
+            page.goto(base + "#/detail/" + own["product_id"] + "?c=" + own["id"]); page.wait_for_selector(".advbox")
+            box = page.inner_text(".advbox")
+            check("Houden" in box and "nieuwe versie" in box, f"daling met een reden: Houden, met de reden erbij: {box[:140]!r}")
+            mock.db["advice"][0]["context"] = []
+            page.reload(); page.wait_for_selector(".advbox")
+            check("Bijkopen" in page.inner_text(".advbox"), "daling zonder reden bij een eigen kaart: Bijkopen")
             mock.db["advice"] = []; mock.db["advice_stats"] = []
 
             print("Verwijderen")
