@@ -92,11 +92,11 @@ function buySection() {
       h("span", { class: "r" }, adviceChip(a), h("span", { class: "num", text: eur(Number(r.price)) }))));
     const list = h("ul", { class: "advlist" }, ...picks.slice(0, SHOWN).map(row));
     const more = picks.length > SHOWN ? h("button", { class: "linkbtn", type: "button", text: `Toon alle ${picks.length}`, onclick: (e) => { list.replaceChildren(...picks.map(row)); e.target.remove(); } }) : null;
-    box.replaceChildren(h("h3", { text: "Koopkansen" }),
+    box.replaceChildren(...[h("h3", { text: "Koopkansen" }),
       h("p", { class: "p14 muted", text: "Kaarten die al een week ruim onder hun normale prijs staan, terwijl echte verkopen dat bevestigen. Kaarten met tekenen van een gestuurde prijs vallen af." }),
       picks.length ? list : h("p", { class: "p14", text: "Vandaag geen kaarten die aan alle voorwaarden voldoen. Dat is goed: liever geen advies dan een slecht advies." }),
       more,
-      h("p", { class: "mini", text: adviceTrack(stats, "laag") }));
+      h("p", { class: "mini", text: adviceTrack(stats, "laag") })].filter(Boolean));
   })();
   return box;
 }
