@@ -1,8 +1,8 @@
 {
   "name": "Pokédeals",
   "short_name": "Pokédeals",
-  "description": "Kansen op prijsstijging van Pokémon-kaarten en sealed, plus je collectie",
-  "lang": "nl",
+  "description": "Price deals on Pokémon cards and sealed, plus your collection",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

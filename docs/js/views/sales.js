@@ -30,8 +30,8 @@ const cell = (v) => { const t = v == null ? "" : String(v); return /[";\n]/.test
 const nl = (n) => (n == null || Number.isNaN(n) ? "" : Number(n).toFixed(2).replace(".", ","));
 
 export function salesCsv(sales) {
-  const head = ["Bestelnummer", "Datum", "Koper", "Kaart", "Set", "Nummer", "Staat", "Aantal", "Verkoopprijs", "Commissie",
-    "Verzending ontvangen", "Verzending betaald", "Overige kosten", "Kostprijs", "Winst"];
+  const head = ["Order number", "Date", "Buyer", "Card", "Set", "Number", "Condition", "Quantity", "Sale price", "Commission",
+    "Shipping received", "Shipping paid", "Other costs", "Cost", "Profit"];
   const out = [head.map(cell).join(";")];
   for (const s of sales) {
     const w = s.lines.map((l) => l.price_share);
@@ -48,24 +48,24 @@ export function salesCsv(sales) {
 function downloadCsv(sales) {
   const blob = new Blob(["\ufeff" + salesCsv(sales)], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const a = h("a", { href: url, download: `pokedeals-verkopen-${new Date().toISOString().slice(0, 10)}.csv` });
+  const a = h("a", { href: url, download: `pokedeals-sales-${new Date().toISOString().slice(0, 10)}.csv` });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast("CSV opgeslagen");
+  toast("CSV saved");
 }
 
 /** Verkoop terugdraaien: de kaarten komen terug in 'In bezit' tegen hun kostprijs, en de verkoop verdwijnt. */
 async function undoSale(s, onChange) {
-  if (!confirm(`Verkoop aan ${s.buyer || "onbekende koper"} van ${fmtDateLong(s.sale_date)} terugdraaien? De kaarten komen terug in je collectie.`)) return;
+  if (!confirm(`Undo sale to ${s.buyer || "unknown buyer"} on ${fmtDateLong(s.sale_date)}? The cards go back to your collection.`)) return;
   try {
     await rest.insert("collection", s.lines.map((l) => ({ user_id: userId(), product_id: l.product_id, quantity: l.quantity,
       condition: l.condition || null, grade_company: l.grade_company || null, grade: l.grade || null,
       purchase_price: Math.round((l.cost_total / l.quantity) * 100) / 100, purchase_date: l.purchase_date || s.sale_date,
       purchase_seller: l.purchase_seller || null, purchase_order: l.purchase_order || null })));
     await rest.del("sales", `id=eq.${s.id}`);
-    toast("Verkoop teruggedraaid");
+    toast("Sale undone");
     onChange?.();
-  } catch (e) { console.error(e); toast("Terugdraaien mislukte"); }
+  } catch (e) { console.error(e); toast("Couldn't undo"); }
 }
 
 // ---- grafiek: kost en winst van je verkopen ----
@@ -79,7 +79,7 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
   const days = { "3M": 90, "1J": 365, MAX: Infinity }[range] ?? Infinity;
   const cutoff = now - days * DAY;
   const sorted = [...sales].sort((a, b) => a.sale_date.localeCompare(b.sale_date));
-  if (!sorted.length) return { note: "Nog geen verkopen." };
+  if (!sorted.length) return { note: "No sales yet." };
   let cost = [], profit = [];
   if (mode === "month") {
     const by = new Map();
@@ -92,7 +92,7 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
       const x = ymdMs(`${k}-15`);
       if (x + 16 * DAY >= cutoff) { cost.push([x, Math.round(m.c * 100) / 100]); profit.push([x, Math.round(m.p * 100) / 100]); }
     }
-    if (cost.length < 2) return { note: "Nog maar één maand met verkopen in deze periode: kies Opbouwend of een langere periode." };
+    if (cost.length < 2) return { note: "Only one month with sales in this period: pick Cumulative or a longer period." };
     return { cost, profit };
   }
   const byDay = new Map();
@@ -108,13 +108,13 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
     const prev = all[all.length - shown.length - 1];
     shown = [[cutoff, prev[1], prev[2]], ...shown];
   }
-  if (shown.length < 2) return { note: "Nog te weinig verkopen in deze periode voor een grafiek." };
+  if (shown.length < 2) return { note: "Too few sales in this period for a chart." };
   return { cost: shown.map((x) => [x[0], x[1]]), profit: shown.map((x) => [x[0], x[2]]) };
 }
 
-const SALE_PERIODS = [["all", "Alles"], ["month", "Deze maand"], ["3m", "3 maanden"], ["year", "Dit jaar"]];
-const SALE_RESULTS = [["all", "Alles"], ["win", "Winst"], ["loss", "Verlies"]];
-const SALE_SORTS = [["new", "Nieuwste eerst"], ["old", "Oudste eerst"], ["win", "Grootste winst"], ["loss", "Grootste verlies"]];
+const SALE_PERIODS = [["all", "All"], ["month", "This month"], ["3m", "3 months"], ["year", "This year"]];
+const SALE_RESULTS = [["all", "All"], ["win", "Profit"], ["loss", "Loss"]];
+const SALE_SORTS = [["new", "Newest first"], ["old", "Oldest first"], ["win", "Biggest profit"], ["loss", "Biggest loss"]];
 export const SALE_FILTER_DEFAULT = { period: "all", result: "all", sort: "new" };
 
 /** Periode, uitkomst en volgorde toepassen op de verkopen. now: 'YYYY-MM-DD' (voor de tests). */
@@ -137,11 +137,11 @@ export function filterSales(sales, f, now = new Date().toISOString().slice(0, 10
 }
 
 export async function renderSales(box, { onChange } = {}) {
-  box.replaceChildren(h("p", { class: "muted pad", text: "Laden…" }));
+  box.replaceChildren(h("p", { class: "muted pad", text: "Loading…" }));
   let sales;
-  try { sales = await loadSales(); } catch (e) { console.error(e); box.replaceChildren(h("p", { class: "err pad", text: "Kon je verkopen niet laden." })); return; }
+  try { sales = await loadSales(); } catch (e) { console.error(e); box.replaceChildren(h("p", { class: "err pad", text: "Couldn't load your sales." })); return; }
   if (!sales.length) {
-    box.replaceChildren(emptyNote("Nog geen verkopen. Kies in je collectie 'Selecteren' en daarna 'Verkopen' om er een vast te leggen."));
+    box.replaceChildren(emptyNote("No sales yet. In your collection, tap 'Select' and then 'Sell' to record one."));
     return;
   }
   const ui = { mode: "cum", range: "MAX", ...SALE_FILTER_DEFAULT, ...store.get("pd:sales", {}) };
@@ -152,17 +152,17 @@ export async function renderSales(box, { onChange } = {}) {
   const sumBox = h("div");
   const chartBox = h("div", { class: "chartbox" });
   const chartCard = h("div", { class: "chartcard" },
-    segment([["cum", "Opbouwend"], ["month", "Per maand"]], ui.mode, (m) => { ui.mode = m; saveUi(); drawChart(); }, "small"),
-    segment([["3M", "3M"], ["1J", "1J"], ["MAX", "Max"]], ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"),
+    segment([["cum", "Cumulative"], ["month", "Per month"]], ui.mode, (m) => { ui.mode = m; saveUi(); drawChart(); }, "small"),
+    segment([["3M", "3M"], ["1J", "1Y"], ["MAX", "Max"]], ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"),
     chartBox);
   const csvBox = h("div", { class: "more" });
   const listBox = h("div", { class: "salelist" });
   const countNote = h("p", { class: "mini fcount", hidden: true });
-  const search = filterBox("Zoek op koper, kaart of set", (v) => { query = v; draw(); });
+  const search = filterBox("Search buyer, card or set", (v) => { query = v; draw(); });
   const sortBtn = h("button", { class: "sortb", type: "button", onclick: () => {
     const opts = h("div", { class: "opts" }, ...SALE_SORTS.map(([k, label]) => h("button", { type: "button", class: "opt", "aria-pressed": String(ui.sort === k),
       onclick: () => { ui.sort = k; saveUi(); closeSheet(); draw(); } }, h("span", { text: label }), ui.sort === k ? icon("check") : null)));
-    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Sorteren" }), opts));
+    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Sort" }), opts));
   } });
   const filterBar = h("div", { class: "salefilters" },
     segment(SALE_PERIODS, ui.period, (v) => { ui.period = v; saveUi(); draw(); }, "small"),
@@ -174,24 +174,24 @@ export async function renderSales(box, { onChange } = {}) {
     const r = salesPoints(current, ui.mode, ui.range);
     if (r.note) { chartBox.replaceChildren(h("p", { class: "muted small", text: r.note })); return; }
     chartBox.replaceChildren(
-      lineChart({ series: [{ pts: r.cost, stroke: "var(--ink)", width: 2.4, name: "Kost" }, { pts: r.profit, stroke: "var(--up)", width: 3, name: "Winst" }],
-        scrubSeries: [0, 1], label: "Kost en winst van je verkopen" }),
-      h("div", { class: "legend" }, h("span", { class: "lg cost", text: "Kost" }), h("span", { class: "lg gain", text: "Winst" })));
+      lineChart({ series: [{ pts: r.cost, stroke: "var(--ink)", width: 2.4, name: "Cost" }, { pts: r.profit, stroke: "var(--up)", width: 3, name: "Profit" }],
+        scrubSeries: [0, 1], label: "Cost and profit of your sales" }),
+      h("div", { class: "legend" }, h("span", { class: "lg cost", text: "Cost" }), h("span", { class: "lg gain", text: "Profit" })));
   }
 
   function draw() {
     const q = query.trim();
-    sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));
-    sortBtn.setAttribute("aria-label", "Sorteren, nu: " + SALE_SORTS.find((x) => x[0] === ui.sort)[1]);
+    sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sort" }));
+    sortBtn.setAttribute("aria-label", "Sort, now: " + SALE_SORTS.find((x) => x[0] === ui.sort)[1]);
     const searched = sales.filter((s) => matchQuery(q, [s.buyer, s.sale_date, ...s.lines.flatMap((l) => [l.name, l.set_name, l.number])], s.lines.map((l) => l.set_name).join(" ")));
     current = filterSales(searched, ui);
     const narrowed = Boolean(q) || filtersActive();
     countNote.hidden = !narrowed;
-    countNote.textContent = `${current.length} van ${sales.length} verkopen`;
+    countNote.textContent = `${current.length} of ${sales.length} sales`;
     if (!current.length) {
       sumBox.replaceChildren(); chartCard.hidden = true; csvBox.replaceChildren();
-      listBox.replaceChildren(h("div", { class: "emptyfilter" }, emptyNote(q ? `Niets gevonden voor "${q}"${filtersActive() ? " binnen deze filters" : ""}.` : "Geen verkopen binnen deze filters."),
-        filtersActive() ? h("button", { class: "linkbtn", type: "button", text: "Filters wissen", onclick: clearFilters }) : null));
+      listBox.replaceChildren(h("div", { class: "emptyfilter" }, emptyNote(q ? `Nothing found for "${q}"${filtersActive() ? " within these filters" : ""}.` : "No sales match these filters."),
+        filtersActive() ? h("button", { class: "linkbtn", type: "button", text: "Clear filters", onclick: clearFilters }) : null));
       return;
     }
     chartCard.hidden = false;
@@ -200,22 +200,22 @@ export async function renderSales(box, { onChange } = {}) {
     const thisMonth = current.filter((s) => s.sale_date.startsWith(month)).reduce((t, s) => t + s.profit.total, 0);
     const revenue = current.reduce((t, s) => t + Number(s.total_price), 0);
     sumBox.replaceChildren(h("div", { class: "sum" },
-      h("div", {}, h("div", { class: "lbl2", text: narrowed ? "Winst (gefilterd)" : "Winst totaal" }), h("div", { class: "big num " + (total < 0 ? "neg" : ""), text: signedEur(total) })),
-      h("div", { class: "r" }, h("div", { class: "lbl2", text: "Deze maand" }), h("div", { class: "prof num" + (thisMonth < 0 ? " neg" : ""), text: signedEur(thisMonth) })),
-      h("div", { class: "inv", text: `${current.length} ${current.length === 1 ? "verkoop" : "verkopen"} · ${eur(revenue)} omzet` })));
-    csvBox.replaceChildren(h("button", { type: "button", text: narrowed ? "Exporteer deze verkopen als CSV" : "Exporteer als CSV", onclick: () => downloadCsv(current) }));
+      h("div", {}, h("div", { class: "lbl2", text: narrowed ? "Profit (filtered)" : "Total profit" }), h("div", { class: "big num " + (total < 0 ? "neg" : ""), text: signedEur(total) })),
+      h("div", { class: "r" }, h("div", { class: "lbl2", text: "This month" }), h("div", { class: "prof num" + (thisMonth < 0 ? " neg" : ""), text: signedEur(thisMonth) })),
+      h("div", { class: "inv", text: `${current.length} ${current.length === 1 ? "sale" : "sales"} · ${eur(revenue)} revenue` })));
+    csvBox.replaceChildren(h("button", { type: "button", text: narrowed ? "Export these sales as CSV" : "Export as CSV", onclick: () => downloadCsv(current) }));
     drawChart();
     listBox.replaceChildren(...current.map((s) => h("div", { class: "sec salecard" },
       h("div", { class: "salehead" },
-        h("div", {}, h("b", { text: s.buyer || "Onbekende koper" }), h("div", { class: "mini", text: fmtDateLong(s.sale_date) })),
+        h("div", {}, h("b", { text: s.buyer || "Unknown buyer" }), h("div", { class: "mini", text: fmtDateLong(s.sale_date) })),
         h("b", { class: "num " + (s.profit.total < 0 ? "neg" : "pos"), text: signedEur(s.profit.total) })),
       h("ul", { class: "salelines" }, ...s.lines.map((l, i) => h("li", {},
         h("span", { text: `${l.quantity > 1 ? l.quantity + "x " : ""}${l.name}` }),
         h("span", { class: "num", text: `${eur(l.price_share)} (${signedEur(s.profit.per[i])})` })))),
-      h("div", { class: "mini", text: `Ontvangen ${eur(Number(s.total_price) + Number(s.shipping_received))} · commissie ${eur(Number(s.commission))} · verzending ${eur(Number(s.shipping_paid))} · overig ${eur(Number(s.other_costs))}` }),
+      h("div", { class: "mini", text: `Received ${eur(Number(s.total_price) + Number(s.shipping_received))} · commission ${eur(Number(s.commission))} · shipping ${eur(Number(s.shipping_paid))} · other ${eur(Number(s.other_costs))}` }),
       h("div", { class: "saleacts" },
-        h("button", { type: "button", class: "btn act", onclick: () => openSaleEdit(s, onChange) }, "Aanpassen"),
-        h("button", { type: "button", class: "linkbtn", text: "Verkoop terugdraaien", onclick: () => undoSale(s, onChange) })))));
+        h("button", { type: "button", class: "btn act", onclick: () => openSaleEdit(s, onChange) }, "Edit"),
+        h("button", { type: "button", class: "linkbtn", text: "Undo sale", onclick: () => undoSale(s, onChange) })))));
   }
 
   box.replaceChildren(h("div", { class: "searchrow" }, search.box), filterBar, countNote, sumBox, chartCard, csvBox, listBox);
@@ -226,8 +226,8 @@ export async function renderSales(box, { onChange } = {}) {
 export async function salesView(root) {
   const box = h("div", { class: "salesbox" });
   root.replaceChildren(h("div", { class: "page" },
-    h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => go("#/collection") }, icon("back"), h("span", { text: "Collectie" }))),
-    h("div", { class: "head" }, h("h1", { text: "Verkocht" }), h("p", { class: "muted", text: "Al je verkopen. Tik op Aanpassen om een fout te verbeteren." })),
+    h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => go("#/collection") }, icon("back"), h("span", { text: "Collection" }))),
+    h("div", { class: "head" }, h("h1", { text: "Sold" }), h("p", { class: "muted", text: "All your sales. Tap Edit to fix a mistake." })),
     box));
   await renderSales(box, { onChange: () => salesView(root) });
 }

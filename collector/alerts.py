@@ -18,7 +18,7 @@ def grade_key(item):
 
 
 def eur(x):
-    return "€\u00a0" + f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"€{x:,.2f}"
 
 
 def net_change(price, exp, fee_pct):
@@ -84,12 +84,12 @@ def evaluate(store, sender, today, log=print):
             wants = settings.get(a["user_id"], {}).get("price_alerts", True)
             label = names.get(a["product_id"], a["product_id"]) + ("" if a["grade_key"] == "raw" else f" ({a['grade_key'].replace('-', ' ')})")
             if lo is not None and hi is not None:
-                span = f"tussen {eur(lo)} en {eur(hi)}"
+                span = f"between {eur(lo)} and {eur(hi)}"
             elif lo is not None:
-                span = f"boven {eur(lo)}"
+                span = f"above {eur(lo)}"
             else:
-                span = f"onder {eur(hi)}"
-            payload = {"title": "Prijsmelding", "body": f"{label} kost nu {eur(price)}, {span}.",
+                span = f"below {eur(hi)}"
+            payload = {"title": "Price alert", "body": f"{label} is now {eur(price)}, {span}.",
                        "url": f"./#/detail/{a['product_id']}", "tag": f"alert-{a['id']}"}
             if wants and sender and _push(store, sender, subs.get(a["user_id"], []), payload):
                 store.patch("alerts", {"id": f"eq.{a['id']}"},
@@ -149,9 +149,9 @@ def send_digest(store, sender, today, log=print):
             continue
         parts = []
         if opps:
-            parts.append(f"{opps} nieuwe {'kans' if opps == 1 else 'kansen'} met minstens {int(config.DIGEST_MIN_P_UP * 100)}% kans op +{pct}%.")
+            parts.append(f"{opps} new {'opportunity' if opps == 1 else 'opportunities'} with at least {int(config.DIGEST_MIN_P_UP * 100)}% chance of +{pct}%.")
         if attn:
-            parts.append(f"{len(attn)} {'item' if len(attn) == 1 else 'items'} in je collectie {'vraagt' if len(attn) == 1 else 'vragen'} aandacht.")
+            parts.append(f"{len(attn)} {'item' if len(attn) == 1 else 'items'} in your collection {'needs' if len(attn) == 1 else 'need'} attention.")
         if _push(store, sender, user_subs, {"title": "Pokédeals", "body": " ".join(parts), "url": "./", "tag": "digest"}):
             sent += 1
     log(f"Samenvatting: {sent} verstuurd")

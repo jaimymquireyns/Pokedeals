@@ -3,7 +3,7 @@ import { brandmark, detailHash, emptyNote, go, moveCell, note, oppRow } from "..
 import { DEAL_MIN_GAIN, SHOW_PREDICTIONS, adviceFor, adviceTrack, dealGain, isOpportunity, netGain, outlook, recoveryGain, shipCost } from "../model.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
 import { getSettings } from "../prefs.js";
-import { closeSheet, eur, fmtDate, h, icon, openSheet, segment, store, thumb, toast } from "../ui.js";
+import { closeSheet, eur, fmtDate, fmtDateTime, h, icon, openSheet, segment, store, thumb, toast } from "../ui.js";
 import { summarize } from "./track.js";
 
 const DEAL_MIN_DISCOUNT = 0.20;   // hoeveel de goedkoopste aanbieding minstens onder het gemiddelde van de andere moet liggen...
@@ -27,9 +27,9 @@ async function fetchDeals(limit = 200) {
 
 // ---- filters en sortering op Home: één rij knopjes voor Deals én Goedkope aanbiedingen ----
 export const HOME_DEFAULT = { kind: "alles", max: 0, sort: "gain" };
-const HOME_SORTS = [["gain", "Meeste winst"], ["dip", "Grootste korting"], ["low", "Laagste prijs"], ["high", "Hoogste prijs"]];
-const HOME_MAX = [[0, "Alle prijzen"], [25, "Tot € 25"], [50, "Tot € 50"], [100, "Tot € 100"], [250, "Tot € 250"]];
-const HOME_KIND = [["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]];
+const HOME_SORTS = [["gain", "Most profit"], ["dip", "Biggest discount"], ["low", "Lowest price"], ["high", "Highest price"]];
+const HOME_MAX = [[0, "Any price"], [25, "Up to €25"], [50, "Up to €50"], [100, "Up to €100"], [250, "Up to €250"]];
+const HOME_KIND = [["alles", "All"], ["card", "Cards"], ["sealed", "Sealed"]];
 const DEAL_ORDER = {
   gain: (a, b) => b.gainPct - a.gainPct, dip: (a, b) => b.discount - a.discount,
   low: (a, b) => a.cheapest - b.cheapest, high: (a, b) => b.cheapest - a.cheapest,
@@ -61,7 +61,7 @@ function pickSheet(title, opts, cur, onPick) {
 }
 
 /** Uitleg achter het i'tje naast een titel: de lijst zelf blijft zo kort. */
-const infoBtn = (title, ...body) => h("button", { type: "button", class: "infob", "aria-label": `Uitleg: ${title}`,
+const infoBtn = (title, ...body) => h("button", { type: "button", class: "infob", "aria-label": `Info: ${title}`,
   onclick: () => openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: title }), ...body.map((t) => (typeof t === "string" ? h("p", { class: "p14", text: t }) : t)))) }, "i");
 
 /** De rij filterknopjes. onChange wordt aangeroepen na elke wijziging. */
@@ -70,9 +70,9 @@ function filterBar(f, onChange) {
   const draw = () => bar.replaceChildren(
     ...HOME_KIND.map(([k, label]) => h("button", { type: "button", class: "fchip" + (f.kind === k ? " on" : ""), "aria-pressed": String(f.kind === k), text: label,
       onclick: () => { f.kind = k; done(); } })),
-    h("button", { type: "button", class: "fchip" + (f.max ? " on" : ""), "aria-label": "Maximumprijs", onclick: () => pickSheet("Maximumprijs", HOME_MAX, f.max, (v) => { f.max = v; done(); }) },
-      HOME_MAX.find((x) => x[0] === f.max)?.[1] || "Alle prijzen", icon("chev")),
-    h("button", { type: "button", class: "fchip sortc", "aria-label": "Sorteren, nu: " + HOME_SORTS.find((x) => x[0] === f.sort)[1], onclick: () => pickSheet("Sorteren", HOME_SORTS, f.sort, (v) => { f.sort = v; done(); }) },
+    h("button", { type: "button", class: "fchip" + (f.max ? " on" : ""), "aria-label": "Max price", onclick: () => pickSheet("Max price", HOME_MAX, f.max, (v) => { f.max = v; done(); }) },
+      HOME_MAX.find((x) => x[0] === f.max)?.[1] || "Any price", icon("chev")),
+    h("button", { type: "button", class: "fchip sortc", "aria-label": "Sort, now: " + HOME_SORTS.find((x) => x[0] === f.sort)[1], onclick: () => pickSheet("Sort", HOME_SORTS, f.sort, (v) => { f.sort = v; done(); }) },
       icon("sort"), HOME_SORTS.find((x) => x[0] === f.sort)[1]));
   const done = () => { store.set("pd:home2", f); draw(); onChange(); };
   draw();
@@ -91,9 +91,9 @@ function marketRow(d, watchId, onHeart) {
         h("span", { class: "set", text: setLine(d) }),
         d.variant && d.variant !== "Normal" ? h("span", {}, h("span", { class: "tag", text: d.variant })) : null),
       h("span", { class: "mv" }, h("span", { class: "v num", text: eur(d.cheapest) }),
-        h("span", { class: "arw up", "aria-label": `${Math.round(d.discount * 100)}% goedkoper dan de tweede goedkoopste` }, `-${Math.round(d.discount * 100)}%`),
-        h("span", { class: "gain num", "aria-label": "winst na kosten", text: "+" + eur(d.gain) }))),
-    h("button", { class: "heartb" + (watchId ? " on" : ""), type: "button", "aria-label": watchId ? "Van volglijst halen" : "Aan volglijst toevoegen", onclick: onHeart }, icon("heart", watchId ? "filled" : ""))));
+        h("span", { class: "arw up", "aria-label": `${Math.round(d.discount * 100)}% below the next cheapest` }, `−${Math.round(d.discount * 100)}%`),
+        h("span", { class: "gain num", "aria-label": "profit after costs", text: "+" + eur(d.gain) }))),
+    h("button", { class: "heartb" + (watchId ? " on" : ""), type: "button", "aria-label": watchId ? "Remove from watchlist" : "Add to watchlist", onclick: onHeart }, icon("heart", watchId ? "filled" : ""))));
 }
 
 let state = { kind: "alles", shown: 60 };
@@ -138,24 +138,27 @@ function buySection(f, hook, reset) {
       const picks = filterBuys(all, f);
       title.replaceChildren("Deals ", h("span", { class: "cnt", text: String(picks.length) }));
       list.replaceChildren(...(picks.length ? (showAll ? picks : picks.slice(0, SHOWN)).map(row)
-        : [all.length ? h("li", { class: "emptyfilter" }, emptyNote("Geen deals binnen deze filters."), h("button", { class: "linkbtn", type: "button", text: "Filters wissen", onclick: reset }))
-            : emptyNote("Vandaag geen deals. Liever geen dan een slechte.")]));
+        : [all.length ? h("li", { class: "emptyfilter" }, emptyNote("No deals match these filters."), h("button", { class: "linkbtn", type: "button", text: "Clear filters", onclick: reset }))
+            : emptyNote("No deals today. Better none than a bad one.")]));
       moreBtn.hidden = showAll || picks.length <= SHOWN;
-      moreBtn.textContent = `Toon alle ${picks.length}`;
+      moreBtn.textContent = `Show all ${picks.length}`;
     }
     moreBtn.onclick = () => { showAll = true; draw(); };
     box.replaceChildren(h("div", { class: "sech" }, title, infoBtn("Deals",
-      "Kaarten die al een week ruim onder hun normale prijs staan, terwijl echte verkopen dat bevestigen.",
-      "Het balkje toont de kans dat de prijs terugkeert naar normaal: hoe verder en hoe groener, hoe groter de kans. Het percentage ernaast is hoeveel de kaart dan stijgt.",
-      "Kaarten met tekenen van een gestuurde prijs, of met een reden voor de daling (herdruk, nieuwe set, de hele set of markt daalt), vallen af.",
+      "Cards a week well below their normal price, confirmed by real sales.",
+      "The bar shows the chance the price returns to normal: the longer and greener, the likelier. The percentage is how much the card would rise.",
+      "Cards with signs of price manipulation, or a reason for the drop (reprint, new set, whole set or market falling), are left out.",
       adviceTrack(stats, "laag"),
-      "Kijk bij een grote daling altijd zelf even op Cardmarket voor je koopt. Geen financieel advies.")),
+      "With a big drop, always check Cardmarket yourself before buying. Not financial advice.")),
       list, moreBtn);
     hook.draw = draw;
     draw();
   })();
   return box;
 }
+
+/** Wanneer de dagelijkse update voor het laatst klaar was (tabel app_status, geschreven door collector/run.py). */
+const lastUpdate = () => rest.get("app_status?select=updated_at&order=updated_at.desc&limit=1").then((r) => r[0]?.updated_at || null).catch(() => null);
 
 async function dealsHome(root) {
   const status = h("p", { class: "muted sub" });
@@ -164,49 +167,49 @@ async function dealsHome(root) {
   const f = { ...HOME_DEFAULT, ...store.get("pd:home2", {}) };
   let deals = [];
   const buyHook = { draw: () => {} };
-  const title = h("h3", { text: "Goedkope aanbiedingen" });
+  const title = h("h3", { text: "Cheap listings" });
 
   const dealSec = h("div", { class: "sec dealsec" },
-    h("div", { class: "sech" }, title, infoBtn("Goedkope aanbiedingen",
-      "De goedkoopste aanbieding op Cardmarket ligt flink onder de tweede goedkoopste, binnen dezelfde uitvoering (Normal, Reverse Holofoil, ...).",
-      "Het rode getal is hoeveel goedkoper, het groene bedrag wat je overhoudt als je koopt en verkoopt voor de prijs van de tweede goedkoopste: na verzending, commissie en verpakking.",
-      "Alleen gewone Near Mint-kaarten. Een opvallend lage prijs kan ook een vergissing zijn: kijk altijd zelf op Cardmarket.")),
+    h("div", { class: "sech" }, title, infoBtn("Cheap listings",
+      "The cheapest Cardmarket listing is well below the next cheapest, within the same variant (Normal, Reverse Holofoil, ...).",
+      "Red is how much cheaper; green is what you keep if you buy and resell at the next cheapest price, after shipping, fees and packaging.",
+      "Near Mint cards only. A very low price may be a mistake: always check Cardmarket yourself.")),
     list);
   const fbar = filterBar(f, () => { buyHook.draw(); draw(); });
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
-    h("div", { class: "head headrow" }, h("div", {}, h("h1", { text: "Home" }), status),
-      h("button", { class: "gear", type: "button", "aria-label": "Instellingen", onclick: () => go("#/settings") }, icon("gear"))),
+    h("div", { class: "head" }, h("h1", { text: "Home" }), status),
     fbar,
     buySection(f, buyHook, () => fbar.reset()),
     dealSec));
 
   function draw() {
     const shown = filterDeals(deals, f);
-    title.replaceChildren("Goedkope aanbiedingen ", h("span", { class: "cnt", text: String(shown.length) }));
+    title.replaceChildren("Cheap listings ", h("span", { class: "cnt", text: String(shown.length) }));
     if (!deals.length) return;
-    if (!shown.length) { list.replaceChildren(h("li", { class: "emptyfilter" }, emptyNote("Geen aanbiedingen binnen deze filters."), h("button", { class: "linkbtn", type: "button", text: "Filters wissen", onclick: () => fbar.reset() }))); return; }
+    if (!shown.length) { list.replaceChildren(h("li", { class: "emptyfilter" }, emptyNote("No listings match these filters."), h("button", { class: "linkbtn", type: "button", text: "Clear filters", onclick: () => fbar.reset() }))); return; }
     list.replaceChildren(...shown.map((d) => marketRow(d, watched.get(d.product_id), async (e) => {
       e.stopPropagation();
       if (!getSession()) { go("#/login?next=" + encodeURIComponent("#/home")); return; }
       try {
         const wid = watched.get(d.product_id);
-        if (wid) { await removeWatch(wid); watched.delete(d.product_id); toast("Van volglijst gehaald"); }
-        else { watched.set(d.product_id, await addWatch(d.product_id)); toast("Op je volglijst gezet"); }
+        if (wid) { await removeWatch(wid); watched.delete(d.product_id); toast("Removed from watchlist"); }
+        else { watched.set(d.product_id, await addWatch(d.product_id)); toast("Added to watchlist"); }
         draw();
-      } catch { toast("Aanpassen mislukte"); }
+      } catch { toast("Couldn't update"); }
     })));
   }
 
-  list.replaceChildren(emptyNote("Laden…"));
+  list.replaceChildren(emptyNote("Loading…"));
   deals = await fetchDeals();
   if (!deals.length) {
-    title.textContent = "Goedkope aanbiedingen";
-    list.replaceChildren(emptyNote("Nog geen goedkope aanbiedingen. Ze worden elke nacht bijgewerkt."));
+    title.textContent = "Cheap listings";
+    list.replaceChildren(emptyNote("No cheap listings yet. They update every night."));
     return;
   }
   const newest = deals.reduce((m, d) => (d.date > m ? d.date : m), "");
-  status.textContent = newest ? `Bijgewerkt ${fmtDate(newest)}` : "";
+  status.textContent = newest ? `Updated ${fmtDate(newest)}` : "";
+  lastUpdate().then((t) => { if (t) status.textContent = `Updated ${fmtDateTime(t)}`; });
   if (getSession()) await Promise.all(deals.map(async (d) => { try { const id = await isWatched(d.product_id); if (id) watched.set(d.product_id, id); } catch {} }));
   draw();
 }
@@ -215,11 +218,11 @@ export async function homeView(root) {
   if (!SHOW_PREDICTIONS) return dealsHome(root);
   const s = getSettings();
   const trackLine = h("span", { text: "" });
-  const status = h("p", { class: "muted sub" }, h("span", { class: "st", text: "Laden…" }), " ", trackLine);
+  const status = h("p", { class: "muted sub" }, h("span", { class: "st", text: "Loading…" }), " ", trackLine);
   const notice = h("div");
-  const legend = h("p", { class: "legend", text: `Kans dat de Cardmarket-trendprijs binnen ${s.horizon} dagen minstens ${s.pct}% stijgt. Rechts de verwachte stijging na verkoopkosten en verzending. De trendprijs is een gemiddelde, niet het goedkoopste aanbod.` });
+  const legend = h("p", { class: "legend", text: `Chance the Cardmarket trend price rises ${s.pct}%+ within ${s.horizon} days. Right: expected rise after selling costs and shipping. The trend price is an average, not the cheapest listing.` });
   const list = h("ul", { class: "list" });
-  const more = h("div", { class: "more" }, h("button", { type: "button", text: "Toon meer", onclick: () => { state.shown += 60; draw(); } }));
+  const more = h("div", { class: "more" }, h("button", { type: "button", text: "Show more", onclick: () => { state.shown += 60; draw(); } }));
   let rows = [];
   const watched = new Map();
 
@@ -227,17 +230,17 @@ export async function homeView(root) {
     if (!getSession()) { go("#/login?next=" + encodeURIComponent("#/home")); return; }
     try {
       const wid = watched.get(pid);
-      if (wid) { await removeWatch(wid); watched.delete(pid); toast("Van volglijst gehaald"); }
-      else { watched.set(pid, await addWatch(pid)); toast("Op je volglijst gezet"); }
+      if (wid) { await removeWatch(wid); watched.delete(pid); toast("Removed from watchlist"); }
+      else { watched.set(pid, await addWatch(pid)); toast("Added to watchlist"); }
       draw();
-    } catch { toast("Aanpassen mislukte"); }
+    } catch { toast("Couldn't update"); }
   };
 
   let draw = () => {
     const vis = rows.filter((r) => (state.kind === "alles" || r.kind === state.kind) && isOpportunity({ price: Number(r.price), exp: Number(r.exp_change) }, s));
     const page = vis.slice(0, state.shown);
     list.replaceChildren(...(page.length ? page.map((r) => oppRow({ ...r, price: Number(r.price), p_up: Number(r.p_up) }, netGain(Number(r.price), Number(r.exp_change), s), { on: watched.has(r.product_id), onclick: (e) => { e.stopPropagation(); toggleWatch(r.product_id); } }))
-      : [emptyNote(rows.length ? "Geen kansen met deze instellingen. Pas filters of kosten aan in Instellingen." : "Nog geen kansen. Na de eerste dagelijkse run verschijnen ze hier.")]));
+      : [emptyNote(rows.length ? "No chances with these settings. Adjust them in Settings." : "No chances yet. They appear after the first daily run.")]));
     more.hidden = vis.length <= state.shown;
   };
 
@@ -248,11 +251,11 @@ export async function homeView(root) {
     brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Home" }), status),
     h("div", { class: "bar" },
-      segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; state.shown = 60; draw(); }),
-      h("button", { class: "gear", type: "button", text: "Instellingen", onclick: () => go("#/settings") })),
+      segment([["alles", "All"], ["card", "Cards"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; state.shown = 60; draw(); }),
+      h("button", { class: "gear", type: "button", text: "Settings", onclick: () => go("#/settings") })),
     dealsSec,
-    h("div", { class: "sec homechance" }, h("h3", { text: "Kansen" }), legend, list, more),
-    h("p", { class: "fine muted", text: "Statistische schatting op basis van marktprijzen; geen financieel advies. Prijzen houden geen rekening met conditie, taal of marktplaatskosten (tenzij je die bij Instellingen invult). Controleer altijd de echte aanbiedingen." })));
+    h("div", { class: "sec homechance" }, h("h3", { text: "Chances" }), legend, list, more),
+    h("p", { class: "fine muted", text: "Statistical estimate from market prices; not financial advice. Prices ignore condition, language and marketplace fees (unless set in Settings). Always check the real listings." })));
 
   fetchDeals().then(async (deals) => {
     if (!deals.length) return;
@@ -264,15 +267,15 @@ export async function homeView(root) {
         if (!getSession()) { go("#/login?next=" + encodeURIComponent("#/home")); return; }
         try {
           const wid = watched.get(d.product_id);
-          if (wid) { await removeWatch(wid); watched.delete(d.product_id); toast("Van volglijst gehaald"); }
-          else { watched.set(d.product_id, await addWatch(d.product_id)); toast("Op je volglijst gezet"); }
+          if (wid) { await removeWatch(wid); watched.delete(d.product_id); toast("Removed from watchlist"); }
+          else { watched.set(d.product_id, await addWatch(d.product_id)); toast("Added to watchlist"); }
           drawDeals();
-        } catch { toast("Aanpassen mislukte"); }
+        } catch { toast("Couldn't update"); }
       })));
     };
     dealsSec.replaceChildren(h("div", { class: "sec dealsec" },
-      h("h3", { text: "Goedkope aanbiedingen" }),
-      h("p", { class: "p14 muted", text: "De laagste actuele aanbieding ligt hier flink onder wat de andere verkopers vragen, los van de kans hieronder." }), dealsList));
+      h("h3", { text: "Cheap listings" }),
+      h("p", { class: "p14 muted", text: "The lowest current listing is well below what other sellers ask, apart from the chance below." }), dealsList));
     drawDeals();
     const oldDraw = draw;
     draw = () => { oldDraw(); drawDeals(); };
@@ -281,7 +284,7 @@ export async function homeView(root) {
   rest.get("trackrecord_stats?select=*&horizon_days=eq.30&threshold_pct=eq.10").then((st) => {
     const t = summarize(st);
     trackLine.replaceChildren(h("a", { href: "#/track", class: "hl", text: "Trackrecord" }),
-      t?.koop?.n ? `: ${t.koop.hits} van ${t.koop.n} koop-signalen kwamen uit${t.source === "backtest" ? " (backtest)" : ""}.` : ": nog geen uitkomsten.");
+      t?.koop?.n ? `: ${t.koop.hits} of ${t.koop.n} buy signals came true${t.source === "backtest" ? " (backtest)" : ""}.` : ": no results yet.");
   }).catch(() => {});
 
   try {
@@ -289,17 +292,17 @@ export async function homeView(root) {
     rows = data;
     if (getSession()) await Promise.all(rows.slice(0, 120).map(async (r) => { if (watched.has(r.product_id)) return; try { const id = await isWatched(r.product_id); if (id) watched.set(r.product_id, id); } catch {} }));
     const updated = rows.reduce((m, r) => (r.updated > m ? r.updated : m), "");
-    status.querySelector(".st").textContent = rows.length ? `Bijgewerkt ${fmtDate(updated)}.` : "Nog geen data.";
-    if (cachedAt) notice.append(note("Geen verbinding", `Je ziet de laatst opgeslagen stand van ${new Date(cachedAt).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}.`));
+    status.querySelector(".st").textContent = rows.length ? `Updated ${fmtDate(updated)}.` : "No data yet.";
+    if (cachedAt) notice.append(note("Offline", `Showing saved data from ${new Date(cachedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.`));
     const low = rows.filter((r) => r.confidence === "laag").length;
     if (rows.length && low / rows.length > 0.5) {
-      notice.append(note("Nog grove schattingen", "Er is nog weinig prijsgeschiedenis. Rijen met het label 'grof' zijn een eerste indicatie en worden elke dag betrouwbaarder."));
+      notice.append(note("Rough estimates", "Little price history yet. Rows marked 'rough' are a first indication and get more reliable every day."));
     }
     draw();
   } catch (e) {
-    status.querySelector(".st").textContent = "Laden mislukt.";
-    notice.append(note("Kon de gegevens niet ophalen", "Controleer je internetverbinding en de gegevens in config.js.",
-      h("button", { type: "button", text: "Opnieuw proberen", onclick: () => homeView(root) })));
+    status.querySelector(".st").textContent = "Couldn't load.";
+    notice.append(note("Couldn't fetch data", "Check your connection and the settings in config.js.",
+      h("button", { type: "button", text: "Try again", onclick: () => homeView(root) })));
     console.error(e, getSession());
   }
 }

@@ -12,7 +12,7 @@ export function loadTesseract() {
   tessPromise ??= new Promise((res, rej) => {
     const s = h("script", { src: TESS });
     s.onload = () => res(window.Tesseract);
-    s.onerror = () => { tessPromise = null; rej(new Error("Tekstherkenning kon niet worden geladen (internet nodig)")); };
+    s.onerror = () => { tessPromise = null; rej(new Error("Couldn't load text recognition (needs internet)")); };
     document.head.append(s);
   });
   return tessPromise;
@@ -94,30 +94,30 @@ export function openScan({ onAdded }) {
   let stream;
   const stop = () => { stream?.getTracks().forEach((t) => t.stop()); stream = null; };
   const video = h("video", { autoplay: true, playsinline: true, muted: true });
-  const status = h("div", { class: "vf-hint", text: "Leg de kaart in het kader" });
+  const status = h("div", { class: "vf-hint", text: "Place the card in the frame" });
   const panel = h("div", { class: "scanpanel", hidden: true });
   const file = h("input", { type: "file", accept: "image/*", capture: "environment", hidden: true });
-  const shutter = h("button", { class: "shutter", type: "button", "aria-label": "Foto maken" });
+  const shutter = h("button", { class: "shutter", type: "button", "aria-label": "Take photo" });
   const dlg = h("div", { class: "scan" },
     video,
-    h("div", { class: "vf-top" }, h("button", { class: "round", type: "button", "aria-label": "Sluiten", onclick: () => closeSheet("scan") }, icon("x")),
-      h("button", { class: "round txt", type: "button", onclick: () => file.click(), text: "Foto kiezen" })),
+    h("div", { class: "vf-top" }, h("button", { class: "round", type: "button", "aria-label": "Close", onclick: () => closeSheet("scan") }, icon("x")),
+      h("button", { class: "round txt", type: "button", onclick: () => file.click(), text: "Choose photo" })),
     status, h("div", { class: "frame" }, h("i", { class: "corner c1" }), h("i", { class: "corner c2" }), h("i", { class: "corner c3" }), h("i", { class: "corner c4" })),
     h("div", { class: "shutterbar" }, shutter), file, panel);
 
   async function recognise(source, w, h_, crop) {
     stop();
     video.pause?.();
-    status.textContent = "Kaart herkennen…";
+    status.textContent = "Recognising card…";
     shutter.disabled = true;
     try {
       const T = await loadTesseract();
       const parsed = await readCard(T, cardCanvas(source, w, h_, crop));
       const read = [parsed.name, parsed.setCode, parsed.number ? (parsed.total ? `${parsed.number}/${parsed.total}` : parsed.number) : ""].filter(Boolean).join(" ");
-      status.textContent = read ? `Gelezen: ${read}` : "Niets gelezen";
+      status.textContent = read ? `Read: ${read}` : "Nothing read";
       showResults(parsed, read ? await findCandidates(parsed) : []);
     } catch (e) {
-      status.textContent = e.message || "Herkennen mislukte";
+      status.textContent = e.message || "Couldn't recognise";
       showResults({ name: null }, []);
     }
   }
@@ -126,11 +126,11 @@ export function openScan({ onAdded }) {
     panel.hidden = false;
     const body = h("div", { class: "sheetin" });
     const pick = (p) => body.replaceChildren(h("div", { class: "handle" }),
-      h("div", { class: "okrow" }, h("span", { class: "ok", text: "Herkend" }),
-        cands.length > 1 || !p ? h("button", { type: "button", class: "linkbtn", text: "Niet juist?", onclick: () => choose() }) : null),
+      h("div", { class: "okrow" }, h("span", { class: "ok", text: "Recognised" }),
+        cands.length > 1 || !p ? h("button", { type: "button", class: "linkbtn", text: "Not right?", onclick: () => choose() }) : null),
       addForm(p, { onDone: () => { closeSheet("scan"); onAdded?.(); } }));
     const choose = () => {
-      const q = h("input", { type: "search", placeholder: "Zoek op naam, set of nummer (bijv. 149/128)", "aria-label": "Zoek de kaart",
+      const q = h("input", { type: "search", placeholder: "Search name, set or number (e.g. 149/128)", "aria-label": "Find the card",
         value: [parsed.name, parsed.number ? (parsed.total ? `${parsed.number}/${parsed.total}` : parsed.number) : ""].filter(Boolean).join(" ") });
       const out = h("ul", { class: "list pick" });
       const run = async () => {
@@ -141,8 +141,8 @@ export function openScan({ onAdded }) {
           h("span", { class: "name", text: r.name }), h("span", { class: "set", text: `${r.set_name} #${r.number}` })))));
       };
       q.oninput = debounce(run, 300);
-      body.replaceChildren(h("div", { class: "handle" }), h("h3", { text: "Kies de juiste kaart" }), q, out,
-        ...(cands.length ? [h("p", { class: "mini", text: "Suggesties uit de foto:" }), h("ul", { class: "list pick" }, ...cands.map((r) =>
+      body.replaceChildren(h("div", { class: "handle" }), h("h3", { text: "Pick the right card" }), q, out,
+        ...(cands.length ? [h("p", { class: "mini", text: "Suggestions from the photo:" }), h("ul", { class: "list pick" }, ...cands.map((r) =>
           h("li", {}, h("button", { type: "button", class: "res", onclick: () => pick(r) }, h("span", { class: "name", text: r.name }), h("span", { class: "set", text: `${r.set_name} #${r.number}` })))))] : []));
       run();
     };
@@ -162,5 +162,5 @@ export function openScan({ onAdded }) {
   openSheet(dlg, { id: "scan", onClose: stop });
   navigator.mediaDevices?.getUserMedia?.({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } }, audio: false })
     .then((s) => { stream = s; video.srcObject = s; })
-    .catch(() => { status.textContent = "Geen cameratoegang. Kies een foto uit je galerij."; shutter.hidden = true; });
+    .catch(() => { status.textContent = "No camera access. Choose a photo from your gallery."; shutter.hidden = true; });
 }

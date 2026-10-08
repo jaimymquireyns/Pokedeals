@@ -6,8 +6,10 @@ import { costEach, gradeLabel } from "./model.js";
 export const go = (hash) => { location.hash = hash; };
 export const detailHash = (pid, cid) => `#/detail/${encodeURIComponent(pid)}${cid ? `?c=${cid}` : ""}`;
 
-export const kindTag = (kind) => h("span", { class: "tag" + (kind === "sealed" ? " s" : ""), text: kind === "sealed" ? "sealed" : "kaart" });
-export const pill = (label) => h("span", { class: "pill " + (label.startsWith("koop") ? "koop" : label.startsWith("verkoop") ? "verkoop" : label.startsWith("winst") ? "winst" : ""), text: label });
+export const kindTag = (kind) => h("span", { class: "tag" + (kind === "sealed" ? " s" : ""), text: kind === "sealed" ? "sealed" : "card" });
+// label: een signaal uit de data ("koop", "verkoop", "afwachten") of uit model.ownedSignal (al Engels); de klasse blijft de Nederlandse sleutel
+const PILL = { koop: ["koop", "buy"], verkoop: ["verkoop", "sell"], afwachten: ["", "wait"], hold: ["", "hold"], "consider selling": ["verkoop", "consider selling"], "take profit?": ["winst", "take profit?"] };
+export const pill = (label) => { const [cls, text] = PILL[label] || ["", label]; return h("span", { class: "pill " + cls, text }); };
 export const gradeTag = (c) => (gradeLabel(c) ? h("span", { class: "gr", text: gradeLabel(c) }) : null);
 
 /** Cardmarket-adres van een kaart: de exacte pagina als we die kennen (cm_url, via PkmnPrices), anders een zoekopdracht
@@ -56,9 +58,9 @@ export const brandmark = () => h("div", { class: "brandmark" },
 export function upBar(pUp, net) {
   const fill = h("i"); fill.style.width = Math.min(pUp * 100, 100) + "%";
   return h("div", { class: "l3" },
-    h("b", { text: pp(pUp) }), h("span", { class: "lbl", text: "kans" }),
-    h("div", { class: "bar1", role: "img", "aria-label": `Kans op stijging ${pp(pUp)}` }, fill),
-    h("span", { class: "nt" }, h("b", { text: signed(net) }), " ", h("span", { class: "lbl", text: "netto" })));
+    h("b", { text: pp(pUp) }), h("span", { class: "lbl", text: "chance" }),
+    h("div", { class: "bar1", role: "img", "aria-label": `Chance of a rise ${pp(pUp)}` }, fill),
+    h("span", { class: "nt" }, h("b", { text: signed(net) }), " ", h("span", { class: "lbl", text: "net" })));
 }
 
 /** Tweezijdige balk: rood = kans op daling, groen = kans op stijging. */
@@ -66,7 +68,7 @@ export function chanceBar(pUp, pDown) {
   const scale = (p) => Math.min(p / 0.8, 1) * 100 + "%";
   const l = h("i"); l.style.width = scale(pDown);
   const r = h("i"); r.style.width = scale(pUp);
-  return h("div", { class: "chance", role: "img", "aria-label": `Kans op daling ${pp(pDown)}, kans op stijging ${pp(pUp)}` },
+  return h("div", { class: "chance", role: "img", "aria-label": `Chance of a drop ${pp(pDown)}, chance of a rise ${pp(pUp)}` },
     h("span", { class: "d num", text: pp(pDown) }),
     h("div", { class: "track" }, h("div", { class: "l" }, l), h("div", { class: "r" }, r)),
     h("span", { class: "u num", text: pp(pUp) }));
@@ -78,10 +80,10 @@ export function oppRow(r, net, watch = null) {
     h("div", { class: "body" },
       h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: eur(r.price) })),
       h("div", { class: "l2" }, h("span", { class: "set", text: r.set_name || "" }, r.number && r.kind === "card" ? ` #${r.number}` : ""),
-        h("span", { class: "tags" }, r.confidence === "laag" ? h("span", { class: "tag grof", title: "Weinig prijsgeschiedenis: grove schatting", text: "grof" }) : null, kindTag(r.kind))),
+        h("span", { class: "tags" }, r.confidence === "laag" ? h("span", { class: "tag grof", title: "Little price history: rough estimate", text: "rough" }) : null, kindTag(r.kind))),
       upBar(r.p_up, net)));
   return h("li", {}, watch ? h("div", { class: "homeitem" }, main,
-    h("button", { class: "heartb" + (watch.on ? " on" : ""), type: "button", "aria-label": watch.on ? "Van volglijst halen" : "Aan volglijst toevoegen", onclick: watch.onclick }, icon("heart", watch.on ? "filled" : ""))) : main);
+    h("button", { class: "heartb" + (watch.on ? " on" : ""), type: "button", "aria-label": watch.on ? "Remove from watchlist" : "Add to watchlist", onclick: watch.onclick }, icon("heart", watch.on ? "filled" : ""))) : main);
 }
 
 export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
@@ -91,26 +93,29 @@ export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
   return h("li", {}, h("button", { class: "rowc", type: "button", onclick: () => go(detailHash(c.product_id, c.id)) },
     thumb(c.image, "ph", c.kind === "sealed", c.kind === "sealed" ? "" : [c.name, c.number ? "#" + c.number : ""].filter(Boolean).join(" ")),
     h("div", { class: "body" },
-      h("span", { class: "nm" }, h("span", { class: "name", text: c.name }), gradeTag(c), alerted ? h("span", { class: "mini-bell", role: "img", "aria-label": "Prijsmelding actief" }, icon("bell")) : null),
+      h("span", { class: "nm" }, h("span", { class: "name", text: c.name }), gradeTag(c), alerted ? h("span", { class: "mini-bell", role: "img", "aria-label": "Price alert on" }, icon("bell")) : null),
       h("span", { class: "set", text: (c.set_name || "") + (c.number && c.kind === "card" ? ` #${c.number}` : "") }),
-      h("span", { class: "set", text: `${c.quantity > 1 ? c.quantity + "x, " : ""}gekocht voor ${eur(c.purchase_price)}` })),
+      h("span", { class: "set", text: `${c.quantity > 1 ? c.quantity + "x, " : ""}bought for ${eur(c.purchase_price)}` })),
     h("div", { class: "p" }, h("span", { class: "v num", text: eur(total) }),
-      h("span", { class: "pc" + cls, text: gain == null ? "prijs onbekend" : signed(gain) }))));
+      h("span", { class: "pc" + cls, text: gain == null ? "price unknown" : signed(gain) }))));
 }
 
 export const emptyNote = (text) => h("li", { class: "empty", text });
 export const note = (title, ...body) => h("div", { class: "note" }, title ? h("strong", { text: title }) : null, ...body);
 
-/** Klein label met het advies (Goede koop / Nu verkopen / Bijkopen / Let op); bij Bewaren/Afwachten niets, om de lijsten rustig te houden (tenzij always). */
+/** Klein label met het advies (Good buy / Sell now / Buy more / Caution); bij Hold/Wait niets, om de lijsten rustig te houden (tenzij always). */
 export const adviceChip = (adv, always = false) =>
   adv && (always || adv.tone !== "hold") ? h("span", { class: "advchip " + adv.tone, text: adv.label }) : null;
 
-/** Blok 'Advies' op de detailpagina: het label en één korte zin; de redenen en hoe vaak dit advies klopte achter 'Waarom?'. */
-export function adviceBox(adv, trackLine) {
+/** Blok 'Advies' op de detailpagina: het label en één korte zin; onder 'Why?' een kort lijstje met vinkjes en kruisjes. */
+export function adviceBox(adv, trackLine, facts = []) {
+  const mark = { good: "✓", bad: "✗", warn: "!", info: "•" };
+  const rows = facts.length ? facts : adv.reasons.filter(Boolean).map((r) => ({ tone: "info", label: r, value: "" }));
   const more = h("div", { class: "advmore", hidden: true },
-    h("ul", { class: "advwhy" }, ...adv.reasons.filter(Boolean).map((r) => h("li", { text: r }))),
-    h("p", { class: "mini", text: trackLine + " Een inschatting, geen garantie en geen financieel advies." }));
-  const toggleBtn = h("button", { class: "linkbtn", type: "button", text: "Waarom?", onclick: () => { more.hidden = !more.hidden; toggleBtn.textContent = more.hidden ? "Waarom?" : "Minder"; } });
+    h("ul", { class: "facts" }, ...rows.map((f) => h("li", { class: "fact " + f.tone },
+      h("span", { class: "fm", "aria-hidden": "true", text: mark[f.tone] || "•" }), h("span", { class: "fl", text: f.label }), f.value ? h("b", { class: "fv num", text: f.value }) : null))),
+    h("p", { class: "mini", text: trackLine + " Not financial advice." }));
+  const toggleBtn = h("button", { class: "linkbtn", type: "button", text: "Why?", onclick: () => { more.hidden = !more.hidden; toggleBtn.textContent = more.hidden ? "Why?" : "Less"; } });
   return h("div", { class: "sec advbox " + adv.tone },
     h("div", { class: "advhead" }, h("span", { class: "advchip big " + adv.tone, text: adv.label }), toggleBtn),
     h("p", { class: "p14", text: adv.short }),
@@ -124,7 +129,7 @@ const pct0 = (x) => Math.round(Math.abs(x) * 100) + "%";
 export function arrow(x, cls = "") {
   if (x == null || Number.isNaN(x)) return null;
   const dir = x > 0.005 ? "up" : x < -0.005 ? "down" : "flat";
-  return h("span", { class: `arw ${dir} ${cls}`.trim(), "aria-label": dir === "flat" ? "gelijk" : `${dir === "up" ? "gestegen" : "gedaald"} ${pct0(x)}` },
+  return h("span", { class: `arw ${dir} ${cls}`.trim(), "aria-label": dir === "flat" ? "unchanged" : `${dir === "up" ? "up" : "down"} ${pct0(x)}` },
     dir === "up" ? "▲ " : dir === "down" ? "▼ " : "", dir === "flat" ? "0%" : pct0(x));
 }
 
@@ -138,7 +143,7 @@ export function outlookBar(o) {
   const col = chanceColor(o.chance);
   const fill = h("i"); fill.style.width = Math.round(o.chance * 100) + "%"; fill.style.background = col;
   const dot = h("b"); dot.style.left = Math.round(o.chance * 100) + "%"; dot.style.borderColor = col;
-  return h("span", { class: "olk", role: "img", "aria-label": `Verwacht ${o.move >= 0 ? "stijging" : "daling"} van ${pct0(o.move)}, kans ${Math.round(o.chance * 100)}%` },
+  return h("span", { class: "olk", role: "img", "aria-label": `Expected ${o.move >= 0 ? "rise" : "drop"} of ${pct0(o.move)}, chance ${Math.round(o.chance * 100)}%` },
     h("span", { class: "cbar" }, fill, dot), arrow(o.move, "sm"));
 }
 

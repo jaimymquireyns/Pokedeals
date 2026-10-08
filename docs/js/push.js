@@ -13,7 +13,7 @@ const b64ToBytes = (s) => {
 
 // 'ready' blijft eeuwig hangen als de service worker niet kan starten; dan liever een duidelijke foutmelding.
 const swReady = () => Promise.race([navigator.serviceWorker.ready,
-  new Promise((_, rej) => setTimeout(() => rej(new Error("De app is nog niet klaar voor meldingen. Sluit hem, open hem opnieuw en probeer het nog eens.")), 6000))]);
+  new Promise((_, rej) => setTimeout(() => rej(new Error("The app isn't ready for notifications yet. Close it, reopen it and try again.")), 6000))]);
 
 export async function hasSubscription() {
   if (!pushSupported()) return false;
@@ -23,10 +23,10 @@ export async function hasSubscription() {
 }
 
 export async function enablePush() {
-  if (!pushSupported()) throw new Error("Meldingen worden op dit toestel niet ondersteund. Op een iPhone: zet de app eerst op je beginscherm.");
-  if (!vapid()) throw new Error("VAPID_PUBLIC_KEY ontbreekt in config.js.");
+  if (!pushSupported()) throw new Error("Notifications aren't supported on this device. On iPhone: add the app to your home screen first.");
+  if (!vapid()) throw new Error("VAPID_PUBLIC_KEY is missing in config.js.");
   const perm = await Notification.requestPermission();
-  if (perm !== "granted") throw new Error("Je hebt meldingen niet toegestaan. Pas dat aan in de instellingen van je toestel.");
+  if (perm !== "granted") throw new Error("You didn't allow notifications. Change that in your device settings.");
   const reg = await swReady();
   const sub = (await reg.pushManager.getSubscription()) ||
     (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(vapid()) }));

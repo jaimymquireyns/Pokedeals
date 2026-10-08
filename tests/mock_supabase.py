@@ -78,7 +78,7 @@ def build_db():
         {"set_id": "dp2", "name": "Mysterious Treasures"}, {"set_id": "swsh6", "name": "Chilling Reign"}, {"set_id": "ex1", "name": "Ruby & Sapphire"},
     ]
     return {"products": products, "forecasts": forecasts, "prices": prices, "trackrecord_stats": stats, "trackrecord_signals": signals,
-            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "offers": offers, "sets": sets, "sales": [], "sale_items": [], "advice": [], "advice_stats": [],
+            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "offers": offers, "sets": sets, "sales": [], "sale_items": [], "advice": [], "advice_stats": [], "app_status": [{"key": "daily", "updated_at": "2026-10-08T06:14:00+00:00"}],
             "watch_items": [], "watch_folders": [], "watch_folder_items": [], "_log": []}
 
 

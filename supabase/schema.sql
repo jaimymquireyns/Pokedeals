@@ -375,6 +375,11 @@ create view v_advice with (security_invoker = on) as   -- het laatste advies per
     where a.date >= current_date - 3
     order by a.product_id, a.date desc;
 
+create table if not exists app_status (          -- wanneer de dagelijkse update (en de avondtaak) klaar was, voor 'bijgewerkt op ... om ...' in de app
+    key text primary key,
+    updated_at timestamptz not null default now()
+);
+
 -- ===================== Beveiliging =====================
 alter table sets enable row level security;
 alter table products enable row level security;
@@ -382,6 +387,7 @@ alter table prices enable row level security;
 alter table forecasts enable row level security;
 alter table pokemon_interest enable row level security;
 alter table offers enable row level security;
+alter table app_status enable row level security;
 alter table market_snapshots enable row level security;
 alter table card_signals enable row level security;
 alter table forecast_history enable row level security;
@@ -402,7 +408,7 @@ alter table advice_stats enable row level security;
 do $$
 declare t text;
 begin
-    foreach t in array array['sets','products','prices','forecasts','pokemon_interest','trackrecord_stats','trackrecord_signals','offers','market_snapshots','card_signals','advice','advice_stats'] loop
+    foreach t in array array['sets','products','prices','forecasts','pokemon_interest','trackrecord_stats','trackrecord_signals','offers','market_snapshots','card_signals','advice','advice_stats','app_status'] loop
         execute format('drop policy if exists "public read" on %I', t);
         execute format('create policy "public read" on %I for select to anon, authenticated using (true)', t);
     end loop;
@@ -412,7 +418,7 @@ begin
     end loop;
 end $$;
 
-grant select on sets, products, prices, forecasts, pokemon_interest, trackrecord_stats, trackrecord_signals, offers, market_snapshots, card_signals to anon, authenticated;
+grant select on sets, products, prices, forecasts, pokemon_interest, trackrecord_stats, trackrecord_signals, offers, market_snapshots, card_signals, app_status to anon, authenticated;
 grant select on v_forecasts, v_search, v_advice to anon, authenticated;
 grant select on advice, advice_stats to anon, authenticated;
 grant select on v_collection to authenticated;

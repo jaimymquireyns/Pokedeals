@@ -12,7 +12,7 @@ import argparse
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from itertools import groupby
 
 import analysis
@@ -384,6 +384,14 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=Non
         raise RuntimeError("Niet alles is gelukt: " + ", ".join(failures) + " (de overige stappen zijn wel uitgevoerd)")
 
 
+def mark_updated(store, key, log=print):
+    """Zet in app_status wanneer deze taak klaar was; de app toont dat als 'Updated 9 Oct, 08:14'."""
+    try:
+        store.upsert("app_status", [{"key": key, "updated_at": datetime.now(timezone.utc).isoformat()}], "key")
+    except Exception as e:   # tabel bestaat nog niet (schema.sql niet opnieuw gedraaid): geen ramp
+        log(f"app_status niet bijgewerkt: {e}")
+
+
 def make_sender(log=print):
     pem = os.environ.get("VAPID_PRIVATE_KEY")
     if not pem:
@@ -442,11 +450,13 @@ def main():
         return
     if args.credits_only:
         spend_pkmn_credits(store, today, time_budget=config.PK_CREDITS_ONLY_TIME_BUDGET)
+        mark_updated(store, "credits")
         return
     set_ids = args.sets or (newest_sets(tcg, store, args.recent) if args.recent else None)
     if not set_ids:
         ap.error("kies --sets of --recent")
     daily(store, tcg, ppt, make_sender(), today, set_ids, pk_time_budget=args.pk_minutes * 60 if args.pk_minutes else None)
+    mark_updated(store, "daily")
 
 
 if __name__ == "__main__":

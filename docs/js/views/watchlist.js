@@ -7,17 +7,17 @@ import { closeSheet, debounce, eur, h, icon, num, openSheet, pp, segment, signed
 
 let ui = { folder: "alles", sort: "az", ...store.get("pd:watch", {}) };
 const saveUi = () => store.set("pd:watch", ui);
-const SORTS = [["az", "A–Z"], ["set", "Set en nummer"], ["low", "Laagste prijs"], ["high", "Hoogste prijs"],
-  ...(SHOW_PREDICTIONS ? [["up", "Grootste kans op stijging"], ["down", "Grootste kans op daling"]] : [])];
+const SORTS = [["az", "A–Z"], ["set", "Set and number"], ["low", "Lowest price"], ["high", "Highest price"],
+  ...(SHOW_PREDICTIONS ? [["up", "Likeliest to rise"], ["down", "Likeliest to drop"]] : [])];
 const numCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "nl", { numeric: true });
 
 export async function watchlistView(root) {
   if (!isLoggedIn()) {
     const { loginView } = await import("./login.js");
-    loginView(root, { reason: "Log in om kaarten te volgen.", onDone: () => watchlistView(root) });
+    loginView(root, { reason: "Log in to watch cards.", onDone: () => watchlistView(root) });
     return;
   }
-  root.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Volglijst" }), h("p", { class: "muted", text: "Laden…" }))));
+  root.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Watchlist" }), h("p", { class: "muted", text: "Loading…" }))));
   let items, folders, links;
   try {
     [items, folders, links] = await Promise.all([
@@ -25,7 +25,7 @@ export async function watchlistView(root) {
       rest.get("watch_folders?select=*&order=name.asc"),
       rest.get("watch_folder_items?select=folder_id,item_id"),
     ]);
-  } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Kon je volglijst niet laden. Controleer je verbinding." })); console.error(e); return; }
+  } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Couldn't load your watchlist. Check your connection." })); console.error(e); return; }
   items = items.map((r) => ({ ...r, value_each: r.value_each == null ? null : Number(r.value_each), p_up: r.p_up == null ? null : Number(r.p_up), p_down: r.p_down == null ? null : Number(r.p_down) }));
   // wat de prijs de laatste 30 dagen deed, en het vooruitzicht (balkje); lukt dat niet, dan gewoon zonder
   const before = new Map(), adv = new Map();
@@ -58,16 +58,16 @@ export async function watchlistView(root) {
   const sortBtn = h("button", { class: "sortb", type: "button" });
 
   const drawChips = () => {
-    const opts = [["alles", "Alles"], ...folders.map((f) => [f.id, f.name])];
+    const opts = [["alles", "All"], ...folders.map((f) => [f.id, f.name])];
     chips.replaceChildren(...opts.map(([id, label]) => h("button", { type: "button", class: "fchip" + (ui.folder === id ? " on" : ""),
       onclick: () => { ui.folder = id; saveUi(); drawList(); drawChips(); } }, label)),
-      h("button", { type: "button", class: "fchip add", onclick: newFolder }, icon("plus"), " Map"));
+      h("button", { type: "button", class: "fchip add", onclick: newFolder }, icon("plus"), " Folder"));
   };
 
   const drawList = () => {
-    sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));
+    sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sort" }));
     const vis = items.filter((r) => ui.folder === "alles" || byFolder.get(ui.folder)?.has(r.id)).sort(cmp[ui.sort]);
-    list.replaceChildren(...(vis.length ? vis.map((r) => row(r)) : [emptyNote(items.length ? "Niets in deze map." : "Nog niets gevolgd. Voeg kaarten toe via Zoeken of een kaartdetail.")]));
+    list.replaceChildren(...(vis.length ? vis.map((r) => row(r)) : [emptyNote(items.length ? "Nothing in this folder." : "Not watching anything yet. Add cards via Search or a card page.")]));
   };
 
   function row(r) {
@@ -80,7 +80,7 @@ export async function watchlistView(root) {
           h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }),
           fchips.length ? h("span", { class: "set fmini", text: fchips.map((f) => f.name).join(", ") }) : null),
         moveCell({ value: r.value_each ? eur(r.value_each) : "–", change: change(r.value_each, before.get(r.product_id)), outlook: outlook(adv.get(r.product_id), stats) })),
-      h("button", { class: "morebtn", type: "button", "aria-label": "Mappen en verwijderen", onclick: () => manage(r, fchips) }, icon("folder"))));
+      h("button", { class: "morebtn", type: "button", "aria-label": "Folders and remove", onclick: () => manage(r, fchips) }, icon("folder"))));
   }
 
   function manage(r, current) {
@@ -92,49 +92,49 @@ export async function watchlistView(root) {
           if (cb.checked) { await rest.insert("watch_folder_items", [{ folder_id: f.id, item_id: r.id }]); (byFolder.get(f.id) || byFolder.set(f.id, new Set()).get(f.id)).add(r.id); }
           else { await rest.del("watch_folder_items", `folder_id=eq.${f.id}&item_id=eq.${r.id}`); byFolder.get(f.id)?.delete(r.id); }
           drawList();
-        } catch { toast("Aanpassen mislukte"); cb.checked = !cb.checked; }
+        } catch { toast("Couldn't update"); cb.checked = !cb.checked; }
       };
       return h("label", { class: "chkrow" }, cb, h("span", { text: f.name }));
     });
     openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: r.name }),
-      folders.length ? h("div", {}, h("p", { class: "lbl2", text: "In mappen" }), ...checks) : h("p", { class: "p14 muted", text: "Je hebt nog geen mappen. Maak er een via 'Map' boven de lijst." }),
-      h("button", { type: "button", class: "btn del", text: "Verwijderen van volglijst", onclick: async () => {
+      folders.length ? h("div", {}, h("p", { class: "lbl2", text: "In folders" }), ...checks) : h("p", { class: "p14 muted", text: "No folders yet. Create one via 'Folder' above the list." }),
+      h("button", { type: "button", class: "btn del", text: "Remove from watchlist", onclick: async () => {
         closeSheet();
-        try { await rest.del("watch_items", `id=eq.${r.id}`); items = items.filter((x) => x.id !== r.id); toast("Verwijderd"); drawList(); }
-        catch { toast("Verwijderen mislukte"); }
+        try { await rest.del("watch_items", `id=eq.${r.id}`); items = items.filter((x) => x.id !== r.id); toast("Removed"); drawList(); }
+        catch { toast("Couldn't remove"); }
       } })));
   }
 
   function newFolder() {
-    const input = h("input", { type: "text", placeholder: "Naam van de map", "aria-label": "Naam van de map", maxlength: 40 });
+    const input = h("input", { type: "text", placeholder: "Folder name", "aria-label": "Folder name", maxlength: 40 });
     const err = h("p", { class: "err" });
-    const save = h("button", { type: "button", class: "cta", text: "Map maken" });
+    const save = h("button", { type: "button", class: "cta", text: "Create folder" });
     save.onclick = async () => {
       const name = input.value.trim();
-      if (!name) { err.textContent = "Vul een naam in."; return; }
+      if (!name) { err.textContent = "Enter a name."; return; }
       save.disabled = true;
       try {
         const [f] = await rest.insert("watch_folders", [{ user_id: userId(), name }]);
         folders.push(f); folders.sort((a, b) => a.name.localeCompare(b.name, "nl"));
         closeSheet(); drawChips();
-      } catch (e) { err.textContent = String(e.message).includes("409") || String(e.message).includes("23505") ? "Die naam heb je al." : "Aanmaken mislukte."; save.disabled = false; }
+      } catch (e) { err.textContent = String(e.message).includes("409") || String(e.message).includes("23505") ? "You already have that name." : "Couldn't create."; save.disabled = false; }
     };
-    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Nieuwe map" }), input, err, save));
+    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "New folder" }), input, err, save));
     input.focus();
   }
 
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
-    h("div", { class: "head" }, h("h1", { text: "Volglijst" })),
+    h("div", { class: "head" }, h("h1", { text: "Watchlist" })),
     chips,
-    h("div", { class: "bar" }, h("span", { class: "muted", text: `${items.length} ${items.length === 1 ? "kaart" : "kaarten"}` }), sortBtn),
+    h("div", { class: "bar" }, h("span", { class: "muted", text: `${items.length} ${items.length === 1 ? "card" : "cards"}` }), sortBtn),
     list));
   drawChips(); drawList();
 
   sortBtn.onclick = () => {
     const opts = h("div", { class: "opts" }, ...SORTS.map(([k, label]) => h("button", { type: "button", class: "opt", "aria-pressed": String(ui.sort === k),
       onclick: () => { ui.sort = k; saveUi(); closeSheet(); drawList(); } }, h("span", { text: label }), ui.sort === k ? icon("check") : null)));
-    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Sorteren" }), opts));
+    openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: "Sort" }), opts));
   };
 }
 

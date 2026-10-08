@@ -23,18 +23,33 @@ export const store = {
 };
 
 const NBSP = "\u00a0";
-const eurFmt = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+const eurFmt = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });
 export const eur = (x) => (x == null || Number.isNaN(x) ? "–" : eurFmt.format(x).replace(/\s/g, NBSP));
 export const pp = (p) => Math.round(p * 100) + "%";
 export const signed = (x, d = 0) => (x == null || Number.isNaN(x) ? "–" :
-  (x > 0.0005 ? "+" : x < -0.0005 ? "−" : "") + Math.abs(x * 100).toFixed(d).replace(".", ",") + "%");
-export const signedEur = (x) => (x == null ? "–" : (x >= 0 ? "+" : "−") + NBSP + eur(Math.abs(x)));
-export const days = (n) => `${n} ${n === 1 ? "dag" : "dagen"}`;
-export const fmtDate = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
-export const fmtDateLong = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
+  (x > 0.0005 ? "+" : x < -0.0005 ? "−" : "") + Math.abs(x * 100).toFixed(d) + "%");
+export const signedEur = (x) => (x == null ? "–" : (x >= 0 ? "+" : "−") + eur(Math.abs(x)));
+export const days = (n) => `${n} ${n === 1 ? "day" : "days"}`;
+const sep4 = (s) => s.replace("Sept", "Sep");   // nieuwere browsers schrijven "Sept"; overal "Sep" houden
+export const fmtDate = (iso) => sep4(new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+export const fmtDateTime = (ts) => { const d = new Date(ts); return Number.isNaN(d.getTime()) ? "" : sep4(d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); };
+export const fmtDateLong = (iso) => sep4(new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
 export const safeImg = (u) => (typeof u === "string" && /^https:\/\//.test(u) ? u : null);
 export const num = (x) => (x == null || x === "" ? null : Number(x));
-export const parseMoney = (s) => { const n = parseFloat(String(s).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".")); return Number.isFinite(n) ? n : null; };
+// Accepteert "24,50", "24.50", "1.234,50" en "1,234.50": het laatste scheidingsteken is de decimaal, tenzij er precies 3 cijfers
+// achter staan zonder ander scheidingsteken ervoor ("1.234" of "1,234" = duizendtallen).
+export const parseMoney = (s) => {
+  let t = String(s).replace(/[^\d,.-]/g, "");
+  const last = Math.max(t.lastIndexOf(","), t.lastIndexOf("."));
+  if (last >= 0) {
+    const intPart = t.slice(0, last).replace(/[,.]/g, ""), frac = t.slice(last + 1);
+    const sep = t[last], before = t.slice(0, last);
+    const thousands = /^\d{3}$/.test(frac) && (before.includes(sep) || (!/[,.]/.test(before) && /[1-9]/.test(intPart)));
+    t = thousands ? intPart + frac : intPart + "." + frac;
+  }
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? n : null;
+};
 export const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
 const ICON = {
@@ -68,7 +83,8 @@ export function openSheet(content, { onClose, id = "sheet" } = {}) {
   let d = document.getElementById(id);
   if (!d) { d = h("dialog", { id, class: "dsheet" }); document.body.append(d); }
   d.replaceChildren(content);
-  d.onclose = () => { d.replaceChildren(); onClose?.(); };
+  // het close-event komt pas later binnen: is het blad intussen al opnieuw geopend (het ene blad opent het volgende), dan niets wissen
+  d.onclose = () => { if (d.open) return; d.replaceChildren(); onClose?.(); };
   d.onclick = (e) => { if (e.target === d) d.close(); };
   if (!d.open) d.showModal();
   return d;
