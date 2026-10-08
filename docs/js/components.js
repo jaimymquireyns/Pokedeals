@@ -81,7 +81,7 @@ export function oppRow(r, net, watch = null) {
         h("span", { class: "tags" }, r.confidence === "laag" ? h("span", { class: "tag grof", title: "Weinig prijsgeschiedenis: grove schatting", text: "grof" }) : null, kindTag(r.kind))),
       upBar(r.p_up, net)));
   return h("li", {}, watch ? h("div", { class: "homeitem" }, main,
-    h("button", { class: "heartb" + (watch.on ? " on" : ""), type: "button", "aria-label": watch.on ? "Van watchlist halen" : "Aan watchlist toevoegen", onclick: watch.onclick }, icon("heart", watch.on ? "filled" : ""))) : main);
+    h("button", { class: "heartb" + (watch.on ? " on" : ""), type: "button", "aria-label": watch.on ? "Van volglijst halen" : "Aan volglijst toevoegen", onclick: watch.onclick }, icon("heart", watch.on ? "filled" : ""))) : main);
 }
 
 export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
@@ -101,18 +101,47 @@ export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
 export const emptyNote = (text) => h("li", { class: "empty", text });
 export const note = (title, ...body) => h("div", { class: "note" }, title ? h("strong", { text: title }) : null, ...body);
 
-/** Klein label met het advies (Kopen / Verkopen / Verdacht); bij Houden/Afwachten niets, om de lijsten rustig te houden (tenzij always). */
+/** Klein label met het advies (Goede koop / Nu verkopen / Bijkopen / Let op); bij Bewaren/Afwachten niets, om de lijsten rustig te houden (tenzij always). */
 export const adviceChip = (adv, always = false) =>
   adv && (always || adv.tone !== "hold") ? h("span", { class: "advchip " + adv.tone, text: adv.label }) : null;
 
-/** Blok 'Advies' op de detailpagina: het label, de korte uitleg, de redenen en hoe vaak dit advies klopte. */
+/** Blok 'Advies' op de detailpagina: het label en één korte zin; de redenen en hoe vaak dit advies klopte achter 'Waarom?'. */
 export function adviceBox(adv, trackLine) {
-  const more = h("ul", { class: "advwhy", hidden: true }, ...adv.reasons.filter(Boolean).map((r) => h("li", { text: r })));
+  const more = h("div", { class: "advmore", hidden: true },
+    h("ul", { class: "advwhy" }, ...adv.reasons.filter(Boolean).map((r) => h("li", { text: r }))),
+    h("p", { class: "mini", text: trackLine + " Een inschatting, geen garantie en geen financieel advies." }));
   const toggleBtn = h("button", { class: "linkbtn", type: "button", text: "Waarom?", onclick: () => { more.hidden = !more.hidden; toggleBtn.textContent = more.hidden ? "Waarom?" : "Minder"; } });
   return h("div", { class: "sec advbox " + adv.tone },
-    h("div", { class: "advhead" }, h("h3", { text: "Advies" }), h("span", { class: "advchip big " + adv.tone, text: adv.label })),
+    h("div", { class: "advhead" }, h("span", { class: "advchip big " + adv.tone, text: adv.label }), toggleBtn),
     h("p", { class: "p14", text: adv.short }),
-    more, toggleBtn,
-    h("p", { class: "mini", text: trackLine }),
-    h("p", { class: "mini", text: "Een inschatting op basis van eenvoudige regels, geen garantie en geen financieel advies." }));
+    more);
 }
+
+// ---------------------------------------------------------------- stijgt of daalt, in één oogopslag
+const pct0 = (x) => Math.round(Math.abs(x) * 100) + "%";
+
+/** Pijl met percentage: groen ▲ bij stijging, rood ▼ bij daling, grijs bij (bijna) niets. */
+export function arrow(x, cls = "") {
+  if (x == null || Number.isNaN(x)) return null;
+  const dir = x > 0.005 ? "up" : x < -0.005 ? "down" : "flat";
+  return h("span", { class: `arw ${dir} ${cls}`.trim(), "aria-label": dir === "flat" ? "gelijk" : `${dir === "up" ? "gestegen" : "gedaald"} ${pct0(x)}` },
+    dir === "up" ? "▲ " : dir === "down" ? "▼ " : "", dir === "flat" ? "0%" : pct0(x));
+}
+
+/** Kleur voor een kans van 0 tot 1: van rood (weinig kans) via oranje naar groen (veel kans). */
+export const chanceColor = (c) => `hsl(${Math.round(Math.max(0, Math.min(1, c)) * 120)} 70% 46%)`;
+
+/** Balkje dat inkleurt tot het bolletje: hoe verder (en groener), hoe groter de kans dat de verwachte beweging echt gebeurt.
+ * Erachter de verwachte beweging (▲ 45% of ▼ 20%). o: { move, chance } uit model.outlook. */
+export function outlookBar(o) {
+  if (!o) return null;
+  const col = chanceColor(o.chance);
+  const fill = h("i"); fill.style.width = Math.round(o.chance * 100) + "%"; fill.style.background = col;
+  const dot = h("b"); dot.style.left = Math.round(o.chance * 100) + "%"; dot.style.borderColor = col;
+  return h("span", { class: "olk", role: "img", "aria-label": `Verwacht ${o.move >= 0 ? "stijging" : "daling"} van ${pct0(o.move)}, kans ${Math.round(o.chance * 100)}%` },
+    h("span", { class: "cbar" }, fill, dot), arrow(o.move, "sm"));
+}
+
+/** Rechterkolom van een lijstregel: bedrag, wat de prijs deed (pijl + %) en het vooruitzicht (balkje). */
+export const moveCell = ({ value, change = null, outlook: o = null }) =>
+  h("span", { class: "mv" }, value != null ? h("span", { class: "v num", text: value }) : null, arrow(change), outlookBar(o));

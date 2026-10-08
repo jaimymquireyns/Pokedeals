@@ -1,8 +1,8 @@
 import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
-import { adviceBox, cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, pill } from "../components.js";
-import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFor, adviceTrack, breakEven, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
+import { adviceBox, arrow, cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, outlookBar, pill } from "../components.js";
+import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFor, adviceTrack, breakEven, change, outlook, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
@@ -69,15 +69,32 @@ export async function detailView(root, pid, cid) {
       ...offerRows.slice(0, OFF_SHOWN).map(offRow), more,
       offerRows.length > OFF_SHOWN ? h("button", { class: "linkbtn", type: "button", text: `Toon alle ${offerRows.length} aanbiedingen`, onclick: (e) => { more.hidden = !more.hidden; e.target.textContent = more.hidden ? `Toon alle ${offerRows.length} aanbiedingen` : "Minder tonen"; } }) : null,
       h("a", { class: "linkbtn", target: "_blank", rel: "noopener", text: hasExactCm(p) ? "Alle aanbiedingen op Cardmarket →" : "Zoek deze kaart op Cardmarket →", href: cardmarketHref(p) }),
-      h("p", { class: "mini", text: `Live aanbod van Cardmarket, alleen gewone Near Mint-kaarten (geen gegradeerde, getekende of bewerkte). Bijgewerkt ${fmtDateLong(offerRows[0].date)}.` }));
+      h("p", { class: "mini", text: `Bijgewerkt ${fmtDateLong(offerRows[0].date)}.` }));
   }
+
+  // ---- wat de prijs de laatste 30 dagen deed (pijl) en het vooruitzicht (balkje), naast de prijs ----
+  const mainSeries = () => {
+    if (nmHist.length >= 10) return { rows: nmHist, nm: true };
+    const bySrc = {};
+    for (const r of hist) (bySrc[r.source] ||= []).push(r);
+    const src = (bySrc.tcgdex?.length || 0) >= 5 ? "tcgdex" : (Object.keys(bySrc).sort((a, b) => bySrc[b].length - bySrc[a].length)[0]);
+    return { rows: bySrc[src] || [], nm: false, src };
+  };
+  const ch30 = (() => {
+    const { rows } = mainSeries();
+    if (rows.length < 2) return null;
+    const last = rows[rows.length - 1], cut = new Date(new Date(last.date + "T00:00:00Z").getTime() - 30 * 864e5).toISOString().slice(0, 10);
+    const old = [...rows].reverse().find((x) => x.date <= cut);
+    return old ? change(Number(last.price), Number(old.price)) : null;
+  })();
+  const moveSlot = h("span", { class: "mvd" }, ch30 != null ? h("span", { class: "mvl" }, arrow(ch30), h("small", { text: "30 d" })) : null);
 
   // ---- kop ----
   const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed", p.kind === "sealed" ? "" : [p.name, p.number ? "#" + p.number : ""].filter(Boolean).join(" ")),
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null),
-      h("div", { class: "big num", text: price ? eur(price) : "Geen prijs" }),
-      offerAvg != null ? h("p", { class: "mini", text: `Mediaan van de ${refOffers.length} laagste actuele aanbiedingen${refVariant && refVariant !== "Normal" ? ` (${refVariant})` : ""} (Near Mint); goedkoopste ${eur(lowestOffer)}. Trendprijs ter vergelijking: ${eur(trendPrice)}.` }) : null,
+      h("div", { class: "bigrow" }, h("span", { class: "big num", text: price ? eur(price) : "Geen prijs" }), moveSlot),
+      offerAvg != null ? h("p", { class: "mini", text: `Te koop vanaf ${eur(lowestOffer)}${refVariant && refVariant !== "Normal" ? ` (${refVariant})` : ""} · trendprijs ${eur(trendPrice)}` }) : null,
       offerAvg != null && refOffers.length < 3 ? h("p", { class: "mini warn", text: `Maar ${refOffers.length} ${refOffers.length === 1 ? "aanbieding" : "aanbiedingen"} van deze uitvoering: de prijs is onzeker.` }) : null));
 
   // ---- identificatie: zeldzaamheid, uitgiftedatum, taal ----
@@ -179,15 +196,7 @@ export async function detailView(root, pid, cid) {
   const chartSec = h("div", { class: "sec" }, h("h3", { text: "Prijsverloop" }));
   function drawChart() {
     chartSec.replaceChildren(h("h3", { text: "Prijsverloop" }));
-    const useNm = nmHist.length >= 10;
-    let allRows, src;
-    if (useNm) { allRows = nmHist; src = "pkmnprices"; }
-    else {
-      const bySrc = {};
-      for (const r of hist) (bySrc[r.source] ||= []).push(r);
-      src = (bySrc.tcgdex?.length || 0) >= 5 ? "tcgdex" : (Object.keys(bySrc).sort((a, b) => bySrc[b].length - bySrc[a].length)[0]);
-      allRows = bySrc[src] || [];
-    }
+    const ms = mainSeries(), useNm = ms.nm, allRows = ms.rows, src = ms.nm ? "pkmnprices" : ms.src;
     let rows = allRows;
     if (allRows.length) {
       const last = new Date(allRows[allRows.length - 1].date + "T00:00:00Z").getTime();
@@ -197,8 +206,7 @@ export async function detailView(root, pid, cid) {
     if (rows.length >= 2) {
       chartSec.append(lineChart({ series: [{ pts: rows.map((r) => [new Date(r.date + "T00:00:00Z").getTime(), Number(r.price)]), stroke: "var(--up)" }],
         hlines: c ? [{ y: Number(c.purchase_price), label: `Aankoop ${eur(Number(c.purchase_price))}` }] : [], label: "Prijsverloop" }));
-      if (useNm) chartSec.append(h("p", { class: "mini", text: "Op basis van de eigen Near Mint-prijsgeschiedenis van deze kaart, niet de gemengde Cardmarket-trend." }));
-      else if (src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "Historie van TCGplayer (omgerekend naar euro). Onze eigen Cardmarket-metingen bouwen zich op." }));
+      if (!useNm && src !== "tcgdex" && p.kind === "card") chartSec.append(h("p", { class: "mini", text: "Prijzen van TCGplayer, omgerekend naar euro." }));
     } else chartSec.append(h("p", { class: "p14 muted", text: "Nog te weinig prijsgeschiedenis voor een grafiek in deze periode." }));
   }
   drawChart();
@@ -241,6 +249,8 @@ export async function detailView(root, pid, cid) {
   // ---- advies ----
   const advRes = await advP;
   const adv = advRes ? adviceFor(advRes[0], { owned: c, s }) : null;
+  const olk = advRes && !graded ? outlook(advRes[0], advRes[1]) : null;
+  if (olk) moveSlot.append(outlookBar(olk));
   const advSec = adv ? adviceBox(adv, adviceTrack(advRes[1], advRes[0]?.state === "hoog" ? "hoog" : "laag")) : null;
 
   // ---- knoppen ----
@@ -251,8 +261,8 @@ export async function detailView(root, pid, cid) {
     watchBtn.onclick = async () => {
       watchBtn.disabled = true;
       try {
-        if (watchId) { await removeWatch(watchId); watchId = null; toast("Van watchlist gehaald"); }
-        else { watchId = await addWatch(pid); toast("Toegevoegd aan watchlist"); }
+        if (watchId) { await removeWatch(watchId); watchId = null; toast("Van volglijst gehaald"); }
+        else { watchId = await addWatch(pid); toast("Op je volglijst gezet"); }
         watchBtn.classList.toggle("watching", Boolean(watchId));
         watchBtn.replaceChildren(icon("star", watchId ? "filled" : ""), h("span", { text: watchId ? "Wordt gevolgd" : "Volgen" }));
       } catch { toast("Aanpassen mislukte"); } finally { watchBtn.disabled = false; }
@@ -279,7 +289,6 @@ export async function detailView(root, pid, cid) {
   root.replaceChildren(h("div", { class: "page" },
     h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => history.back() }, icon("back"), h("span", { text: "Terug" }))),
     head, advSec, idgrid, stats, nmBox,
-    !c ? h("p", { class: "mini pad2", text: "De trendprijs is Cardmarkets gemiddelde voor alle talen en condities. Het goedkoopste aanbod (Near Mint) kan een stuk lager liggen, zeker bij dure kaarten met weinig verkopen." }) : null,
-    graded ? h("p", { class: "mini pad2", text: "Gegradeerde prijzen komen van eBay-verkopen (dollars, omgerekend), omdat Cardmarket daar geen prijzen voor heeft." }) : null,
+    graded ? h("p", { class: "mini pad2", text: "Prijzen van eBay-verkopen, omgerekend naar euro." }) : null,
     periodBar, chartSec, SHOW_PREDICTIONS ? chance : null, SHOW_PREDICTIONS ? why : null, breakEvenBox, offersSec, alertSec, btns));
 }

@@ -131,7 +131,7 @@ input::placeholder{color:var(--muted);font-weight:400}
 .fchips{display:flex;gap:8px;overflow-x:auto;padding:2px 16px 10px;-webkit-overflow-scrolling:touch}
 .fchips::-webkit-scrollbar{display:none}
 .fchip{flex:none;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:13px;color:var(--muted);white-space:nowrap}
-.fchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fchip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .fchip.add{display:flex;align-items:center;gap:3px;color:var(--ink)}.fchip.add .ic{width:15px;height:15px}
 .wrow{display:flex;align-items:stretch}
 .wrow .row{flex:1;min-width:0}
@@ -406,3 +406,37 @@ a.nmbox{color:inherit;text-decoration:none}
 .advrow .bl b{font-weight:700;overflow-wrap:anywhere}
 .advrow .bl small{color:var(--muted);font-size:12.5px}
 .advrow .r{text-align:right;display:grid;gap:4px;justify-items:end}
+/* ---- stijgt of daalt in één oogopslag: pijl + % en het kansbalkje (rood → groen, inkleuren tot het bolletje) ---- */
+.mv{display:grid;gap:4px;justify-items:end;text-align:right;min-width:92px}
+.mv .v{font-weight:800}
+.arw{font-weight:800;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.arw.up{color:var(--up)}.arw.down{color:var(--down)}.arw.flat{color:var(--muted)}
+.arw.sm{font-size:12px}
+.olk{display:flex;align-items:center;gap:6px}
+.cbar{position:relative;width:64px;height:6px;border-radius:999px;background:var(--line);flex:none}
+.cbar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.cbar b{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--surface);border:3px solid;box-sizing:border-box}
+.mv .gain{font-size:13px;font-weight:800;color:var(--up)}
+.rowc .meta{display:flex;align-items:center;gap:8px;min-width:0}
+/* Home: één rij filterknopjes, titels met een teller en een i'tje voor uitleg */
+
+.fchip{display:inline-flex;align-items:center;gap:4px}
+.fchip .ic{width:14px;height:14px}
+.gear{width:44px;height:44px;display:grid;place-items:center;flex:none;padding:0}.gear .ic{width:20px;height:20px}
+.sec h3 .cnt{font-size:13px;font-weight:800;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:middle}
+.infob{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);color:var(--muted);font:italic 800 14px Georgia,serif;display:grid;place-items:center;flex:none}
+.sec .list{background:none;border:0;margin:0 -18px}
+.sec .list .rowc{padding:12px 18px}
+.sec .list .homeitem .rowc{padding-right:4px}
+.sec .list .empty{padding:16px 18px}
+.dealsec,.buysec{margin:16px 16px 0}
+/* kaartpagina: prijs met pijl en balkje ernaast */
+.bigrow{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:8px}
+.bigrow .big{margin-top:0}
+.mvd{display:grid;gap:5px;padding-bottom:4px}
+.mvl{display:flex;align-items:baseline;gap:5px}.mvl small{font-size:11px;color:var(--muted);font-weight:700}
+.advhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.advhead .linkbtn{padding:0;min-height:32px}
+.headrow{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.homef{padding:4px 16px 2px}
+.dealrow .arw.up{font-size:13px}

@@ -15,7 +15,7 @@ import { salesView } from "./views/sales.js";
 
 const app = $("#app");
 const tabsEl = $("#tabs");
-const TABS = [["home", "Home", "home"], ["search", "Zoeken", "search"], ["watchlist", "Watchlist", "star"], ["collection", "Collectie", "cards"]];
+const TABS = [["home", "Home", "home"], ["search", "Zoeken", "search"], ["watchlist", "Volglijst", "star"], ["collection", "Collectie", "cards"]];
 
 function drawTabs(active) {
   tabsEl.hidden = !active;

@@ -1,7 +1,8 @@
 import { SHOW_PREDICTIONS } from "../model.js";
-// Watchlist: kaarten en sealed producten die je volgt, met eigen mappen (een kaart mag in meerdere mappen staan).
+// Volglijst (watchlist): kaarten en sealed producten die je volgt, met eigen mappen (een kaart mag in meerdere mappen staan).
 import { isLoggedIn, rest, userId } from "../api.js";
-import { brandmark, chanceBar, detailHash, emptyNote, go, kindTag } from "../components.js";
+import { brandmark, detailHash, emptyNote, go, moveCell } from "../components.js";
+import { change, outlook } from "../model.js";
 import { closeSheet, debounce, eur, h, icon, num, openSheet, pp, segment, signed, store, thumb, toast } from "../ui.js";
 
 let ui = { folder: "alles", sort: "az", ...store.get("pd:watch", {}) };
@@ -16,7 +17,7 @@ export async function watchlistView(root) {
     loginView(root, { reason: "Log in om kaarten te volgen.", onDone: () => watchlistView(root) });
     return;
   }
-  root.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Watchlist" }), h("p", { class: "muted", text: "Laden…" }))));
+  root.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Volglijst" }), h("p", { class: "muted", text: "Laden…" }))));
   let items, folders, links;
   try {
     [items, folders, links] = await Promise.all([
@@ -24,8 +25,23 @@ export async function watchlistView(root) {
       rest.get("watch_folders?select=*&order=name.asc"),
       rest.get("watch_folder_items?select=folder_id,item_id"),
     ]);
-  } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Kon je watchlist niet laden. Controleer je verbinding." })); console.error(e); return; }
+  } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Kon je volglijst niet laden. Controleer je verbinding." })); console.error(e); return; }
   items = items.map((r) => ({ ...r, value_each: r.value_each == null ? null : Number(r.value_each), p_up: r.p_up == null ? null : Number(r.p_up), p_down: r.p_down == null ? null : Number(r.p_down) }));
+  // wat de prijs de laatste 30 dagen deed, en het vooruitzicht (balkje); lukt dat niet, dan gewoon zonder
+  const before = new Map(), adv = new Map();
+  let stats = [];
+  const ids = [...new Set(items.map((r) => r.product_id))];
+  const iso = (d) => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
+  await Promise.all([
+    rest.get("advice_stats?select=*").then((x) => { stats = x; }).catch(() => {}),
+    ...Array.from({ length: Math.ceil(ids.length / 80) }, (_, i) => ids.slice(i * 80, i * 80 + 80)).map(async (chunk) => {
+      const inList = chunk.map(encodeURIComponent).join(",");
+      try { for (const a of await rest.get(`v_advice?select=*&product_id=in.(${inList})`)) adv.set(a.product_id, a); } catch {}
+      try {
+        const rows = await rest.get(`prices?select=product_id,date,price&grade_key=eq.raw&product_id=in.(${inList})&date=lte.${iso(30)}&date=gte.${iso(45)}&order=date.desc`);
+        for (const x of rows) if (!before.has(x.product_id)) before.set(x.product_id, Number(x.price));
+      } catch {}
+    })]);
   const byFolder = new Map(); // folder_id -> Set(item_id)
   for (const l of links) { if (!byFolder.has(l.folder_id)) byFolder.set(l.folder_id, new Set()); byFolder.get(l.folder_id).add(l.item_id); }
   const itemFolders = (itemId) => folders.filter((f) => byFolder.get(f.id)?.has(itemId));
@@ -57,14 +73,13 @@ export async function watchlistView(root) {
   function row(r) {
     const fchips = itemFolders(r.id);
     return h("li", {}, h("div", { class: "wrow" },
-      h("button", { class: "row", type: "button", onclick: () => go(detailHash(r.product_id)) },
+      h("button", { class: "rowc", type: "button", onclick: () => go(detailHash(r.product_id)) },
         thumb(r.image, "ph", r.kind === "sealed"),
         h("div", { class: "body" },
-          h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: r.value_each ? eur(r.value_each) : "–" })),
-          h("div", { class: "l2" }, h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }), kindTag(r.kind)),
-          SHOW_PREDICTIONS && r.p_up != null ? h("div", { class: "l3" }, h("b", { text: pp(r.p_up) }), h("span", { class: "lbl", text: "kans" }),
-            h("div", { class: "bar1" }, h("i", { style: `width:${Math.min(r.p_up * 100, 100)}%` })),
-            fchips.length ? h("span", { class: "fmini", text: fchips.map((f) => f.name).join(", ") }) : null) : null)),
+          h("span", { class: "nm" }, h("span", { class: "name", text: r.name })),
+          h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }),
+          fchips.length ? h("span", { class: "set fmini", text: fchips.map((f) => f.name).join(", ") }) : null),
+        moveCell({ value: r.value_each ? eur(r.value_each) : "–", change: change(r.value_each, before.get(r.product_id)), outlook: outlook(adv.get(r.product_id), stats) })),
       h("button", { class: "morebtn", type: "button", "aria-label": "Mappen en verwijderen", onclick: () => manage(r, fchips) }, icon("folder"))));
   }
 
@@ -83,7 +98,7 @@ export async function watchlistView(root) {
     });
     openSheet(h("div", { class: "sheetin" }, h("div", { class: "handle" }), h("h3", { text: r.name }),
       folders.length ? h("div", {}, h("p", { class: "lbl2", text: "In mappen" }), ...checks) : h("p", { class: "p14 muted", text: "Je hebt nog geen mappen. Maak er een via 'Map' boven de lijst." }),
-      h("button", { type: "button", class: "btn del", text: "Verwijderen uit watchlist", onclick: async () => {
+      h("button", { type: "button", class: "btn del", text: "Verwijderen van volglijst", onclick: async () => {
         closeSheet();
         try { await rest.del("watch_items", `id=eq.${r.id}`); items = items.filter((x) => x.id !== r.id); toast("Verwijderd"); drawList(); }
         catch { toast("Verwijderen mislukte"); }
@@ -110,7 +125,7 @@ export async function watchlistView(root) {
 
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
-    h("div", { class: "head" }, h("h1", { text: "Watchlist" })),
+    h("div", { class: "head" }, h("h1", { text: "Volglijst" })),
     chips,
     h("div", { class: "bar" }, h("span", { class: "muted", text: `${items.length} ${items.length === 1 ? "kaart" : "kaarten"}` }), sortBtn),
     list));
