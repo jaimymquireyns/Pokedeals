@@ -59,12 +59,17 @@ class SupabaseStore:
         # Vangnet: bij een dubbele sleutel binnen deze aanroep telt de laatste.
         cols = on_conflict.split(",")
         rows = list({tuple(r.get(c) for c in cols): r for r in rows}.values())
-        for i in range(0, len(rows), chunk):
-            r = self._send("post", f"{self.base}/{table}", params={"on_conflict": on_conflict},
-                           headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
-                           json=rows[i:i + chunk], timeout=90)
-            if not r.ok:
-                raise RuntimeError(f"Supabase {table}: {r.status_code} {r.text[:300]}")
+        # PostgREST wil in één verzoek rijen met dezelfde kolommen; rijen met een extra veld (bijv. cm_product_id) gaan apart.
+        groups = {}
+        for row in rows:
+            groups.setdefault(tuple(sorted(row)), []).append(row)
+        for part in groups.values():
+            for i in range(0, len(part), chunk):
+                r = self._send("post", f"{self.base}/{table}", params={"on_conflict": on_conflict},
+                               headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                               json=part[i:i + chunk], timeout=90)
+                if not r.ok:
+                    raise RuntimeError(f"Supabase {table}: {r.status_code} {r.text[:300]}")
 
     def insert(self, table, rows, chunk=500):
         for i in range(0, len(rows), chunk):

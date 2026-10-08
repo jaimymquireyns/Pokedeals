@@ -6,7 +6,8 @@ let setsCache = null;   // {set_id, name}[], 1x opgehaald, klein genoeg om in he
 // Bekende community-afkortingen (bron: pkmncards.com/sets/, alle sets sinds 1999). Deze staan nergens in onze
 // eigen data, dus zonder deze lijst zou "30c" of "dri" nooit gevonden worden, ook al kent iedereen ze wel.
 export const SET_ALIASES = {
-  "30c": "30th",   // dekt zowel 30th Celebration als 30th Classic Collection (daar zit o.a. Charizard "30C BS4") "pbl": "Pitch Black", "cri": "Chaos Rising", "por": "Perfect Order",
+  "30c": "30th",   // dekt zowel 30th Celebration als 30th Classic Collection (daar zit o.a. Charizard "30C BS4")
+  "pbl": "Pitch Black", "cri": "Chaos Rising", "por": "Perfect Order",
   "asc": "Ascended Heroes", "pfl": "Phantasmal Flames", "mee": "Mega Evolution Energy", "meg": "Mega Evolution", "mep": "Mega Evolution Promos",
   "wht": "White Flare", "sve": "Scarlet & Violet Energy", "blk": "Black Bolt", "dri": "Destined Rivals", "jtg": "Journey Together",
   "pre": "Prismatic Evolutions", "ssp": "Surging Sparks", "scr": "Stellar Crown", "sfa": "Shrouded Fable", "twm": "Twilight Masquerade",
@@ -67,12 +68,14 @@ function parseQuery(raw, sets, opts = {}) {
 
   // Twee manieren om te lezen. Eerst: staat er al een setafkorting of setnaam, dan is een woord als 'BS4' het kaartnummer
   // ("charizard 30c BS4"). Zo niet, dan is 'MT5' een setafkorting met een nummer eraan vast ("blissey MT5").
+  const isSetWord = (w) => /[a-z]/.test(w) && sets.some((s) => norm(s.set_id) === w || norm(s.name).split(" ")[0] === w);
   const read = (words) => {
     words = [...words];
     let number = null;
     const lastW = words[words.length - 1];
     // een setafkorting met een letter erin ('30c') gaat voor op een nummer: "charizard 30c" zoekt in die set, niet naar kaartnummer 30c
-    if (words.length > 1 && looksLikeNumber(lastW) && !(SET_ALIASES[lastW] && /[a-z]/.test(lastW))) number = words.pop();
+    // en een woord dat zelf een set is ('30th' = de set-id van 30th Celebration) is ook geen kaartnummer: "charizard 30th" zoekt in de 30th-sets
+    if (words.length > 1 && looksLikeNumber(lastW) && !(SET_ALIASES[lastW] && /[a-z]/.test(lastW)) && !isSetWord(lastW)) number = words.pop();
     let setMatch = null;
     for (let start = 1; start < words.length && !setMatch; start++) {         // het eerste woord is de naam, geen setcode
       if (SET_ALIASES[words[start]]) { setMatch = SET_ALIASES[words[start]]; words.splice(start, 1); break; }
@@ -81,7 +84,9 @@ function parseQuery(raw, sets, opts = {}) {
         if (phrase.length < 3) continue;
         // eerst een set die precies zo heet ('30th-c' = 30th Classic Collection), pas dan een set die er alleen mee begint
         const hit = sets.find((s) => norm(s.set_id) === phrase || norm(s.name) === phrase) || sets.find((s) => norm(s.name).includes(phrase));
-        if (hit) { setMatch = hit.name; words.splice(start, end - start); break; }
+        // begint meer dan één set met dit woord ('30th': 30th Celebration én 30th Classic Collection), zoek dan in al die sets, niet alleen in de eerste
+        const family = sets.filter((s) => norm(s.name).startsWith(phrase + " "));
+        if (hit) { setMatch = family.length > 1 && !family.some((s) => norm(s.name) === phrase) ? phrase : hit.name; words.splice(start, end - start); break; }
       }
     }
     // Set eerst, zoals Cardmarket het noemt ("cel wp 24", "obf 125"): alleen als terugvaloptie (opts.setFirst), omdat een afkorting ook een

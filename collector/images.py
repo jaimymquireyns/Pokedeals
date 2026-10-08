@@ -3,7 +3,7 @@
      'bestaat niet' (404/410) geeft, wordt leeggemaakt zodat de kaart opnieuw een foto kan krijgen. Een time-out of serverfout telt
      NIET als kapot: dan weten we het niet, en laten we de link staan.
   2. Kaarten zonder foto aanvullen: eerst TCGdex in het Engels, dan TCGdex in andere talen (een kaart heeft soms alleen daar een scan),
-     en daarna (met credits) de afbeelding van PkmnPrices. Elke gevonden link wordt eerst gecontroleerd voordat we hem opslaan.
+     dan pokemontcg.io (gratis; vult o.a. promo's en Dragon Majesty aan), en daarna (met credits) de afbeelding van PkmnPrices. Elke gevonden link wordt eerst gecontroleerd voordat we hem opslaan.
   3. In het logboek staat bij welke sets foto's ontbreken, zodat je ziet of het een gat in de bron is of een fout bij ons.
 """
 import zlib
@@ -79,14 +79,57 @@ def tcgdex_other_langs(session, card_id, langs=LANGS):
     return None
 
 
+# pokemontcg.io: een tweede, gratis bron (geen sleutel nodig voor de plaatjes). Hun set-id is meestal die van TCGdex zonder punt
+# ('sm7.5' -> 'sm75', 'swsh4.5sv' -> 'swsh45sv'), het nummer zonder voorloopnullen ('005' -> '5'; 'SV001' en 'TG01' blijven zo).
+# Een plaatje dat niet bestaat, geeft daar géén foutmelding maar een standaardplaatje van 640x892: dat herkennen we aan de afmetingen.
+PTCG = "https://images.pokemontcg.io"
+PTCG_PLACEHOLDER = (640, 892)
+
+
+def png_size(head):
+    """(breedte, hoogte) uit de eerste bytes van een PNG, of None."""
+    if len(head) >= 24 and head[:8] == b"\x89PNG\r\n\x1a\n":
+        return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+    return None
+
+
+def pokemontcg_url(p):
+    set_id, num = str(p.get("set_id") or ""), str(p.get("number") or "")
+    if not set_id or not num:
+        return None
+    if num.isdigit():
+        num = num.lstrip("0") or "0"
+    return f"{PTCG}/{set_id.replace('.', '')}/{num}.png"
+
+
+def pokemontcg_image(session, p, timeout=15):
+    """De foto van pokemontcg.io als die echt bestaat (geen standaardplaatje), anders None."""
+    url = pokemontcg_url(p)
+    if not url:
+        return None
+    try:
+        r = session.get(url, timeout=timeout, stream=True, headers={"Range": "bytes=0-63"})
+        head = next(r.iter_content(64), b"") if r.status_code in (200, 206) else b""
+        r.close()
+    except Exception:
+        return None
+    size = png_size(head)
+    return url if size and size != PTCG_PLACEHOLDER else None
+
+
+def find_image(session, p):
+    """Eerst pokemontcg.io (één verzoek, en daar zit het vaakst iets), dan TCGdex in de andere talen."""
+    return pokemontcg_image(session, p) or tcgdex_other_langs(session, p["product_id"])
+
+
 def fill_missing(store, session, log=print, limit=2000, deadline=None, finder=None, products=None):
-    """Kaarten zonder foto: TCGdex in alle talen. 'finder(product) -> url' is voor tests."""
+    """Kaarten zonder foto: TCGdex in alle talen, daarna pokemontcg.io. 'finder(product) -> url' is voor tests."""
     missing = products if products is not None else store.products("card", extra={"image": "is.null"})
     missing = [p for p in missing if not config.is_digital_set(p.get("set_id"))]
     log(f"Foto's aanvullen: {len(missing)} kaarten zonder foto.")
     day = date.today().toordinal()
     missing = sorted(missing, key=lambda p: zlib.crc32(f"{p['product_id']}{day}".encode()))   # elke nacht een andere volgorde, zodat hardnekkige gevallen de rest niet blokkeren
-    find = finder or (lambda p: tcgdex_other_langs(session, p["product_id"]))
+    find = finder or (lambda p: find_image(session, p))
     found, updates = 0, []
     for p in missing[:limit]:
         if deadline and time.time() >= deadline:

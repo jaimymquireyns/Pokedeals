@@ -1,7 +1,8 @@
 // Overzicht 'Verkocht': elke verkoop als bestelling, met je echte winst, plus export naar CSV.
 import { rest, userId } from "../api.js";
 import { lineChart } from "../chart.js";
-import { emptyNote, filterBox, matchQuery } from "../components.js";
+import { emptyNote, filterBox, go, matchQuery } from "../components.js";
+import { openSaleEdit } from "../orders.js";
 import { allocate, saleProfit } from "../model.js";
 import { closeSheet, eur, fmtDateLong, h, icon, openSheet, segment, signedEur, store, toast } from "../ui.js";
 
@@ -11,7 +12,7 @@ export async function loadSales() {
     rest.get("sale_items?select=*"),
   ]);
   const ids = [...new Set(items.map((i) => i.product_id))];
-  const products = ids.length ? await rest.get(`products?select=product_id,name,set_name,number,kind&product_id=in.(${ids.map(encodeURIComponent).join(",")})`) : [];
+  const products = ids.length ? await rest.get(`products?select=product_id,name,set_name,number,kind,image&product_id=in.(${ids.map(encodeURIComponent).join(",")})`) : [];
   const prod = new Map(products.map((p) => [p.product_id, p]));
   const bySale = new Map();
   for (const it of items) {
@@ -59,7 +60,8 @@ async function undoSale(s, onChange) {
   try {
     await rest.insert("collection", s.lines.map((l) => ({ user_id: userId(), product_id: l.product_id, quantity: l.quantity,
       condition: l.condition || null, grade_company: l.grade_company || null, grade: l.grade || null,
-      purchase_price: Math.round((l.cost_total / l.quantity) * 100) / 100, purchase_date: l.purchase_date || s.sale_date })));
+      purchase_price: Math.round((l.cost_total / l.quantity) * 100) / 100, purchase_date: l.purchase_date || s.sale_date,
+      purchase_seller: l.purchase_seller || null, purchase_order: l.purchase_order || null })));
     await rest.del("sales", `id=eq.${s.id}`);
     toast("Verkoop teruggedraaid");
     onChange?.();
@@ -139,7 +141,7 @@ export async function renderSales(box, { onChange } = {}) {
   let sales;
   try { sales = await loadSales(); } catch (e) { console.error(e); box.replaceChildren(h("p", { class: "err pad", text: "Kon je verkopen niet laden." })); return; }
   if (!sales.length) {
-    box.replaceChildren(emptyNote("Nog geen verkopen. Kies bij 'In bezit' de knop Verkopen om er een vast te leggen."));
+    box.replaceChildren(emptyNote("Nog geen verkopen. Kies in je collectie 'Selecteren' en daarna 'Verkopen' om er een vast te leggen."));
     return;
   }
   const ui = { mode: "cum", range: "MAX", ...SALE_FILTER_DEFAULT, ...store.get("pd:sales", {}) };
@@ -211,9 +213,21 @@ export async function renderSales(box, { onChange } = {}) {
         h("span", { text: `${l.quantity > 1 ? l.quantity + "x " : ""}${l.name}` }),
         h("span", { class: "num", text: `${eur(l.price_share)} (${signedEur(s.profit.per[i])})` })))),
       h("div", { class: "mini", text: `Ontvangen ${eur(Number(s.total_price) + Number(s.shipping_received))} · commissie ${eur(Number(s.commission))} · verzending ${eur(Number(s.shipping_paid))} · overig ${eur(Number(s.other_costs))}` }),
-      h("button", { type: "button", class: "linkbtn", text: "Verkoop terugdraaien", onclick: () => undoSale(s, onChange) }))));
+      h("div", { class: "saleacts" },
+        h("button", { type: "button", class: "btn act", onclick: () => openSaleEdit(s, onChange) }, "Aanpassen"),
+        h("button", { type: "button", class: "linkbtn", text: "Verkoop terugdraaien", onclick: () => undoSale(s, onChange) })))));
   }
 
   box.replaceChildren(h("div", { class: "searchrow" }, search.box), filterBar, countNote, sumBox, chartCard, csvBox, listBox);
   draw();
+}
+
+/** Eigen pagina 'Verkocht' (vanuit Collectie): alle verkopen, met aanpassen en terugdraaien. */
+export async function salesView(root) {
+  const box = h("div", { class: "salesbox" });
+  root.replaceChildren(h("div", { class: "page" },
+    h("div", { class: "topbar" }, h("button", { class: "back", type: "button", onclick: () => go("#/collection") }, icon("back"), h("span", { text: "Collectie" }))),
+    h("div", { class: "head" }, h("h1", { text: "Verkocht" }), h("p", { class: "muted", text: "Al je verkopen. Tik op Aanpassen om een fout te verbeteren." })),
+    box));
+  await renderSales(box, { onChange: () => salesView(root) });
 }

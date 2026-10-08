@@ -268,6 +268,8 @@ alter table user_settings add column if not exists attn_pct numeric not null def
 alter table collection add column if not exists purchase_costs numeric not null default 0;   -- jouw deel van overige aankoopkosten (grading, toploader...)
 alter table collection add column if not exists purchase_seller text;                        -- gekocht van
 alter table collection add column if not exists purchase_order text;                         -- zelfde waarde = zelfde bestelling
+alter table sale_items add column if not exists purchase_seller text;   -- van wie je deze kaart ooit kocht (voor 'Gekocht', ook na verkoop)
+alter table sale_items add column if not exists purchase_order text;    -- bij welke aankoop hij hoorde
 
 drop view if exists v_deals;
 create view v_deals with (security_invoker = on) as   -- goedkope aanbiedingen (Home): de goedkoopste aanbieding tegen de tweede goedkoopste van dezelfde uitvoering

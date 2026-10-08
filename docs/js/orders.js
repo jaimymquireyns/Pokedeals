@@ -206,10 +206,11 @@ export function openSaleDetails(chosen, onDone) {
     save.disabled = true;
     try {
       await rest.insert("sales", [{ id, user_id: userId(), sale_date: date.value || today(), buyer: buyer.value.trim() || null, total_price: tp, ...sale() }]);
-      await rest.insert("sale_items", chosen.map((x, i) => ({
+      const items = chosen.map((x, i) => ({
         sale_id: id, user_id: userId(), product_id: x.c.product_id, quantity: x.qty, condition: x.c.condition || null,
         grade_company: x.c.grade_company || null, grade: x.c.grade || null, price_share: lines[i].price_share, cost_total: lines[i].cost_total,
-        purchase_date: x.c.purchase_date || null })));
+        purchase_date: x.c.purchase_date || null, purchase_seller: x.c.purchase_seller || null, purchase_order: x.c.purchase_order || null }));
+      await insertSaleItems(items);
       for (const x of chosen) {   // de verkochte stuks uit 'In bezit' halen; bij een deel blijven de kosten naar verhouding staan
         if (x.qty >= x.c.quantity) await rest.del("collection", `id=eq.${x.c.id}`);
         else {
@@ -231,6 +232,164 @@ export function openSaleDetails(chosen, onDone) {
     h("div", { class: "two eq" }, field("Verzending ontvangen", shipIn), field("Verzending betaald", shipOut)),
     field("Overige kosten (verpakking)", other),
     h("p", { class: "mini", text: `De commissie staat op ${s.fee_pct}% van de totaalprijs; vul gerust het exacte bedrag van je Cardmarket-overzicht in. De prijs wordt verdeeld naar de huidige waarde van de kaarten; per kaart aan te passen.` }),
+    linesBox, result, err, save));
+  recalc();
+}
+
+// ---------------------------------------------------------------- hulp: oudere databases
+/** Verkochte kaarten bewaren nu ook van wie je ze kocht (purchase_seller/purchase_order). Is supabase/schema.sql nog niet opnieuw
+ * gedraaid, dan bestaan die kolommen nog niet: dan slaan we de verkoop gewoon zonder die twee velden op. */
+const missingColumn = (e) => /purchase_(seller|order)/.test(String(e?.message || "")) && /column|schema cache/i.test(String(e?.message || ""));
+const withoutPurchaseInfo = (rows) => rows.map(({ purchase_seller, purchase_order, ...r }) => r);   // eslint-disable-line no-unused-vars
+export async function insertSaleItems(items) {
+  try { return await rest.insert("sale_items", items); } catch (e) {
+    if (!missingColumn(e)) throw e;
+    return rest.insert("sale_items", withoutPurchaseInfo(items));
+  }
+}
+
+// ---------------------------------------------------------------- aankoop aanpassen
+/** Een bestaande aankoop corrigeren: verkoper, datum, verzending en trustee fee (opnieuw verdeeld), en per kaart prijs, aantal en
+ * staat. Een kaart weghalen of de hele aankoop verwijderen kan ook. Alleen kaarten die je nog hebt; verkochte kaarten pas je aan
+ * bij de verkoop (daar staat hun kostprijs). rows = collectieregels van deze aankoop (uit v_collection). */
+export function openPurchaseEdit(rows, onDone) {
+  const lines = rows.map((r) => ({ r, price: money("Prijs per stuk", fmtIn(Number(r.purchase_price))), qty: Number(r.quantity) || 1,
+    condition: r.condition || "NM", removed: false }));
+  const sum = (k) => rows.reduce((n, r) => n + Number(r[k] || 0), 0);
+  const seller = h("input", { type: "text", "aria-label": "Naam verkoper", placeholder: "Naam of Cardmarket-gebruiker", value: rows[0].purchase_seller || "" });
+  const date = h("input", { type: "date", "aria-label": "Datum aankoop", value: rows[0].purchase_date || today(), max: today() });
+  const ship = money("Verzendkosten", fmtIn(sum("purchase_shipping")));
+  const costs = money("Trustee fee", fmtIn(sum("purchase_costs")));
+  const linesBox = h("div", { class: "olines" });
+  const summary = h("div", { class: "osum" });
+  const err = h("p", { class: "err", role: "alert" });
+  const live = () => lines.filter((l) => !l.removed);
+  const drawSum = () => {
+    const ls = live(), cards = ls.reduce((s, l) => s + (parseMoney(l.price.value) || 0) * l.qty, 0);
+    const extra = (parseMoney(ship.value) || 0) + (parseMoney(costs.value) || 0);
+    summary.textContent = ls.length ? `${ls.reduce((s, l) => s + l.qty, 0)} stuks · ${eur(cards)} + ${eur(extra)} verzending en trustee fee = ${eur(cards + extra)}` : "Alle kaarten weggehaald: opslaan verwijdert deze aankoop.";
+  };
+  const draw = () => {
+    linesBox.replaceChildren(...lines.map((l) => l.removed
+      ? h("div", { class: "oline gone" }, thumb(l.r.image, "ph", l.r.kind === "sealed"),
+          h("div", { class: "body" }, h("div", { class: "name", text: l.r.name }), h("div", { class: "set", text: "wordt verwijderd" })),
+          h("button", { type: "button", class: "linkbtn", text: "Terugzetten", onclick: () => { l.removed = false; draw(); } }))
+      : h("div", { class: "oline" }, thumb(l.r.image, "ph", l.r.kind === "sealed"),
+          h("div", { class: "body" },
+            h("div", { class: "name", text: l.r.name }),
+            h("div", { class: "set", text: [l.r.set_name, l.r.number && l.r.kind === "card" ? `#${l.r.number}` : ""].filter(Boolean).join(" · ") }),
+            h("div", { class: "orow" }, h("span", { class: "mini", text: "Prijs" }), l.price, stepper(() => l.qty, (v) => { l.qty = v; }, Infinity, drawSum),
+              l.r.kind === "card" && !l.r.grade_company ? segment([["NM", "NM"], ["LP", "LP"], ["MP", "MP"], ["HP", "HP"]], l.condition, (v) => { l.condition = v; }, "small") : null)),
+          h("button", { type: "button", class: "ox", "aria-label": `${l.r.name} uit deze aankoop halen`, onclick: () => { l.removed = true; draw(); } }, icon("x")))));
+    drawSum();
+  };
+  lines.forEach((l) => { l.price.oninput = drawSum; });
+  ship.oninput = drawSum; costs.oninput = drawSum;
+
+  const removeAll = async () => {
+    if (!confirm(`Deze hele aankoop (${rows.length} ${rows.length === 1 ? "regel" : "regels"}) verwijderen uit je collectie? Dit kan niet ongedaan worden.`)) return;
+    try {
+      for (const r of rows) await rest.del("collection", `id=eq.${r.id}`);
+      toast("Aankoop verwijderd"); closeSheet(); onDone?.();
+    } catch (e) { console.error(e); err.textContent = "Verwijderen mislukte. Probeer het opnieuw."; }
+  };
+  const save = h("button", { class: "cta", type: "button", text: "Wijzigingen opslaan", onclick: async () => {
+    err.textContent = "";
+    const ls = live();
+    if (!ls.length) { await removeAll(); return; }
+    if (ls.some((l) => !(parseMoney(l.price.value) > 0))) { err.textContent = "Vul bij elke kaart een prijs in."; return; }
+    const weights = ls.map((l) => parseMoney(l.price.value) * l.qty);
+    const shipShares = allocate(parseMoney(ship.value) || 0, weights), costShares = allocate(parseMoney(costs.value) || 0, weights);
+    // meerdere kaarten zonder bestelnummer (oude aankoop): nu één bestelling van maken, zodat ze voortaan bij elkaar blijven
+    const order = rows.find((r) => r.purchase_order)?.purchase_order || (ls.length > 1 ? uid() : null);
+    save.disabled = true;
+    try {
+      for (const l of lines.filter((x) => x.removed)) await rest.del("collection", `id=eq.${l.r.id}`);
+      for (let i = 0; i < ls.length; i++) {
+        const l = ls[i];
+        await rest.patch("collection", `id=eq.${l.r.id}`, {
+          purchase_price: parseMoney(l.price.value), quantity: l.qty,
+          condition: l.r.kind === "card" && !l.r.grade_company ? l.condition : l.r.condition || null,
+          purchase_seller: seller.value.trim() || null, purchase_date: date.value || today(),
+          purchase_shipping: shipShares[i], purchase_costs: costShares[i], purchase_order: order });
+      }
+      toast("Aankoop aangepast"); closeSheet(); onDone?.();
+    } catch (e) { console.error(e); err.textContent = "Opslaan mislukte. Probeer het opnieuw."; save.disabled = false; }
+  } });
+
+  openSheet(h("div", { class: "sheetin orderform" }, h("div", { class: "handle" }),
+    h("h3", { text: "Aankoop aanpassen" }),
+    h("div", { class: "two eq" }, field("Naam verkoper", seller), field("Datum aankoop", date)),
+    h("div", { class: "two eq" }, field("Verzendkosten", ship), field("Trustee fee", costs)),
+    h("p", { class: "mini", text: "Verzendkosten en trustee fee gelden voor de kaarten hieronder en worden opnieuw verdeeld naar verhouding van hun prijs." }),
+    h("div", { class: "lbl2", text: "Kaarten" }),
+    linesBox, summary, err, save,
+    h("button", { type: "button", class: "linkbtn danger", text: "Hele aankoop verwijderen", onclick: removeAll })));
+  draw();
+}
+
+// ---------------------------------------------------------------- verkoop aanpassen
+/** Een bestaande verkoop corrigeren: koper, datum, bedragen en per kaart het deel van de prijs en de kostprijs.
+ * s = verkoop uit loadSales() (met s.lines). Kaarten terug in je collectie zetten gaat via "Verkoop terugdraaien". */
+export function openSaleEdit(s, onDone) {
+  const buyer = h("input", { type: "text", "aria-label": "Koper", placeholder: "Naam of Cardmarket-gebruiker", value: s.buyer || "" });
+  const date = h("input", { type: "date", "aria-label": "Datum", value: s.sale_date || today(), max: today() });
+  const total = money("Totaalprijs", fmtIn(Number(s.total_price)));
+  const commission = money("Commissie", fmtIn(Number(s.commission)));
+  const shipIn = money("Verzending ontvangen", fmtIn(Number(s.shipping_received)));
+  const shipOut = money("Verzending betaald", fmtIn(Number(s.shipping_paid)));
+  const other = money("Overige kosten", fmtIn(Number(s.other_costs)));
+  const shareIn = s.lines.map((l) => money("Deel van de prijs", fmtIn(Number(l.price_share))));
+  const costIn = s.lines.map((l) => money("Kostprijs", fmtIn(Number(l.cost_total))));
+  const linesBox = h("div", { class: "olines" });
+  const result = h("div", { class: "osum" });
+  const err = h("p", { class: "err", role: "alert" });
+  const sale = () => ({ shipping_received: parseMoney(shipIn.value) || 0, shipping_paid: parseMoney(shipOut.value) || 0,
+    commission: parseMoney(commission.value) || 0, other_costs: parseMoney(other.value) || 0 });
+  const recalc = () => {
+    const lines = s.lines.map((l, i) => ({ price_share: parseMoney(shareIn[i].value) || 0, cost_total: parseMoney(costIn[i].value) || 0 }));
+    const pr = saleProfit(sale(), lines);
+    const sumShares = Math.round(lines.reduce((t, l) => t + l.price_share, 0) * 100) / 100;
+    const off = Math.round(((parseMoney(total.value) || 0) - sumShares) * 100) / 100;
+    result.replaceChildren(
+      h("div", { class: "bigline" }, h("span", { text: "Winst op deze verkoop" }), h("b", { class: "num " + (pr.total < 0 ? "neg" : "pos"), text: signedEur(pr.total) })),
+      off ? h("p", { class: "err", text: `De delen tellen op tot ${eur(sumShares)}, ${eur(Math.abs(off))} ${off > 0 ? "minder" : "meer"} dan de totaalprijs.` }) : null);
+    return { lines, off };
+  };
+  linesBox.replaceChildren(...s.lines.map((l, i) => h("div", { class: "oline" },
+    thumb(l.image, "ph", l.kind === "sealed"),
+    h("div", { class: "body" },
+      h("div", { class: "name", text: `${l.quantity > 1 ? l.quantity + "x " : ""}${l.name}` }),
+      h("div", { class: "set", text: [l.set_name, l.number && l.kind === "card" ? `#${l.number}` : ""].filter(Boolean).join(" · ") }),
+      h("div", { class: "orow" }, h("span", { class: "mini", text: "Verkocht voor" }), shareIn[i]),
+      h("div", { class: "orow" }, h("span", { class: "mini", text: "Kostte je" }), costIn[i])))));
+  [total, commission, shipIn, shipOut, other, ...shareIn, ...costIn].forEach((el) => { el.oninput = recalc; });
+  // de totaalprijs aangepast en er is maar één kaart: dan is zijn deel gewoon de totaalprijs
+  total.addEventListener("input", () => { if (shareIn.length === 1) shareIn[0].value = total.value; recalc(); });
+
+  const save = h("button", { class: "cta", type: "button", text: "Wijzigingen opslaan", onclick: async () => {
+    err.textContent = "";
+    const tp = parseMoney(total.value);
+    if (!(tp > 0)) { err.textContent = "Vul de totaalprijs in."; return; }
+    const { lines, off } = recalc();
+    if (off) { err.textContent = "Zorg dat de delen optellen tot de totaalprijs."; return; }
+    save.disabled = true;
+    try {
+      await rest.patch("sales", `id=eq.${s.id}`, { buyer: buyer.value.trim() || null, sale_date: date.value || today(), total_price: tp, ...sale() });
+      for (let i = 0; i < s.lines.length; i++) {
+        await rest.patch("sale_items", `id=eq.${s.lines[i].id}`, { price_share: lines[i].price_share, cost_total: lines[i].cost_total });
+      }
+      toast("Verkoop aangepast"); closeSheet(); onDone?.();
+    } catch (e) { console.error(e); err.textContent = "Opslaan mislukte. Probeer het opnieuw."; save.disabled = false; }
+  } });
+
+  openSheet(h("div", { class: "sheetin orderform" }, h("div", { class: "handle" }),
+    h("h3", { text: "Verkoop aanpassen" }),
+    h("div", { class: "two eq" }, field("Koper", buyer), field("Datum", date)),
+    h("div", { class: "two eq" }, field("Totaalprijs kaarten", total), field("Commissie", commission)),
+    h("div", { class: "two eq" }, field("Verzending ontvangen", shipIn), field("Verzending betaald", shipOut)),
+    field("Overige kosten (verpakking)", other),
+    h("p", { class: "mini", text: "Per kaart: waarvoor je hem verkocht (samen de totaalprijs) en wat hij je kostte. Kaarten terugzetten in je collectie doe je met 'Verkoop terugdraaien'." }),
     linesBox, result, err, save));
   recalc();
 }

@@ -1,8 +1,8 @@
 // Service worker: de app werkt offline (laatst geziene schermen) en toont meldingen.
-const CACHE = "pokedeals-v2-23";
+const CACHE = "pokedeals-v2-24";
 const CORE = ["./", "index.html", "style.css", "config.js", "manifest.webmanifest", "icons/icon-192.png",
   "js/main.js", "js/api.js", "js/ui.js", "js/model.js", "js/prefs.js", "js/push.js", "js/chart.js", "js/components.js",
-  "js/ocr.js", "js/add.js", "js/scan.js", "js/views/home.js", "js/views/search.js", "js/views/collection.js", "js/orders.js", "js/views/sales.js", "js/cardsearch.js",
+  "js/ocr.js", "js/add.js", "js/scan.js", "js/views/home.js", "js/views/search.js", "js/views/collection.js", "js/orders.js", "js/views/sales.js", "js/views/purchases.js", "js/cardsearch.js",
   "js/views/detail.js", "js/views/settings.js", "js/views/track.js", "js/views/login.js"];
 
 self.addEventListener("install", (e) => {
