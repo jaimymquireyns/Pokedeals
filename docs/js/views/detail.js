@@ -68,7 +68,7 @@ export async function detailView(root, pid, cid) {
   }
 
   // ---- kop ----
-  const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed"),
+  const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed", p.kind === "sealed" ? "" : [p.name, p.number ? "#" + p.number : ""].filter(Boolean).join(" ")),
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null),
       h("div", { class: "big num", text: price ? eur(price) : "Geen prijs" }),

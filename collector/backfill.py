@@ -85,7 +85,7 @@ def backfill_images(store, provider, log=print, limit=None):
     for i, p in enumerate(missing, 1):
         card = provider.get_card(p["product_id"])
         if card and card["product"].get("image"):
-            updates.append({"product_id": p["product_id"], "image": card["product"]["image"]})
+            updates.append({"product_id": p["product_id"], "kind": "card", "name": p["name"], "image": card["product"]["image"]})
             found += 1
         else:
             still_missing += 1
@@ -119,6 +119,8 @@ def main():
             sealed_history.run(store, PkmnPrices(os.environ["PKMN_API_KEY"]), today, limit=10_000)
     if args.images:
         backfill_images(store, TCGdex())
+        import images
+        images.fill_missing(store, TCGdex().session, limit=50000)   # wat TCGdex in het Engels niet heeft: andere talen
     if args.cards_sets:
         import fx as fxmod
         rate, _ = fxmod.usd_to_eur(TCGdex().session)

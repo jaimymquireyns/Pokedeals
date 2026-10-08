@@ -3,7 +3,7 @@ import { lineChart, stepPoints } from "../chart.js";
 import { brandmark, collRow, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery } from "../components.js";
 import { attention, costEach, gradeKey } from "../model.js";
 import { getSettings } from "../prefs.js";
-import { openPurchaseOrder, openSaleOrder } from "../orders.js";
+import { openPurchaseOrder, openSaleDetails } from "../orders.js";
 import { renderSales } from "./sales.js";
 import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store, thumb } from "../ui.js";
 
@@ -62,6 +62,27 @@ export async function collectionView(root) {
   const list = h("ul", { class: "list" });
   const sortBtn = h("button", { class: "sortb", type: "button" });
 
+  let selecting = false;           // "Selecteren" om kaarten te verkopen
+  const picked = new Set();        // groepssleutels van aangevinkte kaarten
+  const selBar = h("div", { class: "selbar", hidden: true });
+  const selBtn = h("button", { type: "button", class: "btn act", disabled: !items.length });
+  const drawSel = () => {
+    selBtn.textContent = selecting ? "Annuleren" : "Selecteren";
+    selBtn.setAttribute("aria-pressed", String(selecting));
+    const gs = groups().filter((g) => picked.has(g.key));
+    const n = gs.reduce((t, g) => t + g.quantity, 0);
+    const worth = gs.reduce((t, g) => t + g._value, 0);
+    selBar.hidden = !selecting;
+    list.style.paddingBottom = selecting ? "84px" : "";   // de balk onderaan mag de laatste kaart niet bedekken
+    selBar.replaceChildren(
+      h("span", { class: "selinfo" }, h("b", { text: gs.length ? `${n} ${n === 1 ? "stuk" : "stuks"} geselecteerd` : "Vink kaarten aan" }), gs.length ? h("small", { class: "num", text: `waarde ${eur(worth)}` }) : null),
+      h("button", { type: "button", class: "cta", disabled: !gs.length, onclick: () => {
+        const chosen = gs.flatMap((g) => g.copies.map((c) => ({ c, qty: Number(c.quantity) })));
+        openSaleDetails(chosen, () => { selecting = false; picked.clear(); ui.tab = "verkocht"; saveUi(); reload(); });
+      } }, gs.length ? `Verkopen (${gs.length})` : "Verkopen"));
+  };
+  selBtn.onclick = () => { selecting = !selecting; if (!selecting) picked.clear(); drawSel(); drawList(); };
+
   let query = "";   // zoekbalk: wordt gewist zodra je van scherm wisselt
   const countNote = h("p", { class: "mini fcount", hidden: true });
   const searchBar = filterBox("Zoek op naam, set of nummer", (v) => { query = v; drawList(); });
@@ -69,7 +90,7 @@ export async function collectionView(root) {
     sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sorteren" }));
     sortBtn.setAttribute("aria-label", "Sorteren, nu: " + SORTS.find((s) => s[0] === ui.sort)[1]);
     const ofKind = groups().filter((c) => ui.kind === "alles" || c.kind === ui.kind);
-    const vis = ofKind.filter((c) => matchQuery(query, [c.name, c.set_name, c.number, c.condition, c.grade_company ? `${c.grade_company} ${c.grade}` : ""], c.set_name)).sort(cmp[ui.sort]);
+    const vis = ofKind.filter((c) => matchQuery(query, [c.name, c.cm_name, c.set_name, c.number, c.condition, c.grade_company ? `${c.grade_company} ${c.grade}` : ""], c.set_name)).sort(selecting ? cmp.az : cmp[ui.sort]);   // bij het selecteren altijd A–Z
     countNote.hidden = !query.trim();
     countNote.textContent = `${vis.length} van ${ofKind.length} gevonden`;
     const groupRow = (g) => {
@@ -79,10 +100,11 @@ export async function collectionView(root) {
         : (g._invested ? g._value / g._invested - 1 : null);
       const cls = ggain == null ? "" : ggain < 0 ? " neg" : "";
       const head = h("button", { class: "rowc grouphead", type: "button", onclick: () => {
+        if (selecting) { if (picked.has(g.key)) picked.delete(g.key); else picked.add(g.key); drawSel(); drawList(); return; }
         if (!multi) { go(detailHash(g.product_id, g.id)); return; }
         ui.expanded[g.key] = !ui.expanded[g.key]; saveUi(); drawList();
       } },
-        h("span", { class: "gthumb" }, thumb(g.image, "ph", g.kind === "sealed")),
+        h("span", { class: "gthumb" }, thumb(g.image, "ph", g.kind === "sealed", g.kind === "sealed" ? "" : [g.name, g.number ? "#" + g.number : ""].filter(Boolean).join(" "))),
         h("div", { class: "body" },
           h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g)),
           h("span", { class: "set", text: (g.set_name || "") + (g.number && g.kind === "card" ? ` #${g.number}` : "") }),
@@ -91,6 +113,11 @@ export async function collectionView(root) {
           h("span", { class: "v num", text: eur(g._value) }),
           h("span", { class: "pc" + cls, text: ggain == null ? "prijs onbekend" : signed(ggain) }),
           multi ? icon("chev", ui.expanded[g.key] ? "flip" : "") : null));
+      if (selecting) {
+        const box = h("input", { type: "checkbox", class: "selbox", "aria-label": `${g.name} selecteren`, checked: picked.has(g.key) ? "checked" : null,
+          onchange: (e) => { if (e.target.checked) picked.add(g.key); else picked.delete(g.key); drawSel(); drawList(); } });
+        return h("li", { class: "selrow" + (picked.has(g.key) ? " on" : "") }, box, head);
+      }
       if (!multi || !ui.expanded[g.key]) return h("li", {}, head);
       const copyRows = g.copies.map((c, i) => h("button", { class: "copyrow", type: "button", onclick: () => go(detailHash(c.product_id, c.id)) },
         h("span", {}, h("b", { text: `Aankoop ${i + 1}` }), h("small", { text: `${c.quantity > 1 ? c.quantity + " stuks · " : ""}${c.purchase_date || ""}` })),
@@ -136,7 +163,7 @@ export async function collectionView(root) {
       segment([["bezit", "In bezit"], ["verkocht", "Verkocht"]], owned ? "bezit" : "verkocht", (t) => { ui.tab = t; saveUi(); reload(); }),
       h("div", { class: "collacts" },
         h("button", { type: "button", class: "btn act", onclick: () => openPurchaseOrder({ onDone: reload }) }, icon("plus"), " Aankoop"),
-        h("button", { type: "button", class: "btn act", disabled: !items.length, onclick: () => openSaleOrder(items, { onDone: () => { ui.tab = "verkocht"; saveUi(); reload(); } }) }, "Verkopen"))),
+        owned ? selBtn : null)),
     owned ? null : salesBox,
     h("div", { class: "ownedbox", hidden: !owned },
     h("div", { class: "sum" },
@@ -177,8 +204,10 @@ export async function collectionView(root) {
     h("div", { class: "searchrow" }, searchBar.box),
     h("div", { class: "stick" }, segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], ui.kind, (k) => { ui.kind = k; saveUi(); drawList(); }), sortBtn),
     countNote,
-    list)));
+    list),
+    selBar));
   if (!owned) renderSales(salesBox, { onChange: reload });
   drawList();
+  drawSel();
   if (items.length) drawChart(); else chartBox.parentElement.hidden = true;
 }

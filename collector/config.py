@@ -131,3 +131,6 @@ SIG_MIN_SELLERS = 3           # minder verkopers = dunne markt (zoals Lapras op 
 SIG_MIN_SNAPSHOT_DAYS = 14    # aanbod/vraag-trend pas meetellen na zoveel dagen momentopnames   # beroemde Pokémon: geschiedenis (ongegradeerd én gegradeerd) mag dieper terug dan de standaard 90 dagen
 PK_TIME_BUDGET = 4 * 3600         # dagelijkse update: stopt zelf na 4 uur, ruim binnen de 5 uur die GitHub Actions daarvoor krijgt
 PK_CREDITS_ONLY_TIME_BUDGET = 50 * 60  # late 'credits opmaken'-taak: die heeft zelf maar 1 uur van GitHub, dus stopt na 50 minuten
+
+IMAGES_PK_BUDGET = 3000       # credits per run om ontbrekende kaartfoto's bij PkmnPrices te halen (1 per kaart)
+IMAGES_TIME_BUDGET = 600      # seconden per nacht voor het controleren en aanvullen van foto's

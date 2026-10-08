@@ -104,7 +104,7 @@ export function addForm(product, { onDone, editing } = {}) {
   draw();
   drawShip();
   return h("div", { class: "addform" },
-    h("div", { class: "found" }, thumb(product.image, "ph", product.kind === "sealed"),
+    h("div", { class: "found" }, thumb(product.image, "ph", product.kind === "sealed", product.kind === "sealed" ? "" : [product.name, product.number ? "#" + product.number : ""].filter(Boolean).join(" ")),
       h("div", {}, h("h2", { id: "sheet-title", text: product.name }), h("div", { class: "set", text: [product.set_name, product.number ? `nr ${product.number}` : ""].filter(Boolean).join(", ") }))),
     typeBox, gradeBox, condBox,
     h("div", { class: "three" },

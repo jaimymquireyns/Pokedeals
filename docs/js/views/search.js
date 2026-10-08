@@ -33,7 +33,8 @@ export async function searchView(root) {
           thumb(r.image, "ph", r.kind === "sealed"),
           h("div", { class: "body" },
             h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: r.price ? eur(Number(r.price)) : "–" })),
-            h("div", { class: "l2" }, h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }), kindTag(r.kind)))),
+            h("div", { class: "l2" }, h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }), kindTag(r.kind)),
+            r.cm_name && r.kind === "card" && r.cm_name.toLowerCase() !== String(r.name).toLowerCase() ? h("div", { class: "set cmn", text: `Cardmarket: ${r.cm_name}` }) : null)),
         h("button", { class: "addb" + (n ? " done" : ""), type: "button", "aria-label": n ? "Nog een toevoegen" : "Toevoegen aan collectie", onclick: () => addSheet(r) }, icon(n ? "check" : "plus"))));
     }) : [emptyNote("Niets gevonden.")]));
   };

@@ -6,7 +6,7 @@ let setsCache = null;   // {set_id, name}[], 1x opgehaald, klein genoeg om in he
 // Bekende community-afkortingen (bron: pkmncards.com/sets/, alle sets sinds 1999). Deze staan nergens in onze
 // eigen data, dus zonder deze lijst zou "30c" of "dri" nooit gevonden worden, ook al kent iedereen ze wel.
 export const SET_ALIASES = {
-  "30c": "30th Celebration", "pbl": "Pitch Black", "cri": "Chaos Rising", "por": "Perfect Order",
+  "30c": "30th",   // dekt zowel 30th Celebration als 30th Classic Collection (daar zit o.a. Charizard "30C BS4") "pbl": "Pitch Black", "cri": "Chaos Rising", "por": "Perfect Order",
   "asc": "Ascended Heroes", "pfl": "Phantasmal Flames", "mee": "Mega Evolution Energy", "meg": "Mega Evolution", "mep": "Mega Evolution Promos",
   "wht": "White Flare", "sve": "Scarlet & Violet Energy", "blk": "Black Bolt", "dri": "Destined Rivals", "jtg": "Journey Together",
   "pre": "Prismatic Evolutions", "ssp": "Surging Sparks", "scr": "Stellar Crown", "sfa": "Shrouded Fable", "twm": "Twilight Masquerade",
@@ -111,6 +111,7 @@ function parseQuery(raw, sets, opts = {}) {
   // "30c bs 4": 'bs' staat los van '4' maar hoort bij het nummer; als extra mogelijkheid ('bs4') proberen, nooit in plaats van het nummer zelf
   const prev = q.nameWords[q.nameWords.length - 1];
   if (q.number && /^\d/.test(q.number) && q.nameWords.length > 1 && /^[a-z]{1,4}$/.test(prev)) q.numbers.push(prev + q.number);
+  q.tokens = toks;
   return q;
 }
 
@@ -134,11 +135,24 @@ async function findRows(q, kindF) {
   const attempts = [];
   for (const n of nums.length ? nums : [null]) attempts.push([...nameF(q.nameWords), ...setF, ...numF(n)]);
   if (q.nameWords.length > 1) for (const n of nums.length ? nums : [null]) attempts.push([...nameF(first), ...setF, ...numF(n)]);
+  // Zonder passend nummer in de bedoelde set (Cardmarket noemt een kaart bijv. "BS4", wij "001"): liever alle kaarten met die naam uit
+  // díe set dan kaarten met hetzelfde nummer uit andere sets.
+  if (setF.length) attempts.push([...nameF(q.nameWords), ...setF]);
+  // Cardmarket-code in de link ("Charizard-30C-BS4"): alle zoekwoorden moeten in de link voorkomen.
+  const tk = (q.tokens || []).filter((w) => w.length > 1);
+  if (tk.length > 1) attempts.push([`cm_url=ilike.*${encodeURIComponent(tk.join("*"))}*`]);
   for (const n of nums.length ? nums : [null]) {
     if (setF.length) attempts.push([...nameF(q.nameWords), ...numF(n)]);
     if (q.nameWords.length > 1) attempts.push([...nameF(first), ...numF(n)]);
   }
   attempts.push([...nameF(q.nameWords), ...setF], [...nameF(q.nameWords)], [...nameF(first)]);
+  // Cardmarkets eigen naam ("Charizard (30C BS4)"): staat al je zoektekst daarin, dan is dat de meest precieze treffer. Bij drie of meer woorden
+  // gaat dit voorop; bij minder pas na de set-pogingen (twee woorden zijn te vaag om vóór alles te zetten).
+  const cmTk = (q.tokens || []).filter(Boolean);
+  if (cmTk.length > 1) {
+    const cmF = [`cm_name=ilike.*${encodeURIComponent(cmTk.join("*"))}*`];
+    if (cmTk.length >= 3) attempts.unshift(cmF); else attempts.splice(Math.min(attempts.length, nums.length + 1), 0, cmF);
+  }
   const tried = new Set();
   for (const f of attempts) {
     const key = f.join("&");
@@ -176,6 +190,10 @@ export async function searchCards(raw, { kind = "alles", limit = 40 } = {}) {
     if (q.setName && norm(r.set_name) === norm(q.setName)) n += 40;
     if (q.number && norm(r.number) === norm(q.number)) n += 30;
     if (q.numbers && q.numbers.some((x) => norm(r.number) === norm(x))) n += 30;
+    const cmn = norm(r.cm_name);
+    if (cmn && (q.tokens || []).length > 1 && q.tokens.every((w) => cmn.includes(w))) n += 80;   // Cardmarkets eigen naam bevat al je woorden
+    const url = norm(r.cm_url);   // de Cardmarket-link bevat de code zoals Cardmarket hem noemt ("Charizard-30C-BS4"): staan al je woorden erin, dan is dit hem
+    if (url && (q.tokens || []).length > 1 && q.tokens.every((w) => url.includes(w))) n += 50;
     return n;
   };
   return rows.sort((a, b) => score(b, q) - score(a, q) || Number(b.price || 0) - Number(a.price || 0)).slice(0, limit);

@@ -349,3 +349,19 @@ dialog#scan{margin:0;width:100%;height:100%;max-width:none;max-height:none;backg
 a.nmbox{color:inherit;text-decoration:none}
 .salefilters{padding:8px 16px 0;display:grid;gap:6px}
 .salefilters .seg{width:100%}
+
+/* kaarten selecteren om te verkopen */
+.selrow{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;border-bottom:1px solid var(--line)}
+.selrow.on{background:color-mix(in srgb,var(--brand) 8%,transparent)}
+.selrow .selbox{width:22px;height:22px;margin-left:16px;accent-color:var(--brand)}
+.selrow>.rowc{border-bottom:0}
+.selbar{position:fixed;left:0;right:0;bottom:calc(66px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto;z-index:9;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.08)}
+.selbar[hidden]{display:none}
+.selinfo{display:grid;gap:2px}.selinfo small{color:var(--muted)}
+.selbar .cta{width:auto;padding:0 20px;height:46px;margin-top:0}
+
+.ph.txt{display:grid;place-items:center;text-align:center;padding:4px;overflow:hidden}
+.ph.txt::before{display:none}
+.ph.txt b{font-size:8px;line-height:1.15;font-weight:700;color:var(--muted);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.dh .ph.txt b{font-size:12px}
+.set.cmn{font-size:12px;color:var(--muted);margin-top:2px}

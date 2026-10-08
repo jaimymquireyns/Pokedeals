@@ -74,7 +74,7 @@ export function chanceBar(pUp, pDown) {
 
 export function oppRow(r, net, watch = null) {
   const main = h("button", { class: "row", type: "button", onclick: () => go(detailHash(r.product_id)) },
-    thumb(r.image, "ph", r.kind === "sealed"),
+    thumb(r.image, "ph", r.kind === "sealed", r.kind === "sealed" ? "" : [r.name, r.number ? "#" + r.number : ""].filter(Boolean).join(" ")),
     h("div", { class: "body" },
       h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: eur(r.price) })),
       h("div", { class: "l2" }, h("span", { class: "set", text: r.set_name || "" }, r.number && r.kind === "card" ? ` #${r.number}` : ""),
@@ -89,7 +89,7 @@ export function collRow(c, { valueEach, alerted, gain: gainOverride }) {
   const gain = gainOverride !== undefined ? gainOverride : valueEach ? valueEach / costEach(c) - 1 : null;
   const cls = gain == null ? "" : gain < 0 ? " neg" : "";
   return h("li", {}, h("button", { class: "rowc", type: "button", onclick: () => go(detailHash(c.product_id, c.id)) },
-    thumb(c.image, "ph", c.kind === "sealed"),
+    thumb(c.image, "ph", c.kind === "sealed", c.kind === "sealed" ? "" : [c.name, c.number ? "#" + c.number : ""].filter(Boolean).join(" ")),
     h("div", { class: "body" },
       h("span", { class: "nm" }, h("span", { class: "name", text: c.name }), gradeTag(c), alerted ? h("span", { class: "mini-bell", role: "img", "aria-label": "Prijsmelding actief" }, icon("bell")) : null),
       h("span", { class: "set", text: (c.set_name || "") + (c.number && c.kind === "card" ? ` #${c.number}` : "") }),

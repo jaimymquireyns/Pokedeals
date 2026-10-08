@@ -492,3 +492,11 @@ Vanaf nu draait alles vanzelf: elke dag rond 07:00-08:00 de volledige update en 
 ## Ronde 4: gegradeerde geschiedenis sneller en eerlijker
 - Je **eigen gegradeerde kaarten** (collectie) gaan voor, ook als de Pokémon niet bij de beroemde hoort (dan alleen jouw graad). Daarna: nooit opgevraagd, langst geleden, best verhandelde graad, duurste kaart (niet meer op alfabet).
 - `GRADED_BUDGET` van 4.000 naar 12.000 credits per run; het logboek schat nu hoeveel runs er nog nodig zijn.
+- **Foto's** (`collector/images.py`, elke nacht): 1/7 van de kaartfoto's wordt gecontroleerd (404/410 = link leeggemaakt, twijfel = laten staan); kaarten zonder foto krijgen er een via TCGdex (alle talen), daarna via PkmnPrices (max. `IMAGES_PK_BUDGET` = 3.000 credits). Het logboek noemt de sets waar foto's ontbreken. In de app valt een niet ladende foto terug op het lege kaartje (cache v2-18). Handmatig alles in één keer: workflow Historie ophalen met `images = ja`.
+
+## Ronde 5: app-fouten
+- **Zoeken:** `30c` dekt nu ook de 30th Classic Collection (daar staat Charizard "30C BS4", bij ons nummer 001). Staat het nummer niet in de bedoelde set, dan toont de zoekfunctie eerst de kaarten met die naam uit díe set (niet meer alle Charizards met nummer 4), en kaarten waarvan de Cardmarket-link al je woorden bevat staan bovenaan.
+- **Foto's:** kaart zonder (werkende) foto toont naam en nummer op het lege kaartje. `IMAGES_PK_BUDGET` is 3.000 credits per run.
+- **Verkopen:** knop *Selecteren* in de collectielijst (A–Z), vakjes naast de kaarten, balk onderaan met *Verkopen (n)*, en dan één scherm met alle gegevens (aantal per kaart aan te passen). Het tussenscherm is weg.
+- **Cardmarkets eigen kaartnaam** (`collector/cm_names.py`, kolom `products.cm_name`): voor elke aan Cardmarket gekoppelde kaart bewaren we uit Cardmarkets openbare lijst (`products_singles_6.json`) de naam met code ("Charizard (30C BS4)"). Zoeken kijkt daar ook in (bij 3+ woorden eerst), toont "Cardmarket: …" onder het resultaat en geeft zulke treffers voorrang. Vereist `supabase/schema.sql` opnieuw te draaien. Alleen voor gekoppelde kaarten; de koppeling loopt via `cm_links`.
+- Het nep-databasetje in de offline test controleert nu NOT NULL op de meegestuurde rij, zoals Postgres. Daardoor kwam aan het licht dat de foto-updates de naam mee moesten sturen; dat is aangepast.

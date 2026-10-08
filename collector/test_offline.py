@@ -72,12 +72,13 @@ class FakePostgrest:
         for row in json:
             key = tuple(row.get(c) for c in (conflict.split(",") if conflict else PK[table])) if (conflict or PK[table]) else (self.counter,)
             store = self.t[table]
-            if conflict and key in store:
-                store[key].update(row)                      # samenvoegen: alleen meegestuurde kolommen
-                continue
+            # Zoals Postgres: NOT NULL wordt gecontroleerd op de meegestuurde rij, ook als die daarna een bestaande rij bijwerkt
             err = self._check(table, row)
             if err:
                 return Resp(409, err)
+            if conflict and key in store:
+                store[key].update(row)                      # samenvoegen: alleen meegestuurde kolommen
+                continue
             self.counter += 1
             new = dict(row)
             if table in ("collection", "alerts", "push_subscriptions"):
@@ -103,6 +104,9 @@ class FakePostgrest:
                              "lt": str(r.get(col)) < val2, "gt": str(r.get(col)) > val2}[op2]]
                 continue
             op, val = v.split(".", 1)
+            if op == "not" and val == "is.null":
+                rows = [r for r in rows if r.get(k) is not None]
+                continue
 
             def ok(r):
                 cell = r.get(k)
@@ -2757,5 +2761,83 @@ reliability.report(store60, inputs60, {}, (base60 + timedelta(days=109)).isoform
 txt64 = "\n".join(lg64b)
 assert "controle op de controle" in txt64 and "mediaan" in txt64 and "gewicht 4 of hoger" in txt64, txt64
 assert "=== C. Cardmarkets eigen prijslijst" in txt61 and "verschillende dagen" in txt61, "de analyse draait ook op Cardmarkets eigen prijslijst, met het aantal meetdagen"
+
+# --- foto's: kapotte links opsporen, ontbrekende aanvullen ---
+import images
+class ImgResp:
+    def __init__(self, code): self.status_code = code
+    def close(self): pass
+class ImgSess:
+    def __init__(self, codes): self.codes, self.heads = codes, []
+    def head(self, url, timeout=None, allow_redirects=True):
+        self.heads.append(url)
+        c = self.codes.get(url, 200)
+        if isinstance(c, Exception): raise c
+        return ImgResp(c)
+    get = head
+assert images.probe(ImgSess({"u": 404}), "u") is False and images.probe(ImgSess({}), "u") is True
+assert images.probe(ImgSess({"u": 503}), "u") is None and images.probe(ImgSess({"u": OSError("net")}), "u") is None, "twijfel is geen bewijs van een kapotte link"
+fakeI, storeI = new_store()
+storeI.upsert_products([{"product_id": f"i-{n}", "kind": "card", "name": f"I{n}", "number": str(n), "set_id": "base1", "set_name": "Basis", "image": f"https://img/{n}.webp"} for n in range(70)]
+                       + [{"product_id": "i-none", "kind": "card", "name": "Geen", "number": "99", "set_id": "base1", "set_name": "Basis", "image": None}])
+codesI = {f"https://img/{n}.webp": 404 for n in range(0, 70, 5)}
+codesI.update({"https://img/1.webp": 503})
+sessI = ImgSess(codesI)
+logsI = []
+# 7 opeenvolgende dagen controleren elke kaart precies één keer
+seen = 0
+from datetime import date as _d, timedelta as _td
+for k in range(7):
+    day = (_d(2026, 10, 1) + _td(days=k)).isoformat()
+    seen += images.verify_slice(storeI, day, sessI, log=logsI.append, workers=4)
+assert len(sessI.heads) == 70 and len(set(sessI.heads)) == 70, "elke kaart wekelijks, niet vaker"
+leftI = {p["product_id"]: p["image"] for p in storeI.products("card")}
+assert seen == 14 and all(leftI[f"i-{n}"] is None for n in range(0, 70, 5)) and leftI["i-1"] == "https://img/1.webp" and leftI["i-2"], (seen, leftI)
+# aanvullen: gevonden link wordt gecontroleerd; een link die zelf kapot is wordt niet opgeslagen
+logsI2 = []
+found = images.fill_missing(storeI, ImgSess({"https://x/bad.webp": 404}), log=logsI2.append,
+                            finder=lambda p: "https://x/bad.webp" if p["product_id"] == "i-5" else ("https://x/ok.webp" if p["product_id"] == "i-0" else None))
+afterI = {p["product_id"]: p["image"] for p in storeI.products("card")}
+assert found == 1 and afterI["i-0"] == "https://x/ok.webp" and afterI["i-5"] is None and afterI["i-none"] is None, (found, afterI["i-5"])
+assert any("nog zonder" in l and "Basis" in l for l in logsI2), logsI2
+# PkmnPrices-foto's: alleen gekoppelde kaarten, binnen eigen budget
+storeI.upsert_products([{"product_id": "i-5", "name": "I5", "pk_id": "55"}, {"product_id": "i-10", "name": "I10", "pk_id": "1010"}])
+class ImgPk:
+    credits, budget, blocked = 0, 10**6, False
+    def over_budget(self): return self.credits >= self.budget
+    def detail(self, path):
+        self.credits += 1
+        return {"image_url": f"https://pk/{path.rsplit('/', 1)[1]}.webp"}
+pkI = ImgPk()
+n = images.fill_from_pkmnprices(storeI, pkI, ImgSess({}), budget=1)
+assert n == 1 and pkI.credits == 1, (n, pkI.credits)
+n2 = images.fill_from_pkmnprices(storeI, ImgPk(), ImgSess({}), budget=100)
+assert n2 == 1 and all(p["image"] for p in storeI.products("card", extra={"pk_id": "not.is.null"}))
+
+# --- Cardmarket-namen (cm_name) ---
+import cm_names
+fakeN, storeN = new_store()
+storeN.upsert_products([{"product_id": "n-1", "kind": "card", "name": "Charizard", "number": "001", "set_id": "30th-c", "set_name": "30th Classic Collection", "cm_product_id": 777},
+                        {"product_id": "n-2", "kind": "card", "name": "Lugia", "number": "9", "set_id": "30th", "set_name": "30th Celebration", "cm_product_id": 888, "cm_name": "Lugia (30C NG9)"},
+                        {"product_id": "n-3", "kind": "card", "name": "Mew", "number": "1", "set_id": "x", "set_name": "X", "cm_product_id": 999},
+                        {"product_id": "n-4", "kind": "card", "name": "Geen koppeling", "number": "2", "set_id": "x", "set_name": "X"}])
+logsN = []
+nN = cm_names.run(storeN, None, log=logsN.append, loader=lambda s: ({777: "Charizard (30C BS4)", 888: "Lugia (30C NG9)"}, None))
+gotN = {p["product_id"]: p.get("cm_name") for p in storeN.products("card")}
+assert nN == 1 and gotN["n-1"] == "Charizard (30C BS4)" and gotN["n-2"] == "Lugia (30C NG9)" and gotN["n-3"] is None and gotN["n-4"] is None, gotN
+assert any("1 kaarten bijgewerkt" in l and "1 met een code" in l and "1 niet in Cardmarkets lijst" in l for l in logsN), logsN
+assert cm_names.run(storeN, None, log=quiet, loader=lambda s: ({777: "Charizard (30C BS4)", 888: "Lugia (30C NG9)"}, None)) == 0, "tweede keer: niets te doen"
+# lege of onverwachte lijst: niets stukmaken, wel een duidelijke melding met het eerste record
+logsN2 = []
+assert cm_names.run(storeN, None, log=logsN2.append, loader=lambda s: ({}, {"onbekend": 1})) == 0 and any("onbekend" in l for l in logsN2), logsN2
+# het inlezen van de echte vorm: lijst van records met idProduct en name
+import cardmarket as _cm
+_orig_fetch = _cm.fetch
+_cm.fetch = lambda session, path: {"version": 1, "products": [{"idProduct": 5, "name": "Pikachu (CEL WP 24)", "idExpansion": 3}, {"idProduct": "x", "name": "kapot"}, {"idProduct": 6}]}
+try:
+    namesN, sampleN = cm_names.load_singles(None)
+finally:
+    _cm.fetch = _orig_fetch
+assert namesN == {5: "Pikachu (CEL WP 24)"} and sampleN["idProduct"] == 5, namesN
 
 print("alle tests geslaagd")

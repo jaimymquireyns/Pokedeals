@@ -255,6 +255,12 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         cm_links.run(store, pk_client, today, log=log, deadline=deadline)   # klein, eigen budget: de exacte Cardmarket-pagina per kaart
     except Exception as e:
         log(f"! Cardmarket-links overgeslagen: {e}")
+    try:
+        import images
+        import requests
+        images.fill_from_pkmnprices(store, pk_client, requests.Session(), log=log, budget=config.IMAGES_PK_BUDGET, deadline=deadline)
+    except Exception as e:
+        log(f"! foto's van PkmnPrices overgeslagen: {e}")
     if config.OFFERS_ENABLED:
         try:
             import offers
@@ -340,12 +346,24 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=Non
             failures.append(label)
             log(f"! {label} mislukt: {type(e).__name__}: {e}")
 
+    def _photos():
+        import images
+        import requests
+        s = requests.Session()
+        s.headers["User-Agent"] = "pokedeals/2.0"
+        images.run(store, today, s, log=log, deadline=time.time() + config.IMAGES_TIME_BUDGET)
+    step("foto's controleren en aanvullen", _photos)
     step("kansen berekenen", lambda: build_forecasts(store, today, log=log))
     if date.fromisoformat(today).weekday() == 0:
         step("lange periodes berekenen", lambda: build_forecasts(store, today, log=log, combos=config.LONG_GRID))
     else:
         log("Lange periodes (3-24 maanden) worden alleen op maandag herberekend; vandaag overgeslagen.")
     step("PkmnPrices-credits uitgeven", lambda: spend_pkmn_credits(store, today, log=log, time_budget=pk_time_budget))
+    def _cm_names():
+        import cm_names
+        import requests
+        cm_names.run(store, requests.Session(), today, log=log)
+    step("Cardmarket-namen bijwerken", _cm_names)
     step("trackrecord bijwerken", lambda: trackrecord.resolve(store, today, log=log))
     if date.fromisoformat(today).weekday() == 0:   # maandag: ook de backtest bijwerken (dekt alle periodes, ook de lange)
         try:

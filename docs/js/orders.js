@@ -112,44 +112,15 @@ export function openPurchaseOrder({ onDone } = {}) {
 }
 
 // ---------------------------------------------------------------- verkoop
-/** Stap 1: kaarten uit je collectie aanvinken (met aantal). Stap 2: de bestelling invullen. */
-export function openSaleOrder(rawItems, { onDone } = {}) {
-  // A–Z op naam, dan op set en nummer: zo vind je een kaart snel terug in een lange lijst
-  const items = [...rawItems].sort((a, b) => String(a.name).localeCompare(String(b.name), "nl") || String(a.set_name || "").localeCompare(String(b.set_name || ""), "nl")
-    || String(a.number || "").localeCompare(String(b.number || ""), "nl", { numeric: true }));
-  const pick = new Map();   // collection id -> aantal
-  const list = h("div", { class: "olines" });
-  const next = h("button", { class: "cta", type: "button", text: "Verder", onclick: () => {
-    const chosen = items.filter((c) => pick.has(c.id)).map((c) => ({ c, qty: pick.get(c.id) }));
-    if (!chosen.length) { toast("Vink minstens één kaart aan"); return; }
-    saleDetails(chosen, onDone);
-  } });
-  const draw = () => {
-    list.replaceChildren(...items.map((c) => {
-      const on = pick.has(c.id);
-      return h("div", { class: "oline" + (on ? " on" : "") },
-        h("input", { type: "checkbox", "aria-label": `${c.name} verkopen`, checked: on ? "checked" : null, onchange: (e) => { if (e.target.checked) pick.set(c.id, c.quantity); else pick.delete(c.id); draw(); } }),
-        thumb(c.image, "ph", c.kind === "sealed"),
-        h("div", { class: "body" },
-          h("div", { class: "name", text: c.name }),
-          h("div", { class: "set", text: [c.set_name, c.number ? `#${c.number}` : "", c.grade_company ? `${c.grade_company} ${c.grade}` : c.condition].filter(Boolean).join(" · ") }),
-          on && c.quantity > 1 ? h("div", { class: "orow" }, stepper(() => pick.get(c.id), (v) => pick.set(c.id, v), c.quantity), h("span", { class: "mini", text: `van ${c.quantity}` })) : null),
-        h("span", { class: "num", text: c.value_each ? eur(c.value_each) : "" }));
-    }));
-  };
-  draw();
-  openSheet(h("div", { class: "sheetin orderform" }, h("div", { class: "handle" }),
-    h("h3", { text: "Verkopen" }),
-    h("p", { class: "p14 muted", text: "Vink de kaarten aan die naar dezelfde koper gaan." }),
-    list, next));
-}
-
-function saleDetails(chosen, onDone) {
+/** De kaarten kies je in de collectielijst zelf (knop "Selecteren"); dit is het ene scherm waar de rest van de verkoop ingevuld wordt.
+ * chosen = [{c: collectieregel, qty}]. Bij meer dan één stuk kun je hier het aantal nog aanpassen. */
+export function openSaleDetails(chosen, onDone) {
   const s = getSettings();
   const buyer = h("input", { type: "text", "aria-label": "Koper", placeholder: "Naam of Cardmarket-gebruiker" });
   const date = h("input", { type: "date", "aria-label": "Datum", value: today(), max: today() });
-  const marketTotal = chosen.reduce((t, x) => t + (x.c.value_each || costEach(x.c)) * x.qty, 0);
-  const total = money("Totaalprijs", fmtIn(marketTotal));
+  const marketTotal = () => chosen.reduce((t, x) => t + (x.c.value_each || costEach(x.c)) * x.qty, 0);
+  const total = money("Totaalprijs", fmtIn(marketTotal()));
+  let totalTouched = false;
   const shipIn = money("Verzending ontvangen");
   const shipOut = money("Verzending betaald");
   const commission = money("Commissie");
@@ -175,17 +146,19 @@ function saleDetails(chosen, onDone) {
     const sumShares = Math.round(lines.reduce((t, l) => t + l.price_share, 0) * 100) / 100;
     const off = Math.round(((parseMoney(total.value) || 0) - sumShares) * 100) / 100;
     linesBox.replaceChildren(...chosen.map((x, i) => h("div", { class: "oline" },
-      thumb(x.c.image, "ph", x.c.kind === "sealed"),
+      thumb(x.c.image, "ph", x.c.kind === "sealed", x.c.kind === "sealed" ? "" : [x.c.name, x.c.number ? "#" + x.c.number : ""].filter(Boolean).join(" ")),
       h("div", { class: "body" },
         h("div", { class: "name", text: `${x.qty > 1 ? x.qty + "x " : ""}${x.c.name}` }),
         h("div", { class: "set", text: `kostte je ${eur(costOf(x))}` }),
+        x.c.quantity > 1 ? h("div", { class: "orow" }, stepper(() => x.qty, (v) => { x.qty = v; }, x.c.quantity, qtyChanged), h("span", { class: "mini", text: `van ${x.c.quantity}` })) : null,
         h("div", { class: "orow" }, shareInputs[i], h("span", { class: "num " + (pr.per[i] < 0 ? "neg" : "pos"), text: signedEur(pr.per[i]) }))))));
     result.replaceChildren(
       h("div", { class: "bigline" }, h("span", { text: "Winst op deze verkoop" }), h("b", { class: "num " + (pr.total < 0 ? "neg" : "pos"), text: signedEur(pr.total) })),
       off ? h("p", { class: "err", text: `De delen tellen op tot ${eur(sumShares)}, ${eur(Math.abs(off))} ${off > 0 ? "minder" : "meer"} dan de totaalprijs.` }) : null);
     return { lines, off };
   };
-  total.oninput = () => { sharesTouched = false; recalc(); };
+  total.oninput = () => { totalTouched = true; sharesTouched = false; recalc(); };
+  const qtyChanged = () => { if (!totalTouched) total.value = fmtIn(marketTotal()); sharesTouched = false; recalc(); };
   commission.oninput = () => { commissionTouched = true; recalc(); };
   [shipIn, shipOut, other].forEach((el) => { el.oninput = recalc; });
   shareInputs.forEach((inp) => { inp.oninput = () => { sharesTouched = true; recalc(); }; });

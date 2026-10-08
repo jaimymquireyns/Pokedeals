@@ -90,5 +90,11 @@ export function toggle(on, onChange, label) {
   return b;
 }
 
-export const thumb = (url, cls = "ph", box = false) =>
-  url ? h("img", { class: cls + " img", src: url, alt: "", loading: "lazy", decoding: "async" }) : h("span", { class: cls + (box ? " box" : "") });
+export const thumb = (url, cls = "ph", box = false, label = "") => {
+  // zonder foto: het lege kaartje, met (als de naam bekend is) naam en nummer erop, zodat je altijd ziet welke kaart het is
+  const blank = () => (label ? h("span", { class: cls + " txt" + (box ? " box" : ""), role: "img", "aria-label": label }, h("b", { text: label })) : h("span", { class: cls + (box ? " box" : "") }));
+  if (!url) return blank();
+  const img = h("img", { class: cls + " img", src: url, alt: "", loading: "lazy", decoding: "async" });
+  img.addEventListener("error", () => { if (img.parentNode) img.replaceWith(blank()); }, { once: true });   // kapotte link: netjes het lege kaartje, geen gebroken-plaatje-icoon
+  return img;
+};
