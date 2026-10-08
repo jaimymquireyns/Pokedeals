@@ -49,7 +49,7 @@ export function filterBox(placeholder, onInput, value = "") {
 
 /** Logo + naam, bovenaan elk scherm. */
 export const brandmark = () => h("div", { class: "brandmark" },
-  h("span", { class: "mark" }, h("img", { src: "icons/icon-192.png", alt: "" })),
+  h("span", { class: "mark" }, h("img", { src: "icons/icon-192.png?v=2", alt: "" })),
   h("span", { class: "wordmark" }, h("b", { text: "poké" }), h("i", { text: "deals" })));
 
 /** Enkelzijdige balk voor Home: kans op stijging + verwachte stijging na kosten. */

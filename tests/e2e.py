@@ -174,6 +174,16 @@ def main():
             check(len(r) == 1 and "#009" in r[0] and "Cardmarket: Lugia (30C NG9)" in r[0], f"de 'speciale' Lugia (30C NG9) wordt gevonden: {r}")
             r = zoek30("lugia 30c")
             check(len(r) == 2 and any("#77" in x for x in r) and any("#009" in x for x in r), f"'lugia 30c' toont gewone en speciale Lugia: {r}")
+            for term in ("charizard 30th", "Charizard 30th"):
+                r = zoek30(term)
+                check(len(r) == 2 and all("30th" in x for x in r), f"'{term}': '30th' is de set (Celebration én Classic Collection), geen kaartnummer: {r}")
+            r = zoek30("lugia 30th")
+            check(len(r) == 2 and any("#77" in x for x in r) and any("#009" in x for x in r), f"'lugia 30th' toont gewone en vintage Lugia: {r}")
+            r = zoek30("charizard 30th 63")
+            check(len(r) == 1 and "#63" in r[0], f"'charizard 30th 63': set én nummer: {r}")
+            for term in ("63/128", "charizard 63/128 30C", "30C 63/128"):
+                r = zoek30(term)
+                check(r and "30th Celebration" in r[0] and "#63" in r[0], f"'{term}': het nummer zoals onderaan de kaart: {r[:2]}")
             r = zoek30("charizard bs4")
             check(r and "Base Set" in r[0], f"zonder expliciete set blijft 'bs4' = Base Set #4: {r[:1]}")
 
@@ -656,8 +666,53 @@ def main():
             page.get_by_role("button", name="Verkoop terugdraaien").click()
             page.wait_for_selector(".salesbox .empty")
             check(not mock.db["sales"] and len([r for r in mock.db["collection"] if r["product_id"] in ("swsh7-215", "sv08-100")]) == 2, "kaarten terug in de collectie, verkoop weg")
-            page.get_by_role("button", name="In bezit").click()
+            page.get_by_role("button", name="Collectie").click()
             page.wait_for_selector(".rowc")
+
+            print("Gekocht en Verkocht: eigen pagina's, met aanpassen")
+            page.goto(base + "#/collection"); page.wait_for_selector(".rowc")
+            nav = page.inner_text(".collnav")
+            check("In bezit" in nav and "Gekocht" in nav and "Verkocht" in nav, f"collectie toont In bezit, Gekocht en Verkocht: {nav!r}")
+            page.locator(".collnav a", has_text="Gekocht").click(); page.wait_for_selector(".buycard")
+            check(page.url.endswith("#/gekocht") and "Totaal uitgegeven" in page.inner_text(".page"), "Gekocht opent een eigen pagina met alle aankopen")
+            n_buys = page.locator(".buycard").count()
+            n_rows = len(mock.db["collection"])
+            check(n_buys >= 1, f"{n_buys} aankopen zichtbaar")
+            first = page.locator(".buycard", has=page.get_by_role("button", name="Aanpassen")).first
+            first.get_by_role("button", name="Aanpassen").click(); page.wait_for_selector(".orderform")
+            page.locator(".orderform input[aria-label='Naam verkoper']").fill("Testverkoper")
+            page.locator(".orderform input[aria-label='Prijs per stuk']").first.fill("12,34")
+            page.get_by_role("button", name="Wijzigingen opslaan").click(); page.wait_for_selector(".buycard")
+            fixed = [r for r in mock.db["collection"] if r.get("purchase_seller") == "Testverkoper"]
+            check(fixed and any(abs(float(r["purchase_price"]) - 12.34) < 1e-9 for r in fixed), f"aankoop aangepast: verkoper en prijs opgeslagen ({len(fixed)} regels)")
+            check("Testverkoper" in page.inner_text(".buylist"), "aangepaste aankoop staat meteen in de lijst")
+            target = page.locator(".buycard", has_text="Testverkoper")
+            target.get_by_role("button", name="Aanpassen").click(); page.wait_for_selector(".orderform")
+            n_lines = page.locator(".orderform .oline").count()
+            page.once("dialog", lambda d: d.accept())
+            page.get_by_role("button", name="Hele aankoop verwijderen").click(); page.wait_for_selector(".buylist")
+            page.wait_for_timeout(300)
+            check(len(mock.db["collection"]) == n_rows - n_lines and not any(r.get("purchase_seller") == "Testverkoper" for r in mock.db["collection"]),
+                  f"hele aankoop verwijderd ({n_lines} regels)")
+
+            mock.db["sales"].append({"id": "s-edit", "user_id": "u1", "sale_date": "2026-10-01", "buyer": "Carla", "total_price": 50, "shipping_received": 2,
+                                     "shipping_paid": 1.5, "commission": 3, "other_costs": 0.5, "created_at": "2026-10-01T10:00:00+00:00"})
+            mock.db["sale_items"].append({"id": "si-edit", "sale_id": "s-edit", "user_id": "u1", "product_id": "sv08-100", "quantity": 1, "condition": "NM",
+                                          "price_share": 50, "cost_total": 30, "purchase_date": "2026-09-01", "purchase_seller": "Dirk"})
+            page.goto(base + "#/gekocht"); page.reload(); page.wait_for_selector(".buycard:has-text('Dirk')")
+            check("verkocht" in page.inner_text(".buycard:has-text('Dirk')"), "verkochte kaart staat ook bij Gekocht, met de verkoper waar je hem kocht")
+            page.goto(base + "#/collection"); page.wait_for_selector(".rowc")
+            page.locator(".collnav a", has_text="Verkocht").click(); page.wait_for_selector(".salecard")
+            check(page.url.endswith("#/verkocht"), "Verkocht opent een eigen pagina")
+            page.locator(".salecard", has_text="Carla").get_by_role("button", name="Aanpassen").click(); page.wait_for_selector(".orderform")
+            page.locator(".orderform input[aria-label='Koper']").fill("Carla B")
+            page.locator(".orderform input[aria-label='Totaalprijs']").fill("55")
+            page.locator(".orderform input[aria-label='Kostprijs']").first.fill("28")
+            page.get_by_role("button", name="Wijzigingen opslaan").click(); page.wait_for_selector(".salecard")
+            sale = next(x for x in mock.db["sales"] if x["id"] == "s-edit"); item = next(x for x in mock.db["sale_items"] if x["id"] == "si-edit")
+            check(sale["buyer"] == "Carla B" and float(sale["total_price"]) == 55 and float(item["price_share"]) == 55 and float(item["cost_total"]) == 28,
+                  f"verkoop aangepast: {sale['buyer']}, {sale['total_price']}, deel {item['price_share']}, kost {item['cost_total']}")
+            check("Carla B" in page.inner_text(".salelist"), "aangepaste verkoop staat meteen in de lijst")
 
             print("Verwijderen")
             page.goto(base + "#/collection"); page.wait_for_selector(".rowc")

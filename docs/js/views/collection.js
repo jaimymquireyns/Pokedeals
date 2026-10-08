@@ -4,7 +4,6 @@ import { brandmark, collRow, detailHash, emptyNote, filterBox, go, gradeTag, mat
 import { attention, costEach, gradeKey } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { openPurchaseOrder, openSaleDetails } from "../orders.js";
-import { renderSales } from "./sales.js";
 import { closeSheet, eur, h, icon, openSheet, segment, signed, signedEur, store, thumb } from "../ui.js";
 
 let ui = { tab: "bezit", kind: "alles", sort: "up", measure: "buy", range: "1M", attentionOpen: false, expanded: {}, ...store.get("pd:coll", {}) };
@@ -78,7 +77,7 @@ export async function collectionView(root) {
       h("span", { class: "selinfo" }, h("b", { text: gs.length ? `${n} ${n === 1 ? "stuk" : "stuks"} geselecteerd` : "Vink kaarten aan" }), gs.length ? h("small", { class: "num", text: `waarde ${eur(worth)}` }) : null),
       h("button", { type: "button", class: "cta", disabled: !gs.length, onclick: () => {
         const chosen = gs.flatMap((g) => g.copies.map((c) => ({ c, qty: Number(c.quantity) })));
-        openSaleDetails(chosen, () => { selecting = false; picked.clear(); ui.tab = "verkocht"; saveUi(); reload(); });
+        openSaleDetails(chosen, () => { selecting = false; picked.clear(); go("#/verkocht"); });
       } }, gs.length ? `Verkopen (${gs.length})` : "Verkopen"));
   };
   selBtn.onclick = () => { selecting = !selecting; if (!selecting) picked.clear(); drawSel(); drawList(); };
@@ -153,19 +152,20 @@ export async function collectionView(root) {
       segment([["buy", "Sinds aankoop"], ["30d", "Afgelopen 30 dagen"]], ui.measure, (m) => { ui.measure = m; saveUi(); drawList(); })));
   };
 
-  const owned = ui.tab !== "verkocht";
-  const salesBox = h("div", { class: "salesbox" });
   const reload = () => collectionView(root);
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Collectie" })),
+    // "In bezit" is deze pagina zelf; Gekocht en Verkocht zijn eigen pagina's met de hele geschiedenis
+    h("nav", { class: "collnav", "aria-label": "Collectie" },
+      h("span", { class: "on", "aria-current": "page", text: "In bezit" }),
+      h("a", { href: "#/gekocht", text: "Gekocht" }),
+      h("a", { href: "#/verkocht", text: "Verkocht" })),
     h("div", { class: "colltop" },
-      segment([["bezit", "In bezit"], ["verkocht", "Verkocht"]], owned ? "bezit" : "verkocht", (t) => { ui.tab = t; saveUi(); reload(); }),
       h("div", { class: "collacts" },
         h("button", { type: "button", class: "btn act", onclick: () => openPurchaseOrder({ onDone: reload }) }, icon("plus"), " Aankoop"),
-        owned ? selBtn : null)),
-    owned ? null : salesBox,
-    h("div", { class: "ownedbox", hidden: !owned },
+        selBtn)),
+    h("div", { class: "ownedbox" },
     h("div", { class: "sum" },
       h("div", {}, h("div", { class: "lbl2", text: "Waarde nu" }), h("div", { class: "big num", text: eur(value) })),
       h("div", { class: "r" }, h("div", { class: "lbl2", text: "Winst" }), h("div", { class: "prof num" + (profit < 0 ? " neg" : ""), text: `${signedEur(profit)} · ${invested ? signed(profit / invested, 1) : "–"}` })),
@@ -206,7 +206,6 @@ export async function collectionView(root) {
     countNote,
     list),
     selBar));
-  if (!owned) renderSales(salesBox, { onChange: reload });
   drawList();
   drawSel();
   if (items.length) drawChart(); else chartBox.parentElement.hidden = true;

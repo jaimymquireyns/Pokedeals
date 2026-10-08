@@ -2840,4 +2840,50 @@ finally:
     _cm.fetch = _orig_fetch
 assert namesN == {5: "Pikachu (CEL WP 24)"} and sampleN["idProduct"] == 5, namesN
 
+# -- TCGdex: verbindingen gaan naar de vaste (bijgewerkte) server; lukt die niet, dan het gewone adres --
+import urllib3.util.connection as _u3conn
+_seen = []
+_real = providers._orig_create_connection
+def _fake(address, *a, **k):
+    _seen.append(address[0])
+    if address[0] == "10.255.255.1":
+        raise OSError("onbereikbaar")
+    return "sock"
+providers._orig_create_connection = _fake
+try:
+    assert _u3conn.create_connection is providers._pinned_create_connection, "urllib3 gebruikt de vaste TCGdex-server"
+    _old_ip = config.TCGDEX_PIN_IP
+    assert _u3conn.create_connection(("api.tcgdex.net", 443)) == "sock" and _seen == [config.TCGDEX_PIN_IP], _seen
+    _seen.clear(); assert _u3conn.create_connection(("assets.tcgdex.net", 443)) == "sock" and _seen == ["assets.tcgdex.net"], "andere adressen blijven gewoon"
+    config.TCGDEX_PIN_IP = "10.255.255.1"
+    _seen.clear(); _u3conn.create_connection(("api.tcgdex.net", 443)); assert _seen == ["10.255.255.1", "api.tcgdex.net"], _seen
+    config.TCGDEX_PIN_IP = ""
+    _seen.clear(); _u3conn.create_connection(("api.tcgdex.net", 443)); assert _seen == ["api.tcgdex.net"], "leeg = gewoon adres"
+finally:
+    providers._orig_create_connection = _real
+    config.TCGDEX_PIN_IP = _old_ip
+
+# -- TCGdex geeft het Cardmarket-productnummer mee: opslaan (voor Cardmarkets eigen naam), maar nooit een leeg veld meesturen --
+_pp = providers.parse_product({"id": "30th-c-001", "name": "Charizard", "localId": "001", "set": {"id": "30th-c", "name": "30th Classic Collection"},
+                               "pricing": {"cardmarket": {"idProduct": 907940, "trend": 178.44}}})
+assert _pp["cm_product_id"] == 907940, _pp
+assert "cm_product_id" not in providers.parse_product({"id": "x-1", "name": "X", "set": {}}), "zonder nummer geen veld (wist geen eerdere koppeling)"
+
+# -- foto's van pokemontcg.io: juiste adres, en hun standaardplaatje (640x892) telt niet als foto --
+import images
+assert images.pokemontcg_url({"set_id": "sm7.5", "number": "005"}) == "https://images.pokemontcg.io/sm75/5.png"
+assert images.pokemontcg_url({"set_id": "swsh4.5sv", "number": "SV001"}) == "https://images.pokemontcg.io/swsh45sv/SV001.png"
+assert images.pokemontcg_url({"set_id": "x", "number": None}) is None
+def _png(w, hh): return b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + w.to_bytes(4, "big") + hh.to_bytes(4, "big") + b"\x08\x06"
+class _ImgResp:
+    def __init__(self, body, status=206): self.body, self.status_code = body, status
+    def iter_content(self, n): yield self.body[:n]
+    def close(self): pass
+class _ImgSess:
+    def __init__(self, body): self.body = body
+    def get(self, url, **kw): return _ImgResp(self.body)
+assert images.pokemontcg_image(_ImgSess(_png(245, 342)), {"set_id": "sm7.5", "number": "5"}) == "https://images.pokemontcg.io/sm75/5.png"
+assert images.pokemontcg_image(_ImgSess(_png(640, 892)), {"set_id": "mep", "number": "72"}) is None, "standaardplaatje = geen foto"
+assert images.pokemontcg_image(_ImgSess(b"<html>"), {"set_id": "mep", "number": "72"}) is None
+
 print("alle tests geslaagd")

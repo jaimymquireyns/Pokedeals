@@ -108,6 +108,15 @@ def is_digital_set(set_id):
     return bool(set_id) and DIGITAL_SET_RE.match(str(set_id)) is not None
 
 
+# TCGdex draait op meerdere servers en geeft per regio een ander adres. Op 8 okt 2026 bleken de Amerikaanse en Canadese servers
+# (51.79.240.39, 142.44.242.175), waar GitHub Actions bij uitkomt, weken achter te lopen: daar had 30th Celebration nog geen enkele
+# prijs, ontbraken de Mew-kaarten B/G/R en stond de 30th Classic Collection op 0 kaarten. De Europese server was wel bij.
+# Daarom praten we met de Europese server. Is die onbereikbaar, dan valt de verbinding vanzelf terug op het gewone adres.
+# Leeg maken ("") = altijd het gewone adres gebruiken.
+TCGDEX_HOST = "api.tcgdex.net"
+TCGDEX_PIN_IP = "51.255.35.48"
+
+
 GRADED_ENABLED = True        # gegradeerde geschiedenis (PSA/BGS/CGC) voor de beroemde Pokémon. Stond uit sinds 6 okt (de uitlezing herkende niets); hersteld op 7 okt met het echte antwoord van PkmnPrices als uitgangspunt. Op False zetten om uit te schakelen.
 GRADED_BUDGET = 12000        # nooit meer dan dit per dag (1 credit per teruggegeven verkoop); bewust klein begonnen, na een paar goede nachten te verhogen
 GRADED_MAX_PAGES = 3         # hoogstens zoveel pagina's (van 20 verkopen) per kaart/graad per opvraging

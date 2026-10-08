@@ -10,6 +10,8 @@ import { loginView } from "./views/login.js";
 import { searchView } from "./views/search.js";
 import { settingsView } from "./views/settings.js";
 import { trackView } from "./views/track.js";
+import { purchasesView } from "./views/purchases.js";
+import { salesView } from "./views/sales.js";
 
 const app = $("#app");
 const tabsEl = $("#tabs");
@@ -44,6 +46,11 @@ async function route() {
         drawTabs("collection");
         if (!isLoggedIn()) loginView(app, { reason: "Log in om je collectie te zien en bij te houden.", onDone: route });
         else await collectionView(app);
+        break;
+      case "gekocht": case "verkocht":
+        drawTabs("collection");
+        if (!isLoggedIn()) loginView(app, { reason: "Log in om je aankopen en verkopen te zien.", onDone: route });
+        else await (view === "gekocht" ? purchasesView(app) : salesView(app));
         break;
       case "watchlist": drawTabs("watchlist"); await watchlistView(app); break;
       case "detail": drawTabs(null); await detailView(app, parts[1], q.get("c")); break;

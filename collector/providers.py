@@ -6,8 +6,33 @@ Interface:
     get_card(card_id)  -> {"product": {...}, "price": {...} of None}
 """
 import requests
+import urllib3.util.connection as _u3conn
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+import config
+
+_orig_create_connection = _u3conn.create_connection
+
+
+def _pinned_create_connection(address, *args, **kwargs):
+    """Verbindingen naar TCGdex gaan naar de server die bij is (zie config.TCGDEX_PIN_IP). Alleen het IP-adres verandert:
+    de naam blijft api.tcgdex.net, dus het certificaat wordt gewoon gecontroleerd. Lukt die server niet, dan het gewone adres."""
+    host, port = address
+    if host == config.TCGDEX_HOST and config.TCGDEX_PIN_IP:
+        try:
+            return _orig_create_connection((config.TCGDEX_PIN_IP, port), *args, **kwargs)
+        except OSError:
+            pass
+    return _orig_create_connection(address, *args, **kwargs)
+
+
+def pin_tcgdex():
+    """Eén keer aanzetten geldt voor het hele programma (ook images.py, dat TCGdex in andere talen opvraagt)."""
+    _u3conn.create_connection = _pinned_create_connection   # urllib3 (en dus requests) roept deze functie via deze module aan
+
+
+pin_tcgdex()
 
 
 def _num(x):
@@ -33,7 +58,11 @@ def parse_product(d):
     img = d.get("image")
     dex = d.get("dexId")
     legal = d.get("legal")
-    return {
+    # Cardmarket-productnummer zoals TCGdex het meegeeft: daarmee vindt cm_names.py Cardmarkets eigen naam ("Charizard (30C BS4)"),
+    # zodat ook die schrijfwijze in Zoeken werkt. Alleen meesturen als het er is: een leeg veld mag een eerdere koppeling niet wissen.
+    cm_id = ((d.get("pricing") or {}).get("cardmarket") or {}).get("idProduct")
+    extra = {"cm_product_id": int(cm_id)} if isinstance(cm_id, int) and not isinstance(cm_id, bool) and cm_id > 0 else {}
+    return {**extra,
         "product_id": d["id"], "kind": "card", "name": d.get("name"),
         "set_id": st.get("id"), "set_name": st.get("name"),
         "number": str(d.get("localId")) if d.get("localId") is not None else None,
