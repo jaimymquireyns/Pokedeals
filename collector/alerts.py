@@ -114,45 +114,92 @@ def attention(items):
     return out
 
 
+def _advice_rows(store, ids, since, until):
+    out = {}
+    for ch in _chunks(sorted(ids), 100):
+        for r in store.select("advice", {"select": "product_id,date,state,price,normal,flags,context", "product_id": f"in.({','.join(ch)})",
+                                         "date": f"gte.{since}", "order": "product_id.asc,date.asc"}):
+            if str(r["date"])[:10] <= until:
+                out.setdefault(r["product_id"], []).append(r)
+    return out
+
+
+def _was(rows, today, state):
+    """Stond dit product de afgelopen week al op deze toestand? Dan is het geen nieuws meer."""
+    return any(str(r["date"])[:10] < today and r["state"] == state for r in rows)
+
+
+def personal_advice(a, coll, fee_pct):
+    """Voor één kaart uit iemands collectie: ('sell', winst) als hij ruim boven normaal staat en je na kosten genoeg overhoudt,
+    ('buy', winst bij herstel) als hij tijdelijk ruim onder normaal staat zonder reden of waarschuwing, anders None.
+    Zelfde regels als het advies in de app (Sell now / Buy more)."""
+    import advice
+    price, normal = _f(a.get("price")), _f(a.get("normal"))
+    if not price or not normal or coll.get("grade_company"):
+        return None
+    if a["state"] == "hoog":
+        qty = max(int(coll.get("quantity") or 1), 1)
+        cost = _f(coll["purchase_price"]) + ((_f(coll.get("purchase_shipping")) or 0) + (_f(coll.get("purchase_costs")) or 0)) / qty
+        net = price * (1 - fee_pct / 100) - config.PACKAGING
+        if cost and net / cost - 1 >= config.NOTIFY_SELL_PROFIT:
+            return ("sell", net / cost - 1)
+    if a["state"] == "laag" and not a.get("context") and not a.get("flags") and price >= config.ADVICE_MIN_BUY:
+        g = advice.buy_gain(price, normal, fee_pct)
+        if g >= config.ADVICE_BUY_GAIN:
+            return ("buy", g)
+    return None
+
+
 def send_digest(store, sender, today, log=print):
+    """Ochtendmelding op basis van het advies van vandaag, alleen bij nieuws (wat de week ervoor al zo stond, melden we niet
+    opnieuw): kaarten uit je collectie die 'Sell now' of 'Buy more' werden, en het aantal nieuwe sterke deals."""
     if not sender:
         return 0
-    horizon, pct = config.STANDARD
-    fc = {r["product_id"]: r for r in store.select("forecasts", {
-        "select": "product_id,price,p_up,p_down,exp_change", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}"})}
+    import advice
+    since = (date.fromisoformat(today) - timedelta(days=7)).isoformat()
     settings = {s["user_id"]: s for s in store.select("user_settings", {"select": "*"})}
     subs = _subscriptions(store)
-    sent = 0
+    laag = {r["product_id"]: r for r in store.select("advice", {"select": "product_id,date,state,price,normal,flags,context",
+                                                                "date": f"eq.{today}", "state": "eq.laag"})}
+    prev = _advice_rows(store, laag, since, today) if laag else {}
+    strong = [pid for pid, r in laag.items()
+              if not r.get("context") and not r.get("flags") and (_f(r.get("price")) or 0) >= config.ADVICE_MIN_BUY and _f(r.get("normal"))
+              and advice.buy_gain(_f(r["price"]), _f(r["normal"])) >= config.NOTIFY_DEAL_GAIN and not _was(prev.get(pid, []), today, "laag")]
+    names, sent = {}, 0
     for uid, user_subs in subs.items():
         st = settings.get(uid, {})
         if not st.get("digest", True):
             continue
-        fee = _f(st.get("fee_pct", config.DEFAULT_FEE_PCT))
-        net_only, net_min = st.get("net_only", True), _f(st.get("net_min_pct", 3)) / 100
-        opps = 0
-        for f in fc.values():
-            if _f(f["p_up"]) < config.DIGEST_MIN_P_UP:
-                continue
-            if net_only and net_change(_f(f["price"]), _f(f["exp_change"]), fee) < net_min:
-                continue
-            opps += 1
-        rows = store.select("collection", {"select": "*", "user_id": f"eq.{uid}"})
-        items = []
-        if rows:
-            prices = latest_map(store, [(r["product_id"], grade_key(r)) for r in rows], today)
-            for r in rows:
-                f = fc.get(r["product_id"], {})
-                items.append({**r, "value_each": prices.get((r["product_id"], grade_key(r))),
-                              "p_up": f.get("p_up"), "p_down": f.get("p_down")})
-        attn = attention(items)
-        if not opps and not attn:
+        fee = _f(st.get("fee_pct")) or config.DEFAULT_FEE_PCT
+        coll = store.select("collection", {"select": "*", "user_id": f"eq.{uid}"})
+        hist = _advice_rows(store, {c["product_id"] for c in coll}, since, today) if coll else {}
+        found = {"sell": {}, "buy": {}}
+        for c in coll:
+            rows = hist.get(c["product_id"], [])
+            now = next((r for r in rows if str(r["date"])[:10] == today), None)
+            res = personal_advice(now, c, fee) if now else None
+            if res and not _was(rows, today, now["state"]):
+                found[res[0]][c["product_id"]] = max(res[1], found[res[0]].get(c["product_id"], -9))
+        if not found["sell"] and not found["buy"] and not strong:
             continue
+        need = sorted((set(found["sell"]) | set(found["buy"])) - set(names))
+        for ch in _chunks(need, 80):
+            for p in store.select("products", {"select": "product_id,name", "product_id": f"in.({','.join(ch)})"}):
+                names[p["product_id"]] = p["name"]
+
+        def lst(d):
+            items = sorted(d.items(), key=lambda x: -x[1])
+            txt = ", ".join(f"{names.get(pid, pid)} ({x * 100:+.0f}%)" for pid, x in items[:2])
+            return txt + (f" +{len(items) - 2} more" if len(items) > 2 else "")
         parts = []
-        if opps:
-            parts.append(f"{opps} new {'opportunity' if opps == 1 else 'opportunities'} with at least {int(config.DIGEST_MIN_P_UP * 100)}% chance of +{pct}%.")
-        if attn:
-            parts.append(f"{len(attn)} {'item' if len(attn) == 1 else 'items'} in your collection {'needs' if len(attn) == 1 else 'need'} attention.")
-        if _push(store, sender, user_subs, {"title": "Pokédeals", "body": " ".join(parts), "url": "./", "tag": "digest"}):
+        if found["sell"]:
+            parts.append(f"Sell now: {lst(found['sell'])}.")
+        if found["buy"]:
+            parts.append(f"Buy more: {lst(found['buy'])}.")
+        if strong:
+            parts.append(f"{len(strong)} new strong {'deal' if len(strong) == 1 else 'deals'}.")
+        url = "./#/collection" if found["sell"] or found["buy"] else "./#/home"
+        if _push(store, sender, user_subs, {"title": "Pokédeals", "body": " ".join(parts), "url": url, "tag": f"advice-{today}"}):
             sent += 1
-    log(f"Samenvatting: {sent} verstuurd")
+    log(f"Adviesmelding: {sent} verstuurd ({len(strong)} nieuwe sterke deals)")
     return sent

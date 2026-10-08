@@ -47,7 +47,7 @@ export async function settingsView(root) {
       money("fee_pct", "Cost per sale (Cardmarket fee + Trustee Service)", "%"),
       h("p", { class: "p14 muted", text: "The buyer pays shipping when you sell. What counts: the shipping you paid when buying (enter it with your purchase) and €0.50 packaging per sale. For cards you don't own yet, we estimate purchase shipping at €1.50 to €15, depending on price." })),
     h("div", { class: "grp" }, h("h3", { text: "Notifications" }),
-      row("Daily summary", "Every morning around 08:00, with new deals and what needs attention", toggle(s.digest, (v) => set({ digest: v }), "Daily summary")),
+      row("Advice alerts", "In the morning, when a card you own turns Sell now or Buy more, or there are new strong deals", toggle(s.digest, (v) => set({ digest: v }), "Advice alerts")),
       row("Price alerts", "When a price hits your range", toggle(s.price_alerts, (v) => set({ price_alerts: v }), "Price alerts")),
       devBtn),
     !SHOW_PREDICTIONS ? null : h("div", { class: "grp" }, h("button", { class: "trow linkrow", type: "button", onclick: () => go("#/track") }, h("span", { class: "t", text: "View track record" }), icon("right"))),
