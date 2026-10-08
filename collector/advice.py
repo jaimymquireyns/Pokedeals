@@ -191,9 +191,12 @@ def load_listings(store, since):
     return by
 
 
-def candidates(store, log=print):
+def candidates(store, log=print, today=None):
     """Producten om te beoordelen: alles met een prijs vanaf ADVICE_MIN_TRACK, plus alles in iemands collectie of watchlist."""
-    ids = {r["product_id"] for r in store.select("latest_prices", {"select": "product_id,price", "price": f"gte.{config.ADVICE_MIN_TRACK}"})}
+    # (niet via de weergave latest_prices: die is over de hele prijzentabel te traag en liep tegen de tijdslimiet van de database aan)
+    since = (date.fromisoformat(today or date.today().isoformat()) - timedelta(days=3)).isoformat()
+    ids = {r["product_id"] for r in store.select("prices", {"select": "product_id", "grade_key": "eq.raw", "date": f"gte.{since}",
+                                                             "price": f"gte.{config.ADVICE_MIN_TRACK}", "order": "product_id.asc,date.asc"})}
     personal = set()
     for table in ("collection", "watch_items"):
         try:
@@ -206,7 +209,7 @@ def candidates(store, log=print):
 def run(store, today, log=print):
     """Beoordeelt vandaag alle kandidaten en slaat het advies op. Bewaard worden de opvallende toestanden (hoog, laag, verdacht)
     van alles, en alle toestanden van kaarten die iemand heeft of volgt (die hebben altijd een uitleg nodig)."""
-    ids, personal = candidates(store, log=log)
+    ids, personal = candidates(store, log=log, today=today)
     t = date.fromisoformat(today)
     raw = load_raw(store, ids, (t - timedelta(days=config.ADVICE_NORMAL_DAYS + 10)).isoformat())
     try:
@@ -286,7 +289,7 @@ def evaluate(store, today, log=print):
 
 def dry_run(store, today, log=print, top=15):
     """Alleen beoordelen en tonen, niets opslaan (om de regels op echte data te bekijken)."""
-    ids, personal = candidates(store, log=log)
+    ids, personal = candidates(store, log=log, today=today)
     t = date.fromisoformat(today)
     since = (t - timedelta(days=config.ADVICE_NORMAL_DAYS + 10)).isoformat()
     raw = load_raw(store, ids, since)
