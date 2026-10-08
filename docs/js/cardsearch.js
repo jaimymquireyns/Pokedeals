@@ -119,7 +119,7 @@ function parseQuery(raw, sets, opts = {}) {
  * alles tegelijk, zodat ook goedkopere kaarten van een Pokémon met honderden kaarten gevonden worden (voorheen werden
  * eerst de 200 duurste opgehaald en pas daarna op nummer gefilterd). Niets gevonden? Dan een brede zoekopdracht. */
 /** Zoekt rijen voor een gelezen zoekopdracht, van precies naar breed; zodra een poging iets oplevert stoppen we. */
-async function findRows(q, kindF) {
+async function findRows(q, kindF, dbg = {}) {
   // de nummers zoals getypt (ook zonder de letters ervoor: 'bs4' -> '4'), elk zonder voorloopnullen ('005' -> '5') en met voorloopnullen
   // ('5' -> '05', '005'): sommige sets (bijv. Scarlet & Violet) nummeren hun kaarten gevuld
   const nums = [...new Set((q.numbers || []).flatMap((n) => {
@@ -159,7 +159,11 @@ async function findRows(q, kindF) {
     if (!f.length || tried.has(key)) continue;
     tried.add(key);
     const rows = await rest.get(`v_search?select=*&${key}${kindF}&order=price.desc.nullslast&limit=300`);
-    if (rows.length) return rows;
+    if (rows.length) {
+      dbg.via = [/(^|&)name=/.test(key) && "naam", /set_name=/.test(key) && "set", /(^|&)number=/.test(key) && "nummer", /cm_name=/.test(key) && "Cardmarket-naam", /cm_url=/.test(key) && "Cardmarket-link"].filter(Boolean).join(" + ");
+      dbg.tries = tried.size;
+      return rows;
+    }
   }
   return [];
 }
@@ -170,15 +174,17 @@ export async function searchCards(raw, { kind = "alles", limit = 40 } = {}) {
   const kindF = kind === "alles" ? "" : `&kind=eq.${kind}`;
   const sets = await getSets();
   let q = parseQuery(raw, sets);
-  let rows = await findRows(q, kindF);
+  const dbg = {};
+  let rows = await findRows(q, kindF, dbg);
   if (!rows.length) {   // niets gevonden: misschien is de set eerst getypt, zoals Cardmarket het noemt ("cel wp 24", "obf 125")
     const alt = parseQuery(raw, sets, { setFirst: true });
     if (alt.setFirst) {
-      rows = await findRows(alt, kindF);
+      rows = await findRows(alt, kindF, dbg);
       if (rows.length) q = alt;
     }
   }
   if (!rows.length) {
+    dbg.via = "brede zoekopdracht (naam of set)";
     const pat = encodeURIComponent(norm(raw).split(/\s+/).join("*"));
     rows = await rest.get(`v_search?select=*&or=(name.ilike.*${pat}*,set_name.ilike.*${pat}*)${kindF}&order=price.desc.nullslast&limit=${limit}`);
   }
@@ -196,5 +202,7 @@ export async function searchCards(raw, { kind = "alles", limit = 40 } = {}) {
     if (url && (q.tokens || []).length > 1 && q.tokens.every((w) => url.includes(w))) n += 50;
     return n;
   };
-  return rows.sort((a, b) => score(b, q) - score(a, q) || Number(b.price || 0) - Number(a.price || 0)).slice(0, limit);
+  const out = rows.sort((a, b) => score(b, q) - score(a, q) || Number(b.price || 0) - Number(a.price || 0)).slice(0, limit);
+  out.debug = { name: q.nameWords.join(" "), set: q.setName || "", numbers: [...new Set(q.numbers || [])], via: dbg.via || "", found: rows.length };
+  return out;
 }

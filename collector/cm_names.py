@@ -58,6 +58,9 @@ def run(store, session, today=None, log=print, loader=None):
             log(f"! Cardmarket-namen: opslaan mislukt ({type(e).__name__}: {str(e)[:200]}). Is supabase/schema.sql opnieuw gedraaid (kolom cm_name)?")
             return 0
     coded = sum(1 for r in rows if "(" in r["cm_name"])
+    if rows and not coded:
+        log("  let op: geen enkele naam heeft een code tussen haakjes; Cardmarkets lijst noemt kaarten dus (ook) anders, bijv. met aanvallen tussen [ ]. "
+            "Zoeken op de code gaat dan via de Cardmarket-link (cm_url).")
     log(f"Cardmarket-namen: {len(rows)} kaarten bijgewerkt ({coded} met een code tussen haakjes); {missing} niet in Cardmarkets lijst gevonden.")
     for r in rows[:3]:
         log(f"  voorbeeld: {r['product_id']} -> {r['cm_name']}")

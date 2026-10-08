@@ -36,6 +36,36 @@ export function openPurchaseOrder({ onDone } = {}) {
   const results = h("ul", { class: "opick" });
   const q = h("input", { type: "search", placeholder: "Zoek een kaart om toe te voegen", "aria-label": "Kaart zoeken", autocomplete: "off" });
 
+  // Kaarten vergeten? Kies hier een eerdere aankoop: de nieuwe kaarten komen erbij, en verzending en trustee fee worden opnieuw over alle kaarten van die aankoop verdeeld.
+  let existing = null;                       // regels van de aankoop waaraan we toevoegen
+  const title = h("h3", { text: "Nieuwe aankoop" });
+  const pickOrder = h("select", { "aria-label": "Toevoegen aan aankoop" }, h("option", { value: "", text: "Nieuwe aankoop" }));
+  const orderNote = h("p", { class: "mini", text: "Verzendkosten en trustee fee worden verdeeld over de kaarten, naar verhouding van hun prijs. De prijs vul je per kaart in." });
+  const pickBox = h("div", { class: "orderpick", hidden: true }, h("div", { class: "lbl2", text: "Nieuwe aankoop, of aanvullen" }), pickOrder);
+  const orderMap = new Map();
+  const sumOf = (rs, k) => rs.reduce((n, r) => n + Number(r[k] || 0), 0);
+  (async () => {
+    try {
+      const rows = await rest.get("collection?select=id,quantity,purchase_price,purchase_shipping,purchase_costs,purchase_seller,purchase_order,purchase_date,created_at&purchase_order=not.is.null&order=created_at.desc&limit=300");
+      for (const r of rows) { if (!orderMap.has(r.purchase_order)) orderMap.set(r.purchase_order, []); orderMap.get(r.purchase_order).push(r); }
+      for (const [id, rs] of [...orderMap.entries()].slice(0, 12)) {
+        const worth = rs.reduce((n, r) => n + Number(r.purchase_price) * Number(r.quantity), 0);
+        pickOrder.append(h("option", { value: id, text: `${rs[0].purchase_seller || "onbekende verkoper"} · ${rs[0].purchase_date || ""} · ${sumOf(rs, "quantity")} kaarten · ${eur(worth)}` }));
+      }
+      pickBox.hidden = orderMap.size === 0;
+    } catch { /* zonder eerdere aankopen blijft het gewoon een nieuwe aankoop */ }
+  })();
+  pickOrder.onchange = () => {
+    existing = pickOrder.value ? orderMap.get(pickOrder.value) : null;
+    title.textContent = existing ? "Aankoop aanvullen" : "Nieuwe aankoop";
+    orderNote.textContent = existing
+      ? "Je vult een bestaande aankoop aan. Verzending en trustee fee gelden voor de hele aankoop (nu ingevuld met wat er al stond) en worden opnieuw verdeeld over alle kaarten, ook de al ingevoerde."
+      : "Verzendkosten en trustee fee worden verdeeld over de kaarten, naar verhouding van hun prijs. De prijs vul je per kaart in.";
+    if (existing) { seller.value = existing[0].purchase_seller || ""; date.value = existing[0].purchase_date || today(); ship.value = fmtIn(sumOf(existing, "purchase_shipping")); costs.value = fmtIn(sumOf(existing, "purchase_costs")); }
+    else { ship.value = ""; costs.value = ""; }
+    drawSum();
+  };
+
   const total = () => lines.reduce((s, l) => s + (parseMoney(l.price.value) || 0) * l.qty, 0);
   const draw = () => {
     linesBox.replaceChildren(...(lines.length ? lines.map((l, i) => h("div", { class: "oline" },
@@ -83,10 +113,12 @@ export function openPurchaseOrder({ onDone } = {}) {
     err.textContent = "";
     if (!lines.length) { err.textContent = "Voeg minstens één kaart toe."; return; }
     if (lines.some((l) => !(parseMoney(l.price.value) > 0))) { err.textContent = "Vul bij elke kaart een prijs in."; return; }
-    const weights = lines.map((l) => parseMoney(l.price.value) * l.qty);
-    const shipShares = allocate(parseMoney(ship.value) || 0, weights);
-    const costShares = allocate(parseMoney(costs.value) || 0, weights);
-    const order = uid();
+    const oldRows = existing || [];
+    const weights = [...oldRows.map((r) => Number(r.purchase_price) * Number(r.quantity)), ...lines.map((l) => parseMoney(l.price.value) * l.qty)];
+    const shipAll = allocate(parseMoney(ship.value) || 0, weights), costAll = allocate(parseMoney(costs.value) || 0, weights);
+    const shipShares = shipAll.slice(oldRows.length), costShares = costAll.slice(oldRows.length);
+    const oldShip = shipAll.slice(0, oldRows.length), oldCosts = costAll.slice(0, oldRows.length);
+    const order = oldRows.length ? oldRows[0].purchase_order : uid();
     const rows = lines.map((l, i) => ({
       user_id: userId(), product_id: l.p.product_id, quantity: l.qty, condition: l.p.kind === "card" ? l.condition : null,
       grade_company: null, grade: null, purchase_price: parseMoney(l.price.value), purchase_date: date.value || today(),
@@ -95,16 +127,17 @@ export function openPurchaseOrder({ onDone } = {}) {
     save.disabled = true;
     try {
       await rest.insert("collection", rows);
-      toast(`${rows.length} ${rows.length === 1 ? "kaart" : "kaarten"} toegevoegd`);
+      for (let i = 0; i < oldRows.length; i++) await rest.patch("collection", `id=eq.${oldRows[i].id}`, { purchase_shipping: oldShip[i], purchase_costs: oldCosts[i] });
+      toast(`${rows.length} ${rows.length === 1 ? "kaart" : "kaarten"} ${oldRows.length ? "aan de aankoop toegevoegd" : "toegevoegd"}`);
       closeSheet(); onDone?.();
     } catch (e) { console.error(e); err.textContent = "Opslaan mislukte. Probeer het opnieuw."; save.disabled = false; }
   } });
 
   openSheet(h("div", { class: "sheetin orderform" }, h("div", { class: "handle" }),
-    h("h3", { text: "Nieuwe aankoop" }),
+    title, pickBox,
     h("div", { class: "two eq" }, field("Naam verkoper", seller), field("Datum aankoop", date)),
     h("div", { class: "two eq" }, field("Verzendkosten", ship), field("Trustee fee", costs)),
-    h("p", { class: "mini", text: "Verzendkosten en trustee fee worden verdeeld over de kaarten, naar verhouding van hun prijs. De prijs vul je per kaart in." }),
+    orderNote,
     h("div", { class: "lbl2", text: "Kaarten" }),
     h("label", { class: "sbox" }, icon("search"), q), results,
     linesBox, summary, err, save));

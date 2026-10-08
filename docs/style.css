@@ -365,3 +365,5 @@ a.nmbox{color:inherit;text-decoration:none}
 .ph.txt b{font-size:8px;line-height:1.15;font-weight:700;color:var(--muted);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .dh .ph.txt b{font-size:12px}
 .set.cmn{font-size:12px;color:var(--muted);margin-top:2px}
+.readas{list-style:none;padding:10px 16px;font-size:12px;color:var(--muted)}
+.orderpick{margin:4px 0 10px}.orderpick select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0 12px;font:inherit}

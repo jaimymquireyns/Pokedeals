@@ -497,6 +497,41 @@ def main():
             check(len(new_rows) == 2 and len({r["purchase_order"] for r in new_rows}) == 1 and all(r["purchase_seller"] == "verkoperX" for r in new_rows), "2 regels, zelfde bestelling en verkoper")
             check(sorted(r["purchase_shipping"] for r in new_rows) == [1, 3], f"verzending 4 euro verdeeld naar prijs 6:2 = 3 en 1: {[r['purchase_shipping'] for r in new_rows]}")
 
+            print("Aankoop aanvullen: twee vergeten kaarten aan dezelfde aankoop toevoegen")
+            n_rows = len(mock.db["collection"])
+            orig = {x["id"]: (x["purchase_shipping"], x["purchase_costs"]) for x in new_rows}   # vóór het aanvullen
+            page.goto(base + "#/collection")
+            page.wait_for_selector(".colltop")
+            page.get_by_role("button", name="Aankoop").click()
+            page.wait_for_selector(".orderform")
+            page.wait_for_function("document.querySelectorAll('.orderform select option').length > 1")
+            opts = page.locator(".orderform select option").all_inner_texts()
+            check(any("verkoperX" in o and "2 kaarten" in o for o in opts), f"eerdere aankoop staat in de keuzelijst: {opts}")
+            page.locator(".orderform select").select_option(label=[o for o in opts if "verkoperX" in o][0])
+            check(page.locator(".orderform input[aria-label='Naam verkoper']").input_value() == "verkoperX" and page.locator(".orderform input[aria-label='Verzendkosten']").input_value() == "4", "verkoper en verzending vooraf ingevuld")
+            check("aanvullen" in page.inner_text(".orderform h3").lower(), "kop zegt 'Aankoop aanvullen'")
+            for term, price, name in (("blissey v", "2,00", "Blissey V"), ("zzyzx", "4,00", "Zzyzx")):
+                page.locator(".orderform input[aria-label='Kaart zoeken']").fill(term)
+                page.wait_for_function(f"document.querySelector('.opickrow') && document.querySelector('.opick').innerText.includes('{name}')")
+                page.locator(".opickrow").first.click()
+                page.locator(".orderform .oline input[aria-label='Prijs per stuk']").last.fill(price)
+            page.get_by_role("button", name="Aankoop opslaan").click()
+            page.wait_for_selector(".orderform", state="detached")
+            order_id = new_rows[0]["purchase_order"]
+            same = [r for r in mock.db["collection"] if r.get("purchase_order") == order_id]
+            check(len(same) == 4 and len(mock.db["collection"]) == n_rows + 2, f"4 regels in dezelfde aankoop: {len(same)}")
+            # prijzen 6, 2, 2, 4 -> verzending 4 euro opnieuw verdeeld: 1,71 / 0,57 / 0,57 / 1,15 (som 4,00)
+            check(abs(sum(r["purchase_shipping"] for r in same) - 4) < 0.011, f"totale verzending blijft 4 euro: {[r['purchase_shipping'] for r in same]}")
+            check(sorted(round(r["purchase_shipping"], 2) for r in same) == [0.57, 0.57, 1.15, 1.71], f"verdeeld naar prijs: {sorted(round(r['purchase_shipping'], 2) for r in same)}")
+            check(all(r["purchase_seller"] == "verkoperX" for r in same), "zelfde verkoper")
+            # terugzetten, zodat de vervolgtests hetzelfde uitgangspunt houden: de twee nieuwe regels weg, de oorspronkelijke verzending terug
+            for r in same:
+                if r["id"] in orig:
+                    r["purchase_shipping"], r["purchase_costs"] = orig[r["id"]]
+                else:
+                    mock.db["collection"].remove(r)
+            page.reload(); page.wait_for_selector(".colltop")   # (zelfde adres: goto zou niet opnieuw laden)
+
             print("Verkopen als bestelling (dezelfde 2 kaarten aan 1 koper)")
             page.wait_for_selector(".colltop")
             check(page.locator(".selbox").count() == 0, "zonder 'Selecteren' geen vakjes in de lijst")

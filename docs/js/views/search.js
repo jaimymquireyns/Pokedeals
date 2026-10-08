@@ -34,9 +34,13 @@ export async function searchView(root) {
           h("div", { class: "body" },
             h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: r.price ? eur(Number(r.price)) : "–" })),
             h("div", { class: "l2" }, h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }), kindTag(r.kind)),
-            r.cm_name && r.kind === "card" && r.cm_name.toLowerCase() !== String(r.name).toLowerCase() ? h("div", { class: "set cmn", text: `Cardmarket: ${r.cm_name}` }) : null)),
+            r.cm_name && r.kind === "card" && /\(.+\)/.test(r.cm_name) && r.cm_name.toLowerCase() !== String(r.name).toLowerCase() ? h("div", { class: "set cmn", text: `Cardmarket: ${r.cm_name}` }) : null)),
         h("button", { class: "addb" + (n ? " done" : ""), type: "button", "aria-label": n ? "Nog een toevoegen" : "Toevoegen aan collectie", onclick: () => addSheet(r) }, icon(n ? "check" : "plus"))));
     }) : [emptyNote("Niets gevonden.")]));
+    const d = rows.debug;
+    if (d && state.q.trim()) {   // hoe de zoekopdracht gelezen is: zo zie je meteen of het lezen of de data het probleem is
+      list.append(h("li", { class: "readas" }, `Gelezen als: naam "${d.name}"${d.set ? ` · set "${d.set}"` : ""}${d.numbers.length ? ` · nummer ${d.numbers.join(" / ")}` : ""}. Gevonden via: ${d.via || "–"} (${d.found} rijen).`));
+    }
   };
 
 

@@ -108,6 +108,9 @@ def apply(rows, qs):
             out = [r for r in out if any(_cmp(r.get(col), op, val) for col, op, val in parsed)]
         else:
             op, val = v.split(".", 1)
+            if op == "not" and val == "is.null":
+                out = [r for r in out if r.get(k) is not None]
+                continue
             out = [r for r in out if _cmp(r.get(k), op, val)]
     for spec in reversed(qs.get("order", [""])[0].split(",")):
         if spec:
