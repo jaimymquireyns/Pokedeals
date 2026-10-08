@@ -3000,4 +3000,13 @@ _ctx2 = advice.context_flags({**{f"m{i}": {"state": "normaal", "ratio": 0.8} for
 assert [k for k, _ in _ctx2["c"]] == ["markt daalt"], _ctx2
 assert advice.is_control("x", _T) in (True, False) and sum(advice.is_control(f"p{i}", _T) for i in range(4000)) in range(140, 260)
 
+# -- na een piek: de Near Mint-reeks met zichzelf vergeleken --
+_peak_nm = [{"date": (_date.fromisoformat(_T) - _td(days=d)).isoformat(), "price": (150 if d < 45 else 100)} for d in range(1, 130, 2)]
+assert abs(advice.after_peak(_peak_nm, _T) - 1.5) < 1e-9
+_flat_nm = [{"date": (_date.fromisoformat(_T) - _td(days=d)).isoformat(), "price": 100} for d in range(1, 130, 2)]
+assert advice.after_peak(_flat_nm, _T) == 1.0 and advice.after_peak(_flat_nm[:5], _T) is None
+_ctx3 = advice.context_flags({"p": {"state": "laag", "ratio": 0.7}, **{f"m{i}": {"state": "normaal", "ratio": 1.0} for i in range(20)}},
+                             {"p": {"kind": "card", "name": "Pp", "set_id": "x"}}, _sets, _T, nm={"p": _peak_nm})
+assert [k for k, _ in _ctx3["p"]] == ["na een piek"], _ctx3
+
 print("alle tests geslaagd")
