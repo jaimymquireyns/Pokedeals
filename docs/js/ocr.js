@@ -17,7 +17,11 @@ export function parseCardText(text) {
       .replace(/[^A-Za-z\u00C0-\u017F'’.\- ]/g, " ").replace(/\s+/g, " ").trim();
     const letters = (t.match(/[A-Za-z]/g) || []).length;
     const lineLetters = (l.match(/[A-Za-z]/g) || []).length;
-    if (letters >= 3 && lineLetters / l.length >= 0.5 && !SKIP.test(t)) { name = t; break; }
+    if (letters >= 3 && lineLetters / l.length >= 0.5 && !SKIP.test(t)) {
+      // losse ruis van 1-2 letters rond de naam ('dq Charizard', 'EC Mewtwo ow') weghalen; ex, V, GX e.d. horen er wel bij
+      const words = t.split(" ").filter((w) => w.length > 2 || /^(ex|EX|V|GX|LV|δ|&)$/.test(w));
+      if (words.join("").length >= 3) { name = words.join(" "); break; }
+    }
   }
   return { name, number, total, lines };
 }
