@@ -251,6 +251,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     except Exception as e:
         log(f"! eigen collectie eerst overgeslagen: {e}")
     try:
+        import advice_data
+        advice_data.run(store, pk_client, today, log=log, deadline=deadline)   # verse aanbiedingen, NM-prijs en aanbod voor de kaarten met een advies
+    except Exception as e:
+        log(f"! advies-gegevens overgeslagen: {e}")
+    try:
         import cm_links
         cm_links.run(store, pk_client, today, log=log, deadline=deadline)   # klein, eigen budget: de exacte Cardmarket-pagina per kaart
     except Exception as e:
@@ -360,6 +365,7 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=Non
         log("Lange periodes (3-24 maanden) worden alleen op maandag herberekend; vandaag overgeslagen.")
     step("advies (kopen/verkopen/houden)", lambda: __import__("advice").run(store, today, log=log))
     step("PkmnPrices-credits uitgeven", lambda: spend_pkmn_credits(store, today, log=log, time_budget=pk_time_budget))
+    step("advies opnieuw (met verse aanbiedingen)", lambda: __import__("advice").run(store, today, log=log))
     def _cm_names():
         import cm_names
         import requests

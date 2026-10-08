@@ -73,7 +73,7 @@ PK_MAP_PER_RUN = 300       # zoveel nieuwe kaarten per run aan PkmnPrices koppel
 NM_WIDEN_EXTRA = False     # tijdelijk uit: eerst de Near Mint-geschiedenis van de vaste lijst opbouwen, dan pas breder koppelen
 NM_REFRESH_PRICE = False   # tijdelijk uit: de dagelijkse actuele NM-prijs kan wachten; koppelen blijft wel aan, dat voedt de geschiedenis-opbouw
 HISTORY_PERIOD = "90d"     # hoever de eenmalige geschiedenis-opbouw terugkijkt: zonder limiet vraagt de API blijkbaar veel meer op dan nodig (en dus duurder/trager)
-PK_BUDGET = 64000          # maximaal aantal credits per dag dat de geplande taken zelf gebruiken (Pro-plan: 75.000; de rest blijft bewust ongebruikt om zelf mee te kunnen testen)
+PK_BUDGET = 72000          # maximaal aantal credits per dag dat de geplande taken zelf gebruiken (plan: 75.000, ververst om 02:00 Belgische tijd; 3.000 blijft over om zelf mee te testen)
 DEALS_MAX_PRICE = 500      # 'goedkope aanbiedingen' voor kaarten duurder dan dit worden niet apart opgehaald
 DEALS_TOP_N = 500          # ...voor de zoveel duurste kaarten onder die grens
 DEALS_FAMOUS_MIN_PRICE = 10   # plus alle kaarten van de 65 beroemde Pokémon vanaf deze prijs
@@ -170,3 +170,6 @@ ADVICE_GROUP_RISE = 1.15        # of minstens 15% erboven (hype)
 ADVICE_MARKET_DROP = 0.90       # de hele markt staat gemiddeld minstens 10% onder normaal
 ADVICE_CONTROL_SHARE = 0.05     # zoveel van de gewone kaarten bewaren we als controlegroep
 ADVICE_PEAK = 1.30              # Near Mint-geschiedenis: de laatste 6 weken minstens 30% boven de 3 maanden daarvoor = de 'normale' prijs was zelf een piek
+ADVICE_ASK_MISMATCH = 2.0       # trendprijs meer dan 2x boven (of onder) de mediaan van de 5 goedkoopste Near Mint-aanbiedingen: verdacht
+ADVICE_ASK_MAX_AGE = 7          # die aanbiedingen tellen alleen als ze hooguit zoveel dagen oud zijn
+ADVICE_SNAPSHOT_BUDGET = 30000  # credits per dag voor het aantal aanbiedingen van de kaarten met een advies (max 20 per kaart)
