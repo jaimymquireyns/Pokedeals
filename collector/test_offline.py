@@ -2900,7 +2900,13 @@ def _nm(level, days=80, end_gap=8):
     return [{"date": (_date.fromisoformat(_T) - _td(days=end_gap + i)).isoformat(), "price": level} for i in range(days)]
 # normaal: prijs rond het niveau
 a = advice.assess(_raw([100] * 20), _nm(100), _T)
-assert a["state"] == "normaal" and a["basis"] == "nm" and abs(a["normal"] - 100) < 1e-9, a
+assert a["state"] == "normaal" and a["basis"] == "avg30" and abs(a["normal"] - 100) < 1e-9, a
+# met genoeg eigen Cardmarket-geschiedenis: de mediaan van de trendprijs (zonder de laatste week)
+a = advice.assess(_raw([100] * 40 + [140] * 8, sales7=135, avg30=60), None, _T)
+assert a["basis"] == "trend" and abs(a["normal"] - 100) < 1e-9 and a["state"] == "hoog", a
+# meer dan 3x normaal: waarschijnlijk een verkeerde koppeling, geen advies
+a = advice.assess(_raw([100] * 12 + [400] * 8, sales7=390), None, _T)
+assert a["state"] == "verdacht" and "onwaarschijnlijk" in a["flags"], a
 # hoog: een week ruim boven normaal, bevestigd door verkopen
 a = advice.assess(_raw([100] * 12 + [140] * 8, sales7=135), _nm(100), _T)
 assert a["state"] == "hoog", a
@@ -2926,17 +2932,15 @@ assert a["state"] == "laag", a
 a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75, avg1=False), _nm(100), _T)
 assert a["state"] == "normaal", a
 # laag met een verdacht goedkope aanbieding (lokvogel / andere versie): verdacht
-a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75, avg30=90, low=30), _nm(100), _T)
+a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75, low=10), _nm(100), _T)
+assert a["state"] == "laag", "Cardmarkets 'low' (alle condities) telt niet als verdacht"
+a = advice.assess(_raw([100] * 12 + [70] * 8, sales7=75), _nm(100), _T, lowest_offer=30)
 assert a["state"] == "verdacht" and "te goedkoop" in a["flags"], a
 # te weinig gegevens
 assert advice.assess(_raw([100, 101]), None, _T)["state"] == "onbekend"
 assert advice.assess([], None, _T)["state"] == "onbekend"
-# zonder Near Mint-reeks: Cardmarkets oudste 30-daagse verkoopgemiddelde als normaal
-a = advice.assess(_raw([100] * 12 + [140] * 8, sales7=135, avg30=100), None, _T)
-assert a["basis"] == "avg30" and a["state"] == "hoog", a
-# pieken in de Near Mint-reeks tellen niet mee voor 'normaal'
-_spiky = _nm(100) + [{"date": (_date.fromisoformat(_T) - _td(days=20 + i)).isoformat(), "price": 900} for i in range(3)]
-assert abs(advice.normal_price(_raw([100] * 20), _spiky, _T)[0] - 100) < 1e-9
+# de Near Mint-vraagprijs telt niet mee voor 'normaal' (andere maatstaf)
+assert advice.normal_price(_raw([100] * 20), _nm(5), _T) == (100, "avg30")
 # uitkomst na 30 dagen
 assert advice.outcome("laag", 70, 100)[0] is True and advice.outcome("laag", 70, 72)[0] is False
 assert advice.outcome("hoog", 140, 110)[0] is True and advice.outcome("hoog", 140, 150)[0] is False

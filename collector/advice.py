@@ -19,7 +19,8 @@ de waarschuwingen hieronder gelden.
 Gegevens:
   - Cardmarket via TCGdex (bron 'tcgdex', of 'cardmarket' bij sealed): per dag de trendprijs (price), het verkoopgemiddelde
     van gisteren (avg1, leeg = geen verkoop), van 7 en 30 dagen (avg7, avg30) en de laagste vraagprijs (low).
-  - De Near Mint-geschiedenis van PkmnPrices (grade_key 'nm', tot een jaar terug) voor 'normaal' over 90 dagen, zonder pieken.
+  - 'Normaal' komt ook uit Cardmarket zelf (zie normal_price); de Near Mint-vraagprijs gaat over iets anders.
+  - De goedkoopste Near Mint-aanbiedingen (tabel offers) voor de verkopers en een verdacht goedkope aanbieding.
 """
 from datetime import date, timedelta
 
@@ -35,6 +36,7 @@ FLAG_TEXT = {
     "aanbod verdwijnt": "het aanbod is de laatste 2 weken plots gehalveerd: mogelijk opgekocht",
     "te goedkoop": "de goedkoopste aanbieding is verdacht laag (minder dan de helft van de verkoopprijs)",
     "niet bevestigd": "de hoge prijs komt niet terug in de echte verkopen",
+    "onwaarschijnlijk": "de prijs zou meer dan 3 keer zo hoog of laag zijn als normaal: waarschijnlijk klopt de koppeling met Cardmarket niet",
 }
 
 
@@ -59,29 +61,25 @@ def _f(x):
 
 
 def normal_price(raw, nm, today):
-    """Normale prijs en waar hij vandaan komt. Eerst de Near Mint-reeks over 90 dagen (zonder de laatste week en zonder pieken),
-    anders het oudste 30-daagse verkoopgemiddelde van Cardmarket dat we hebben (dat loopt van voor de laatste week)."""
+    """Normale prijs en waar hij vandaan komt, altijd uit Cardmarket zelf (appels met appels: de trendprijs vergelijken we niet
+    met de Near Mint-vraagprijs, die gaat over iets anders en week bij oude kaarten tot tientallen keren af). Eerst de mediaan
+    van de trendprijs over 90 dagen zonder de laatste week; zolang we die geschiedenis nog niet hebben het oudste 30-daagse
+    verkoopgemiddelde dat we bewaarden (dat gaat over de maand daarvoor). 'nm' wordt niet meer gebruikt."""
     t = _d(today)
     start, end = (t - timedelta(days=config.ADVICE_NORMAL_DAYS)).isoformat(), (t - timedelta(days=config.ADVICE_CONFIRM_DAYS)).isoformat()
-    if nm:
-        import analysis
-        anchors = {r["date"]: _f(r.get("avg30")) for r in raw if _f(r.get("avg30"))}
-        window = [r for r in nm if start <= r["date"] < end and _f(r.get("price"))]
-        if len(window) >= config.ADVICE_MIN_NM_POINTS:
-            kept, _ = analysis.clean_nm_rows([{"date": r["date"], "price": _f(r["price"])} for r in window], anchors=anchors)
-            med = _median([r["price"] for r in kept])
-            if med:
-                return med, "nm"
+    window = [_f(r["price"]) for r in raw if start <= r["date"] < end and _f(r.get("price"))]
+    if len(window) >= config.ADVICE_MIN_CM_POINTS:
+        return _median(window), "trend"
     old = [r for r in raw if r["date"] < end and _f(r.get("avg30"))]
     if old:
         return _f(old[0]["avg30"]), "avg30"
     return None, None
 
 
-def assess(raw, nm=None, today=None, sellers=None, listings=None):
+def assess(raw, nm=None, today=None, sellers=None, listings=None, lowest_offer=None):
     """raw: Cardmarket-rijen van één product, op datum gesorteerd ({date, price, avg1, avg7, avg30, low}); nm: Near Mint-rijen
     ({date, price}); sellers: aantal verschillende verkopers onder de goedkoopste aanbiedingen of None; listings: [(datum, aantal)]
-    of None. Geeft {state, price, normal, ratio, sales7, sale_days, flags, basis}."""
+    of None; lowest_offer: goedkoopste Near Mint-aanbieding of None. Geeft {state, price, normal, ratio, sales7, sale_days, flags, basis}."""
     today = today or date.today().isoformat()
     raw = [r for r in raw if r["date"] <= today and _f(r.get("price"))]
     out = {"state": "onbekend", "price": None, "normal": None, "ratio": None, "sales7": None, "sale_days": 0, "flags": [], "basis": None}
@@ -115,8 +113,10 @@ def assess(raw, nm=None, today=None, sellers=None, listings=None):
         before = [n for d, n in listings if d <= (t - timedelta(days=7)).isoformat()]
         if now_l is not None and before and before[-1] and now_l <= before[-1] * 0.5:
             flags.append("aanbod verdwijnt")
-    low, a30 = _f(last.get("low")), _f(last.get("avg30"))
-    cheap_listing = bool(low and a30 and low < 0.5 * a30)
+    if not (1 / config.ADVICE_MAX_RATIO <= out["ratio"] <= config.ADVICE_MAX_RATIO):
+        flags.append("onwaarschijnlijk")
+    # (Cardmarkets 'low' gaat over alle talen en condities en ligt dus vaak laag; alleen de goedkoopste Near Mint-aanbieding telt)
+    cheap_listing = bool(lowest_offer and s7 and lowest_offer < 0.5 * s7)
 
     high = all(p >= config.ADVICE_HIGH * normal for p in trends)
     dip = all(p <= config.ADVICE_LOW * normal for p in trends)
@@ -172,22 +172,16 @@ def load_raw(store, ids, since):
     return {pid: [days[d] for d in sorted(days)] for pid, days in out.items()}
 
 
-def load_nm(store, ids, since):
-    out = {}
-    for ch in _chunks(ids):
-        for r in store.select("prices", {"select": "product_id,date,price", "product_id": f"in.({','.join(ch)})",
-                                         "grade_key": "eq.nm", "date": f"gte.{since}", "order": "product_id.asc,date.asc"}):
-            out.setdefault(r["product_id"], []).append(r)
-    return out
-
-
-def load_sellers(store):
-    """Aantal verschillende verkopers onder de 5 goedkoopste aanbiedingen, per product (alleen waar aanbiedingen zijn opgehaald)."""
-    by = {}
-    for r in store.select("offers", {"select": "product_id,rank,seller", "rank": "lte.5"}):
+def load_offers(store):
+    """Per product: (aantal verschillende verkopers onder de 5 goedkoopste aanbiedingen, goedkoopste prijs). Alleen waar aanbiedingen zijn opgehaald."""
+    by, low = {}, {}
+    for r in store.select("offers", {"select": "product_id,rank,seller,price", "rank": "lte.5"}):
         if r.get("seller"):
             by.setdefault(r["product_id"], set()).add(r["seller"])
-    return {pid: len(s) for pid, s in by.items()}
+        p = _f(r.get("price"))
+        if p and (r["product_id"] not in low or p < low[r["product_id"]]):
+            low[r["product_id"]] = p
+    return {pid: len(s) for pid, s in by.items()}, low
 
 
 def load_listings(store, since):
@@ -215,18 +209,17 @@ def run(store, today, log=print):
     ids, personal = candidates(store, log=log)
     t = date.fromisoformat(today)
     raw = load_raw(store, ids, (t - timedelta(days=config.ADVICE_NORMAL_DAYS + 10)).isoformat())
-    nm = load_nm(store, ids, (t - timedelta(days=config.ADVICE_NORMAL_DAYS + 10)).isoformat())
     try:
-        sellers = load_sellers(store)
+        sellers, lows = load_offers(store)
     except Exception:
-        sellers = {}
+        sellers, lows = {}, {}
     try:
         listings = load_listings(store, (t - timedelta(days=21)).isoformat())
     except Exception:
         listings = {}
     rows, counts = [], {s: 0 for s in STATES}
     for pid in sorted(ids):
-        a = assess(raw.get(pid, []), nm.get(pid), today, sellers=sellers.get(pid), listings=listings.get(pid))
+        a = assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), listings=listings.get(pid), lowest_offer=lows.get(pid))
         counts[a["state"]] += 1
         if a["state"] in ("hoog", "laag", "verdacht") or pid in personal:
             rows.append({"product_id": pid, "date": today, "state": a["state"], "price": a["price"], "normal": a["normal"],
@@ -296,16 +289,16 @@ def dry_run(store, today, log=print, top=15):
     ids, personal = candidates(store, log=log)
     t = date.fromisoformat(today)
     since = (t - timedelta(days=config.ADVICE_NORMAL_DAYS + 10)).isoformat()
-    raw, nm = load_raw(store, ids, since), load_nm(store, ids, since)
+    raw = load_raw(store, ids, since)
     try:
-        sellers = load_sellers(store)
+        sellers, lows = load_offers(store)
     except Exception:
-        sellers = {}
+        sellers, lows = {}, {}
     names = {p["product_id"]: f"{p.get('name')} ({p.get('set_name') or ''} {p.get('number') or ''})".strip() for p in store.products()}
-    res = {pid: assess(raw.get(pid, []), nm.get(pid), today, sellers=sellers.get(pid)) for pid in ids}
+    res = {pid: assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), lowest_offer=lows.get(pid)) for pid in ids}
     counts = {s: sum(1 for a in res.values() if a["state"] == s) for s in STATES}
     log(f"Advies (proef, niets opgeslagen): {len(ids)} producten: " + ", ".join(f"{s} {n}" for s, n in counts.items()))
-    log(f"  basis 'normaal': nm {sum(1 for a in res.values() if a['basis'] == 'nm')}, avg30 {sum(1 for a in res.values() if a['basis'] == 'avg30')}")
+    log(f"  basis 'normaal': trend {sum(1 for a in res.values() if a['basis'] == 'trend')}, avg30 {sum(1 for a in res.values() if a['basis'] == 'avg30')}")
     flags = {}
     for a in res.values():
         for f in a["flags"]:

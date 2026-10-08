@@ -136,3 +136,67 @@ export function ownedSignal(f, item) {
 
 export const gradeKey = (c) => (c.grade_company ? `${c.grade_company}-${c.grade}` : "raw");
 export const gradeLabel = (c) => (c.grade_company ? `${c.grade_company} ${c.grade}` : null);
+
+// ---------------------------------------------------------------- advies (kopen / verkopen / houden / verdacht)
+// De verzamelaar (collector/advice.py) beoordeelt elke dag per product of de prijs ruim boven of onder normaal staat en of echte
+// verkopen dat bevestigen. Hier maken we daar per persoon een advies van, met jouw aankoopprijs en kosten erbij.
+export const ADVICE = { minBuyPrice: 10, sellProfit: 0.15, buyGain: 0.10 };
+export const ADVICE_FLAG_TEXT = {
+  afwijking: "de vraagprijs wijkt sterk af van waarvoor de kaart echt verkocht wordt",
+  springt: "de prijs maakte de laatste 2 maanden meerdere grote sprongen",
+  "weinig verkopers": "maar 1 of 2 verkopers bieden hem aan, dus de prijs is makkelijk te sturen",
+  "aanbod verdwijnt": "het aanbod is de laatste 2 weken plots gehalveerd: mogelijk opgekocht",
+  "te goedkoop": "de goedkoopste aanbieding is verdacht laag: mogelijk een andere versie, slechte staat of een lokvogel",
+  "niet bevestigd": "de hoge prijs komt niet terug in de echte verkopen",
+};
+
+/** Wat je overhoudt als je nu koopt (met verzending) en verkoopt op de normale prijs (min commissie en verpakking), als deel van wat je betaalde. */
+export const recoveryGain = (price, normal, s = DEFAULT_SETTINGS) =>
+  (normal * (1 - s.fee_pct / 100) - PACKAGING - (price + shipCost(price))) / (price + shipCost(price));
+
+/** a: rij uit v_advice (of null); owned: collectieregel (of groep) als je de kaart hebt. Geeft { label, tone, short, reasons }.
+ * label: "Verkopen" | "Kopen" | "Houden" | "Afwachten" | "Verdacht"; tone: sell | buy | hold | warn. */
+export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
+  const hold = owned ? "Houden" : "Afwachten";
+  if (owned && owned.grade_company) return { label: hold, tone: "hold", short: "Geen advies voor gegradeerde kaarten.", reasons: ["Het advies kijkt naar Cardmarket-prijzen van gewone kaarten; voor gegradeerde kaarten zijn er te weinig verkopen om het betrouwbaar te maken."] };
+  if (!a || a.state === "onbekend" || !a.normal || !a.price) {
+    return { label: hold, tone: "hold", short: "Nog te weinig prijsgegevens voor een advies.", reasons: ["We hebben minstens een paar weken prijzen en een normale prijs nodig om iets te zeggen."] };
+  }
+  const price = Number(a.price), normal = Number(a.normal), ratio = price / normal - 1;
+  const basis = a.basis === "nm" ? "de mediaan van de laatste 3 maanden" : "Cardmarkets verkoopgemiddelde van de afgelopen maand";
+  const where = `Nu ${eur(price)}; normaal is ${eur(normal)} (${basis}), dus ${ratio >= 0 ? signed(ratio) + " erboven" : signed(-ratio).replace("+", "") + " eronder"}.`;
+  const sales = a.sales7 ? `Echte verkopen de laatste week: gemiddeld ${eur(Number(a.sales7))}; op ${a.sale_days} van de laatste 14 dagen verkocht.` : "De laatste week geen verkoopgemiddelde bekend.";
+  if (a.state === "verdacht") {
+    const why = (a.flags || []).map((f) => ADVICE_FLAG_TEXT[f] || f);
+    return { label: "Verdacht", tone: "warn", short: "De prijs lijkt gestuurd of onbetrouwbaar: geen advies.",
+      reasons: [where, ...why.map((w) => w.charAt(0).toUpperCase() + w.slice(1) + "."), "Daarom geven we hier bewust geen kopen- of verkopenadvies."] };
+  }
+  if (owned) {
+    const net = price * (1 - s.fee_pct / 100) - PACKAGING, cost = costEach(owned), profit = cost ? net / cost - 1 : null;
+    const pText = profit == null ? "" : `Verkoop je nu, dan hou je na commissie en verpakking ongeveer ${eur(net)} per stuk over: ${signed(profit)} op wat je betaalde (${eur(cost)}).`;
+    if (a.state === "hoog" && profit != null && profit >= ADVICE.sellProfit) {
+      return { label: "Verkopen", tone: "sell", short: `Prijs staat ruim boven normaal en je maakt ${signed(profit)} winst.`,
+        reasons: [where, sales, pText, "Prijzen die zo ver boven normaal staan, zakken meestal weer terug."] };
+    }
+    if (a.state === "hoog") return { label: "Houden", tone: "hold", short: "De prijs is hoog, maar na kosten hou je nog te weinig over.", reasons: [where, sales, pText] };
+    if (a.state === "laag") return { label: "Houden", tone: "hold", short: "De prijs staat tijdelijk laag: nu verkopen zet verlies vast.", reasons: [where, sales, pText, "Prijzen die ver onder normaal staan, herstellen meestal. Een goed moment om bij te kopen als je dat wilt."] };
+    return { label: "Houden", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where, pText].filter(Boolean) };
+  }
+  if (a.state === "laag") {
+    const gain = recoveryGain(price, normal, s);
+    if (price >= ADVICE.minBuyPrice && gain >= ADVICE.buyGain) {
+      return { label: "Kopen", tone: "buy", short: `${signed(-ratio).replace("+", "")} onder normaal; ${signed(gain)} winst als hij herstelt.`,
+        reasons: [where, sales, `Koop je nu (met ongeveer ${eur(shipCost(price))} verzending) en verkoop je als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Prijzen die ver onder normaal staan, herstellen meestal, maar niet altijd."] };
+    }
+    return { label: "Afwachten", tone: "hold", short: price < ADVICE.minBuyPrice ? "Onder normaal, maar te goedkoop: de kosten eten de winst op." : "Onder normaal, maar na kosten blijft er te weinig over.", reasons: [where, sales] };
+  }
+  if (a.state === "hoog") return { label: "Afwachten", tone: "hold", short: "De prijs staat nu ruim boven normaal: geen goed moment om te kopen.", reasons: [where, sales] };
+  return { label: "Afwachten", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where] };
+}
+
+/** Zin over hoe vaak het advies klopte (advice_stats, bron 'live'). */
+export function adviceTrack(stats, state) {
+  const st = (stats || []).find((x) => x.source === "live" && x.state === state);
+  if (!st || !st.n) return "Elk advies wordt na 30 dagen gecontroleerd; de eerste uitkomsten komen er nog aan.";
+  return `Dit advies klopte tot nu toe ${st.hits} van ${st.n} keer (${Math.round((st.hits / st.n) * 100)}%), gecontroleerd na 30 dagen.`;
+}
