@@ -57,7 +57,10 @@ async function getSets() {
  * lijst staat) wordt gewoon als een naamwoord behandeld. */
 function parseQuery(raw, sets, opts = {}) {
   // Cardmarket-schrijfwijze opvangen: "Blissey Lv.44 (MT 5)", "Blissey Lv. 44 MT5", "Charizard 4/102", "Charizard 30c BS4".
-  const cleaned = String(raw).replace(/(\d+)\s*\/\s*\d+/g, "$1");          // 4/102 -> 4 (nummer zonder settotaal)
+  // Het nummer zoals het onderaan de kaart staat ("149/128"): dat is altijd het kaartnummer, waar het ook staat in de zoektekst,
+  // en het getal na de schuine streep is het aantal kaarten in de set (helpt de juiste set te vinden, ook zonder setnaam).
+  let fracNum = null, fracTot = null;
+  const cleaned = String(raw).replace(/(\d+)\s*\/\s*(\d+)/g, (_, a, b) => { if (fracNum == null) { fracNum = a; fracTot = String(Number(b)); } return " "; });
   const toks = [];
   const all = norm(cleaned).split(/\s+/).filter(Boolean);
   for (let i = 0; i < all.length; i++) {                                     // level weglaten: in onze database heet de kaart gewoon "Blissey"
@@ -75,7 +78,8 @@ function parseQuery(raw, sets, opts = {}) {
     const lastW = words[words.length - 1];
     // een setafkorting met een letter erin ('30c') gaat voor op een nummer: "charizard 30c" zoekt in die set, niet naar kaartnummer 30c
     // en een woord dat zelf een set is ('30th' = de set-id van 30th Celebration) is ook geen kaartnummer: "charizard 30th" zoekt in de 30th-sets
-    if (words.length > 1 && looksLikeNumber(lastW) && !(SET_ALIASES[lastW] && /[a-z]/.test(lastW)) && !isSetWord(lastW)) number = words.pop();
+    if (fracNum != null) number = fracNum;
+    else if (words.length > 1 && looksLikeNumber(lastW) && !(SET_ALIASES[lastW] && /[a-z]/.test(lastW)) && !isSetWord(lastW)) number = words.pop();
     let setMatch = null;
     for (let start = 1; start < words.length && !setMatch; start++) {         // het eerste woord is de naam, geen setcode
       if (SET_ALIASES[words[start]]) { setMatch = SET_ALIASES[words[start]]; words.splice(start, 1); break; }
@@ -117,6 +121,7 @@ function parseQuery(raw, sets, opts = {}) {
   const prev = q.nameWords[q.nameWords.length - 1];
   if (q.number && /^\d/.test(q.number) && q.nameWords.length > 1 && /^[a-z]{1,4}$/.test(prev)) q.numbers.push(prev + q.number);
   q.tokens = toks;
+  q.total = fracTot;
   return q;
 }
 
@@ -138,6 +143,8 @@ async function findRows(q, kindF, dbg = {}) {
   // Eerst alles met de set erbij (voor elk nummer), pas daarna zonder set, zodat een kaart uit de bedoelde set nooit achter dezelfde naam
   // uit een andere set verdwijnt.
   const attempts = [];
+  // "149/128": eerst met het aantal kaarten in de set erbij, dan weet je zeker welke set het is
+  if (q.total && nums.length) for (const n of nums) attempts.push([...nameF(q.nameWords), ...setF, ...numF(n), `set_total=eq.${q.total}`]);
   for (const n of nums.length ? nums : [null]) attempts.push([...nameF(q.nameWords), ...setF, ...numF(n)]);
   if (q.nameWords.length > 1) for (const n of nums.length ? nums : [null]) attempts.push([...nameF(first), ...setF, ...numF(n)]);
   // Zonder passend nummer in de bedoelde set (Cardmarket noemt een kaart bijv. "BS4", wij "001"): liever alle kaarten met die naam uit
@@ -156,7 +163,8 @@ async function findRows(q, kindF, dbg = {}) {
   const cmTk = (q.tokens || []).filter(Boolean);
   if (cmTk.length > 1) {
     const cmF = [`cm_name=ilike.*${encodeURIComponent(cmTk.join("*"))}*`];
-    if (cmTk.length >= 3) attempts.unshift(cmF); else attempts.splice(Math.min(attempts.length, nums.length + 1), 0, cmF);
+    // ook vooraan bij een setcode met een Cardmarket-nummer ("30c bs4"): dat nummer staat alleen in Cardmarkets eigen naam
+    if (cmTk.length >= 3 || (q.setName && /^[a-z]+\d/.test(q.number || ""))) attempts.unshift(cmF); else attempts.splice(Math.min(attempts.length, nums.length + 1), 0, cmF);
   }
   const tried = new Set();
   for (const f of attempts) {
