@@ -2051,7 +2051,7 @@ check_card.check(store45, pkmnprices.PkmnPrices("pk", session=CardSess()), "cc-1
 assert any("Cardmarket-pagina: https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71" in l and "26950" in l for l in logs45), logs45
 
 # ============ 55. Gegradeerde verkopen: getest met de ECHTE antwoorden van PkmnPrices (6 okt) ============
-assert config.GRADED_ENABLED is True and config.GRADED_BUDGET == 4000 and config.GRADED_MAX_UNPARSED == 20 and config.GRADED_MAX_PAGES == 3
+assert config.GRADED_ENABLED is True and config.GRADED_BUDGET == 12000 and config.GRADED_MAX_UNPARSED == 20 and config.GRADED_MAX_PAGES == 3
 USD = 0.89
 REAL_PSA10 = [  # Lapras (Skyridge #71), PSA 10, letterlijk uit het logboek
     {"id": 42790047, "title": "PSA 10 2003 Pokémon TCG Skyridge Lapras #71/144 Regular Basic Common English 71/144 [eBay]", "price": 500.0, "currency": "USD", "grader": "PSA", "grade": "10", "grade_qualifier": None, "variant": "Normal", "attribution": "exact", "sold_at": "2026-06-27", "ingested_at": "2026-08-06T05:55:55.810590Z", "listing_url": "https://www.ebay.com/itm/406967327514"},
@@ -2202,8 +2202,28 @@ fake50x, store50x = new_store()
 store50x.upsert_products([{"product_id": f"p-{i}", "kind": "card", "name": f"P{i}", "number": str(i), "set_id": "base1", "set_name": "S", "dex_id": fd46, "pk_id": str(300 + i)} for i in range(20)])
 big = EbaySess(sales_per_combo=20)
 pk_big = pkmnprices.PkmnPrices("pk", session=big, budget=10**7)
+_gb = config.GRADED_BUDGET
+config.GRADED_BUDGET = 4000
 graded_history.run(store50x, pk_big, "2026-10-07", log=quiet, usd_eur=USD)
+config.GRADED_BUDGET = _gb
 assert len(big.calls) == 200 and pk_big.budget == 10**7, (len(big.calls), pk_big.budget)
+
+# eigen gegradeerde kaarten gaan voor, ook buiten de beroemde Pokémon; de rest gaat van duur naar goedkoop, niet op alfabet
+fake50y, store50y = new_store()
+store50y.upsert_products([{"product_id": "a-cheap", "kind": "card", "name": "A", "number": "1", "set_id": "base1", "set_name": "S", "dex_id": fd46, "pk_id": "901"},
+                          {"product_id": "z-dear", "kind": "card", "name": "Z", "number": "2", "set_id": "base1", "set_name": "S", "dex_id": fd46, "pk_id": "902"},
+                          {"product_id": "m-own", "kind": "card", "name": "M", "number": "3", "set_id": "base1", "set_name": "S", "dex_id": 99999, "pk_id": "903"}])
+store50y.upsert("prices", [{"product_id": "a-cheap", "date": "2026-10-06", "source": "x", "grade_key": "raw", "price": 5.0},
+                           {"product_id": "z-dear", "date": "2026-10-06", "source": "x", "grade_key": "raw", "price": 500.0}], "product_id,date,source,grade_key")
+fake50y.t["collection"][(1,)] = {"id": "c1", "product_id": "m-own", "user_id": "u", "grade_company": "PSA", "grade": "9"}
+seq = EbaySess(sales_per_combo=0)
+logs_y = []
+graded_history.run(store50y, pkmnprices.PkmnPrices("pk", session=seq, budget=10**7), "2026-10-07", log=logs_y.append, usd_eur=USD)
+order = [(c[0].split("/cards/")[1].split("/")[0], c[1].get("grader"), c[1].get("grade")) for c in seq.calls]
+assert order[0] == ("903", "PSA", "9"), order[:3]
+assert [o[0] for o in order if o[0] != "903"][0] == "902", order[:5]
+assert not [o for o in order if o[0] == "903" and (o[1], o[2]) != ("PSA", "9")], "niet-beroemde kaart: alleen de eigen combinatie"
+assert any("nog" in l and "runs" in l for l in logs_y) or len(order) > 0
 
 # zonder de tabel graded_checks: deze stap overslaan (zonder geheugen zou elke nacht hetzelfde worden opgevraagd)
 class NoTable(SupabaseStore):
@@ -2503,7 +2523,8 @@ assert edge.fit(smp57[:10]) is None, "te weinig metingen: geen model"
 
 # eerlijk toetsen: de test begint na de training, met een gat ertussen
 tr57, te57, cut_ = edge._split(smp57)
-assert max(s["end_date"] for s in tr57) < cut_ <= min(s["date"] for s in te57), "uitkomsten van trainingsmomenten vallen niet in de testperiode"
+assert max(s["end_date"] for s in tr57) <= cut_ <= min(s["date"] for s in te57), "uitkomsten van trainingsmomenten zijn bekend op de splitsdatum; testmomenten beginnen daarna"
+assert all(s["date"] < cut_ for s in tr57), "een trainingsmoment begint altijd vóór de splitsdatum"
 wf57 = edge.walk_forward(smp57)
 assert wf57 and wf57["n_test"] > 100 and wf57["coef"]["depth"] > 0, wf57 and wf57["coef"]
 assert wf57["top_win"] > wf57["top_exp"] and wf57["skill_win"] > 0 and wf57["z"] >= 2, (wf57["top_win"], wf57["top_exp"], wf57["skill_win"], wf57["z"])   # het model weet meer dan het kostenbewuste basismodel
@@ -2651,5 +2672,90 @@ signals.extra_analysis(store58, today58, inputs61, prods61, log=logs61.append)
 txt61 = "\n".join(logs61)
 for needle in ("=== A. zoals het was", "=== B. met pieken eruit gehaald", "Eigen model, getraind op", "per prijsklasse", "=== Voorspellingen die we de afgelopen weken", "=== Betrouwbaarheid van de prijzen ===", "Prijsbetrouwbaarheid ("):
     assert needle in txt61, (needle, txt61[:1500])
+
+# ============ 62. Splitsing bij een scheve verdeling (het probleem uit het echte logboek van 8 okt) ============
+d62 = date(2026, 5, 30)
+def mk62(round_, n):
+    d = d62 + timedelta(days=30 * round_)
+    return [{"date": d.isoformat(), "end_date": (d + timedelta(days=30)).isoformat(), "f": {}} for _ in range(n)]
+skew = mk62(0, 1000) + mk62(1, 400) + mk62(2, 150) + mk62(3, 60)   # de eerste meetronde heeft 62% van alle 1610 metingen
+tr62, te62, cut62 = edge._split(skew)
+assert len(tr62) == 1000 and len(te62) == 610 and cut62 == (d62 + timedelta(days=30)).isoformat(), (len(tr62), len(te62), cut62)
+assert all(x["end_date"] <= cut62 for x in tr62) and all(x["date"] >= cut62 for x in te62) and not {id(x) for x in tr62} & {id(x) for x in te62}, "geen overlap tussen train en test"
+# een gelijkmatige verdeling: de splitsing ligt dichtbij 60% train
+even = mk62(0, 300) + mk62(1, 300) + mk62(2, 300) + mk62(3, 300) + mk62(4, 300)
+tr62b, te62b, _ = edge._split(even)
+assert abs(len(tr62b) / len(even) - 0.6) < 0.01 and len(te62b) == 600, (len(tr62b), len(te62b))
+# te weinig verschillende dagen: geen toets, mét uitleg waarom
+why62 = []
+assert edge._split(mk62(0, 500), why=why62) == (None, None, None) and "geen enkele splitsdatum" in why62[0], why62
+why62b = []
+assert edge._split(mk62(0, 60) + mk62(1, 60), why=why62b) == (None, None, None) and "minimaal 150" in why62b[0], why62b
+lg62 = []
+edge.report_walk_forward(None, lg62.append, why=why62b)
+assert "geen eerlijke toets mogelijk" in lg62[0] and "minimaal 150" in lg62[0], lg62
+# de hele toets werkt nu ook als de eerste ronde verreweg het grootst is: veel kaarten met korte geschiedenis, een paar met lange
+def ou62(seed, days, base, end=date(2026, 10, 7), phi=0.96, sd=0.04):
+    rnd, u, out = random.Random(seed), 0.0, []
+    for i in range(days):
+        u = phi * u + rnd.gauss(0, sd)
+        out.append(((end - timedelta(days=days - 1 - i)).isoformat(), round(base * math.exp(u), 2)))
+    return out
+front = {f"s{k}": ou62(k, 100 if k < 700 else 190, 10 + (k % 30) * 3) for k in range(900)}
+fs62 = edge.collect_samples(front)
+wf62 = edge.walk_forward(fs62)
+assert wf62 and wf62["n_train"] >= 100 and wf62["n_test"] >= 50 and wf62["train_days"] >= 1 and wf62["test_days"] >= 1, wf62 and (wf62["n_train"], wf62["n_test"])
+lg62c = []
+edge.report_walk_forward(wf62, lg62c.append)
+assert "verschillende dagen" in lg62c[0] and any("testdagen" in l for l in lg62c), lg62c
+assert wf62.get("calm_n"), "het model wordt ook apart in rustige reeksen getoetst"
+assert any("alleen rustige reeksen" in l for l in lg62c), lg62c
+
+# ============ 63. Opslaan met wisselende kolommen (kaarten zonder voorspelling) ============
+class StrictKeys(SupabaseStore):
+    """Zoals Supabase/PostgREST bij een bulk-opslag: alle rijen moeten dezelfde kolommen hebben, anders een fout."""
+    def upsert(self, table, rows, on_conflict, chunk=500):
+        if table == "card_signals" and len({tuple(sorted(r)) for r in rows}) > 1:
+            raise RuntimeError("Supabase card_signals: 400 All object keys must match")
+        return super().upsert(table, rows, on_conflict, chunk)
+fake63, _ = new_store()
+store63 = StrictKeys("https://x.supabase.co", "sb_secret_test", session=fake63)
+store63.upsert_products([{"product_id": f"e-{k}", "kind": "card", "name": f"E{k}", "set_name": "Test", "number": str(k), "dex_id": fd58} for k in range(60)])
+for k in range(60):
+    store63.upsert_prices([{"product_id": f"e-{k}", "date": d, "source": "pkmnprices", "grade_key": "nm", "price": p} for d, p in ser57[f"o{k}"]])
+orig_shadow63 = edge.shadow
+edge.shadow = lambda series, today, log=print, **kw: {k: v for i, (k, v) in enumerate(orig_shadow63(series, today, log=quiet, **kw).items()) if i != 0}   # een kaart krijgt geen voorspelling
+try:
+    logs63 = []
+    assert signals.compute_today(store63, today58, log=logs63.append) == 60
+finally:
+    edge.shadow = orig_shadow63
+rows63 = fake63.t["card_signals"]
+assert len(rows63) == 60 and not any("niet opgeslagen" in l for l in logs63), logs63
+assert sum(1 for r in rows63.values() if r.get("p_win") is not None) == 59 and sum(1 for r in rows63.values() if "p_win" in r and r["p_win"] is None) == 1, "59 met voorspelling, 1 met lege waarden maar dezelfde kolommen"
+# valt het opslaan toch uit, dan staat de echte foutmelding in het logboek
+class AlwaysFails(SupabaseStore):
+    def upsert(self, table, rows, on_conflict, chunk=500):
+        if table == "card_signals" and any("p_win" in r for r in rows):
+            raise RuntimeError("Supabase card_signals: 400 Could not find the 'p_win' column of 'card_signals' in the schema cache")
+        return super().upsert(table, rows, on_conflict, chunk)
+fake63b, _ = new_store()
+store63b = AlwaysFails("https://x.supabase.co", "sb_secret_test", session=fake63b)
+store63b.upsert_products([{"product_id": f"e-{k}", "kind": "card", "name": f"E{k}", "dex_id": fd58} for k in range(60)])
+for k in range(60):
+    store63b.upsert_prices([{"product_id": f"e-{k}", "date": d, "source": "pkmnprices", "grade_key": "nm", "price": p} for d, p in ser57[f"o{k}"]])
+logs63b = []
+assert signals.compute_today(store63b, today58, log=logs63b.append) == 60 and len(fake63b.t["card_signals"]) == 60
+assert any("Could not find the 'p_win' column" in l for l in logs63b), logs63b
+
+# ============ 64. Controles op het eigen model en op de prijscontrole ============
+lg64 = []
+edge.shadow(ser57, "2026-07-25", log=lg64.append)
+assert any("ter controle: op de trainingsmetingen voorspelde het model gemiddeld" in l and "vandaag voorspelt het gemiddeld" in l for l in lg64), lg64
+lg64b = []
+reliability.report(store60, inputs60, {}, (base60 + timedelta(days=109)).isoformat(), log=lg64b.append)
+txt64 = "\n".join(lg64b)
+assert "controle op de controle" in txt64 and "mediaan" in txt64 and "gewicht 4 of hoger" in txt64, txt64
+assert "=== C. Cardmarkets eigen prijslijst" in txt61 and "verschillende dagen" in txt61, "de analyse draait ook op Cardmarkets eigen prijslijst, met het aantal meetdagen"
 
 print("alle tests geslaagd")

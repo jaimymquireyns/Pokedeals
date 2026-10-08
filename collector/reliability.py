@@ -114,7 +114,14 @@ def report(store, inputs, products, today, log=print, top=20):
 
     log(f"Prijsbetrouwbaarheid ({len(out)} beroemde kaarten met genoeg eigen Near Mint-geschiedenis; een aanwijzing, geen bewijs van manipulatie):")
     counts = {f: sum(1 for a in out.values() if f in a["flags"]) for f in WEIGHTS}
-    log("  " + ", ".join(f"{f}: {n}" for f, n in counts.items()) + f"; {sum(1 for a in out.values() if a['severity'] >= 2)} kaarten met gewicht 2 of hoger")
+    log("  " + ", ".join(f"{f}: {n}" for f, n in counts.items()) + f"; {sum(1 for a in out.values() if a['severity'] >= 2)} kaarten met gewicht 2 of hoger, "
+        f"{sum(1 for a in out.values() if a['severity'] >= 4)} met gewicht 4 of hoger")
+    ratios = sorted(a["ratio"] for a in out.values() if a.get("ratio") is not None)
+    if ratios:
+        over, under = sum(1 for x in ratios if x > 2.0), sum(1 for x in ratios if x < 0.5)
+        log(f"  controle op de controle: laagste prijs / verkoopgemiddelde bij {len(ratios)} kaarten: mediaan {ratios[len(ratios) // 2]:.2f}x, "
+            f"boven 2x: {over} ({over / len(ratios) * 100:.0f}%), onder 0,5x: {under} ({under / len(ratios) * 100:.0f}%). "
+            "Ligt de mediaan ver van 1x, of valt een groot deel buiten 0,5x-2x, dan meten de twee prijzen niet hetzelfde (bijvoorbeeld door andere conditie of taal in het gemiddelde) en zegt 'afwijking' weinig.")
     worst = sorted((x for x in out.items() if x[1]["severity"] >= 2), key=lambda x: (-x[1]["severity"], -(x[1]["price"])))[:top]
     if worst:
         log(f"  de {len(worst)} verdachtste:")

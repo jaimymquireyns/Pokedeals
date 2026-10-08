@@ -35,6 +35,29 @@ def famous_graded_targets(store):
             if p.get("pk_id") and not config.is_digital_set(p.get("set_id"))]
 
 
+def own_graded(store):
+    """Gegradeerde kaarten uit je eigen collectie: {(product_id, grader, graad als getal)}. Leeg bij een fout (dan telt alleen de gewone volgorde)."""
+    try:
+        rows = store.select("collection", {"select": "product_id,grade_company,grade"})
+    except Exception:
+        return set()
+    out = set()
+    for r in rows:
+        g = _num(r.get("grade"))
+        if r.get("grade_company") and g is not None:
+            out.add((r["product_id"], str(r["grade_company"]).upper(), g))
+    return out
+
+
+def own_graded_targets(store, own, skip_ids):
+    """Eigen gegradeerde kaarten die niet bij de beroemde Pokémon horen (en dus anders nooit geschiedenis kregen), met pk_id."""
+    ids = sorted({pid for pid, _, _ in own} - set(skip_ids))
+    out = []
+    for i in range(0, len(ids), 100):
+        out += [p for p in store.products("card", extra={"product_id": f"in.({','.join(ids[i:i + 100])})"}) if p.get("pk_id")]
+    return out
+
+
 def _num(v):
     try:
         return float(str(v).replace(",", "."))
@@ -241,10 +264,8 @@ def run(store, pk, today, log=print, deadline=None, target_days=None, usd_eur=No
     nog budget en tijd, dan de combinaties met veel verkopen (niet 'klaar') verder terug tot target_days."""
     cards = famous_graded_targets(store)
     log(f"Gegradeerde geschiedenis (beroemde Pokémon): {len(cards)} kaarten in aanmerking.")
-    if not cards:
-        return 0
     try:
-        memory = load_checks(store, [c["product_id"] for c in cards])
+        memory = load_checks(store, [c["product_id"] for c in cards] or ["-"])
     except Exception as e:
         log(f"! tabel graded_checks niet te lezen ({type(e).__name__}); draai supabase/schema.sql opnieuw. Zonder dit geheugen zou elke nacht hetzelfde "
             "worden opgevraagd, dus ik sla deze stap over.")
@@ -255,12 +276,42 @@ def run(store, pk, today, log=print, deadline=None, target_days=None, usd_eur=No
         usd_eur, src = fx.usd_to_eur(requests.Session())
         log(f"Gegradeerde geschiedenis: USD->EUR {usd_eur:.4f} ({src}).")
 
+    own = own_graded(store)
     todo = [(c, grader, grade) for c in cards for grader, grades in GRADES.items() for grade in grades]
-    due = [t for t in todo if _due(memory.get((t[0]["product_id"], f"{t[1]}-{t[2]}")), today)]
-    due.sort(key=lambda t: (str((memory.get((t[0]["product_id"], f"{t[1]}-{t[2]}")) or {}).get("checked_on") or ""),   # nooit opgevraagd eerst, dan het langst geleden
-                            GRADE_PRIORITY.get(t[2], 9)))                                                                  # en dan de best verhandelde graden
+    famous_ids = {c["product_id"] for c in cards}
+    try:
+        extra = own_graded_targets(store, own, famous_ids)
+    except Exception:
+        extra = []
+    for c in extra:   # niet-beroemde kaarten: alleen de combinaties die je zelf hebt
+        for grader, grades in GRADES.items():
+            for grade in grades:
+                if (c["product_id"], grader, _num(grade)) in own:
+                    todo.append((c, grader, grade))
+    if extra:
+        log(f"Gegradeerde geschiedenis: {len(extra)} eigen gegradeerde kaarten buiten de beroemde Pokémon erbij.")
+    try:
+        value = {pid: float(r.get("price") or 0) for pid, r in store.latest_prices().items()}
+    except Exception:
+        value = {}
+    def key(t):
+        pid, gk = t[0]["product_id"], f"{t[1]}-{t[2]}"
+        return (0 if (pid, t[1], _num(t[2])) in own else 1,                         # eigen kaarten altijd eerst
+                str((memory.get((pid, gk)) or {}).get("checked_on") or ""),         # dan nooit opgevraagd, dan het langst geleden
+                GRADE_PRIORITY.get(t[2], 9),                                       # dan de best verhandelde graden
+                -value.get(pid, 0.0), pid)                                         # dan de duurste kaarten; nooit meer op alfabet
+    if extra:
+        try:
+            memory.update(load_checks(store, [c["product_id"] for c in extra]))
+        except Exception:
+            pass
+    if not todo:
+        return 0
+    due = sorted((t for t in todo if _due(memory.get((t[0]["product_id"], f"{t[1]}-{t[2]}")), today)), key=key)
     base_days = int(config.HISTORY_PERIOD.rstrip("d"))
     log(f"Gegradeerde geschiedenis: {len(due)} van {len(todo)} combinaties zijn aan de beurt; budget voor deze stap maximaal {config.GRADED_BUDGET} credits.")
+    if due and own:
+        log(f"  waarvan {sum(1 for t in due if (t[0]['product_id'], t[1], _num(t[2])) in own)} van je eigen gegradeerde kaarten (die gaan voor).")
     original_budget = pk.budget
     pk.budget = min(original_budget, pk.credits + config.GRADED_BUDGET)   # eigen plafond: dit mag de rest van de nacht nooit meer opslokken
     state = {}
@@ -268,6 +319,9 @@ def run(store, pk, today, log=print, deadline=None, target_days=None, usd_eur=No
     try:
         done, rows, stuck = _process(store, pk, today, due, memory, base_days, usd_eur, log, deadline, state)
         rows_total += rows
+        left = max(0, len(due) - done)
+        if left and done:
+            log(f"Gegradeerde geschiedenis: nog {left} combinaties te gaan; bij dit tempo ongeveer {-(-left // done)} runs.")
         log(f"Gegradeerde geschiedenis: {done} combinaties opgevraagd, {rows} prijspunten toegevoegd ({pk.credits} credits tot nu toe)"
             + ("; de cursor werkt niet (alleen de eerste pagina per opvraging)" if state.get("cursor_ok") is False else "") + ".")
         if target_days and not stuck and not pk.over_budget() and not (deadline and time.time() >= deadline):

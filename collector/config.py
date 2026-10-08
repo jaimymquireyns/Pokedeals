@@ -109,7 +109,7 @@ def is_digital_set(set_id):
 
 
 GRADED_ENABLED = True        # gegradeerde geschiedenis (PSA/BGS/CGC) voor de beroemde Pokémon. Stond uit sinds 6 okt (de uitlezing herkende niets); hersteld op 7 okt met het echte antwoord van PkmnPrices als uitgangspunt. Op False zetten om uit te schakelen.
-GRADED_BUDGET = 4000         # nooit meer dan dit per dag (1 credit per teruggegeven verkoop); bewust klein begonnen, na een paar goede nachten te verhogen
+GRADED_BUDGET = 12000        # nooit meer dan dit per dag (1 credit per teruggegeven verkoop); bewust klein begonnen, na een paar goede nachten te verhogen
 GRADED_MAX_PAGES = 3         # hoogstens zoveel pagina's (van 20 verkopen) per kaart/graad per opvraging
 GRADED_RECHECK_DAYS = 14     # een kaart/graad met verkopen: pas na zoveel dagen opnieuw opvragen
 GRADED_RECHECK_EMPTY_DAYS = 45   # een kaart/graad zonder enige verkoop: pas na zoveel dagen opnieuw

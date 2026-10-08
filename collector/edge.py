@@ -232,29 +232,50 @@ def predict(model, pp, points, mk):
 
 
 # ---------------- eerlijk toetsen ----------------
-def _split(samples, train_frac=0.6, gap=HORIZON):
-    """Train: alleen momenten waarvan de uitkomst ruim voor de splitsing al bekend was. Test: alles vanaf de splitsing."""
+def _split(samples, train_frac=0.6, min_train=100, min_test=50, why=None):
+    """Kiest een splitsdatum: train = metingen waarvan de uitkomst op die datum al bekend was (einddatum <= splitsdatum), test = metingen
+    vanaf die datum. Het oog valt alleen op AANTALLEN, nooit op uitkomsten: van alle datums waarbij beide kanten groot genoeg zijn pakken we
+    die waarbij het trainingsdeel het dichtst bij train_frac van alles ligt. (Eerdere versie nam de datum bij 60% van de metingen en eiste
+    einddatum < splitsdatum: bij een scheve verdeling, met de meeste metingen in de eerste meetronde, bleef er dan niets over om op te trainen.)"""
     s = sorted(samples, key=lambda x: x["date"])
-    if len(s) < 100:
+    n = len(s)
+    if n < min_train + min_test:
+        if why is not None:
+            why.append(f"{n} metingen in totaal; minimaal {min_train + min_test} nodig")
         return None, None, None
-    cut = s[int(len(s) * train_frac)]["date"]
-    train = [x for x in s if x["end_date"] < cut]
-    test = [x for x in s if x["date"] >= cut]
-    return train, test, cut
+    best = None
+    most = (0, "")
+    for cut in sorted({x["date"] for x in s}):
+        train = [x for x in s if x["end_date"] <= cut]
+        test = [x for x in s if x["date"] >= cut]
+        most = max(most, (min(len(train), len(test)), cut))
+        if len(train) < min_train or len(test) < min_test:
+            continue
+        score = abs(len(train) / n - train_frac)
+        if best is None or score < best[0]:
+            best = (score, cut, train, test)
+    if not best:
+        if why is not None:
+            why.append(f"{n} metingen, maar op geen enkele splitsdatum zijn er minstens {min_train} om op te trainen en {min_test} om op te toetsen "
+                       f"(de meeste metingen vallen op te weinig verschillende dagen; beste splitsing: {most[0]} aan de kleinste kant)")
+        return None, None, None
+    return best[2], best[3], best[1]
 
 
 def _brier(ps, outs):
     return sum((p - (1.0 if o else 0.0)) ** 2 for p, o in zip(ps, outs)) / len(outs)
 
 
-def walk_forward(samples, train_frac=0.6, rule_depth=-math.log(0.85)):
+def walk_forward(samples, train_frac=0.6, rule_depth=-math.log(0.85), why=None):
     """Traint op het begin, meet op het eind. Alles wordt vergeleken met het kostenbewuste basismodel (zie boven). None als er te weinig
     metingen zijn voor een eerlijke toets."""
-    train, test, cut = _split(samples, train_frac)
-    if not train or len(train) < 100 or len(test) < 50:
+    train, test, cut = _split(samples, train_frac, why=why)
+    if not train:
         return None
     model = fit(train)
     if not model:
+        if why is not None:
+            why.append("het model kon niet worden aangepast op de trainingsmetingen")
         return None
     base = model["base"]
     for s in test:
@@ -262,7 +283,8 @@ def walk_forward(samples, train_frac=0.6, rule_depth=-math.log(0.85)):
         s["p_up10"] = prob_ge(model, s["f"], math.log(1.10))
         s["p_win0"] = prob_ge(base, s["f"], breakeven_log(s["p0"]))
         s["p_up0"] = prob_ge(base, s["f"], math.log(1.10))
-    res = {"cut": cut, "n_train": len(train), "n_test": len(test), "coef": dict(zip(FEATURES, model["beta"])), "model": model}
+    res = {"cut": cut, "n_train": len(train), "n_test": len(test), "coef": dict(zip(FEATURES, model["beta"])), "model": model,
+           "train_days": len({x["date"] for x in train}), "test_days": len({x["date"] for x in test})}
     wins = [s["win"] for s in test]
     ups = [s["up"] for s in test]
     res["win_rate"] = sum(wins) / len(test)
@@ -282,6 +304,12 @@ def walk_forward(samples, train_frac=0.6, rule_depth=-math.log(0.85)):
     res["rest_exp"] = sum(s["p_win0"] for s in rest) / max(len(rest), 1)
     var = sum(s["p_win0"] * (1 - s["p_win0"]) for s in top) / len(top)
     res["z"] = (res["top_win"] - res["top_exp"]) / math.sqrt(max(var, 1e-9) / len(top))
+    # Werkt het model ook in rustige reeksen (zonder sprongen)? De uitsplitsing liet zien dat 'onder het gemiddelde' bijna alleen bij springerige reeksen werkte.
+    calm = [s for s in test if s["f"]["_jn"] < 2]
+    if len(calm) >= 30:
+        cb = _brier([s["p_win0"] for s in calm], [s["win"] for s in calm])
+        res["calm_n"] = len(calm)
+        res["calm_skill"] = 1 - _brier([s["p_win"] for s in calm], [s["win"] for s in calm]) / cb if cb else 0.0
     rule = [s for s in test if s["f"]["depth"] >= rule_depth]
     res["rule_n"] = len(rule)
     res["rule_win"] = sum(s["win"] for s in rule) / len(rule) if rule else None
@@ -295,11 +323,12 @@ def walk_forward(samples, train_frac=0.6, rule_depth=-math.log(0.85)):
     return res
 
 
-def report_walk_forward(res, log=print):
+def report_walk_forward(res, log=print, why=None):
     if not res:
-        log("  Eigen model: te weinig metingen voor een eerlijke toets (minimaal ~170 in totaal).")
+        log("  Eigen model: geen eerlijke toets mogelijk" + (": " + "; ".join(why) if why else " (te weinig metingen)") + ".")
         return
-    log(f"  Eigen model, getraind op {res['n_train']} metingen tot {res['cut']}, getoetst op {res['n_test']} metingen daarna (die het nooit zag):")
+    log(f"  Eigen model, getraind op {res['n_train']} metingen (op {res['train_days']} verschillende dagen) tot {res['cut']}, "
+        f"getoetst op {res['n_test']} metingen (op {res['test_days']} verschillende dagen) daarna, die het nooit zag:")
     names = {"depth": "onder gemiddelde", "mom14": "trend 14 dagen", "logp": "prijsniveau", "mkt30": "markt 30 dagen", "cv14": "onrust", "jumps": "sprongen"}
     log("    gewichten (positief = hoger kenmerk, hogere verwachte stijging): " + ", ".join(f"{names[k]} {v * 100:+.1f}" for k, v in res["coef"].items()))
     log(f"    Alles hieronder wordt vergeleken met het kostenbewuste basismodel: dezelfde verzend- en verkoopkosten en hetzelfde prijsniveau, maar zonder enig kenmerk.")
@@ -308,12 +337,14 @@ def report_walk_forward(res, log=print):
     if res.get("rule_win") is not None:
         log(f"    ter vergelijking, de simpele regel 'minstens 15% onder het gemiddelde' ({res['rule_n']} momenten): basismodel verwachtte {res['rule_exp'] * 100:.1f}%, echt {res['rule_win'] * 100:.1f}%")
     log(f"    Brier-voorsprong op het basismodel (0 = geen, positief = beter): winst {res['skill_win'] * 100:+.1f}%, +10% {res['skill_up'] * 100:+.1f}%")
+    if res.get("calm_n"):
+        log(f"    alleen rustige reeksen (zonder sprongen, {res['calm_n']} metingen): Brier-voorsprong op het basismodel {res['calm_skill'] * 100:+.1f}%")
     log("    kalibratie van p_win (voorspeld -> echt, per groep):  " + "  ".join(f"{lo * 100:.0f}-{hi * 100:.0f}%: n={n} {pm * 100:.0f}->{rl * 100:.0f}%" for lo, hi, n, pm, rl in res["calib"]))
     if res["skill_win"] > 0 and res["z"] >= 2:
         verdict = "Het model weet op ongeziene data meer dan het kostenbewuste basismodel."
     else:
         verdict = "Geen aantoonbaar voordeel op het kostenbewuste basismodel."
-    log(f"    Oordeel: {verdict} (let op: de metingen zijn niet onafhankelijk van elkaar, bijvoorbeeld door marktbrede bewegingen; z >= 2 is nodig, niet genoeg.)")
+    log(f"    Oordeel: {verdict} (let op: metingen van dezelfde dag delen dezelfde markt, dus {res['test_days']} testdagen zijn minder bewijs dan {res['n_test']} metingen doen lijken; z >= 2 is nodig, niet genoeg.)")
 
 
 # ---------------- uitsplitsingen ----------------
@@ -374,6 +405,13 @@ def shadow(series, today, log=print, min_samples=300):
                         "exp_ret": round(pr["exp_ret"], 4), "model": VERSION}
     hi = sum(1 for v in out.values() if v["p_win"] >= 0.30)
     log(f"Eigen model ({VERSION}): getraind op {model['n']} metingen; vandaag voorspeld voor {len(out)} kaarten, waarvan {hi} met minstens 30% kans op winst na kosten.")
+    rows = [s for s in samples if s.get("f")]
+    if rows and out:
+        tr_pred = sum(prob_ge(model, s["f"], breakeven_log(s["p0"])) for s in rows) / len(rows)
+        tr_real = sum(1 for s in rows if s["win"]) / len(rows)
+        today_pred = sum(v["p_win"] for v in out.values()) / len(out)
+        log(f"  ter controle: op de trainingsmetingen voorspelde het model gemiddeld {tr_pred * 100:.0f}% (echt {tr_real * 100:.0f}%); vandaag voorspelt het gemiddeld {today_pred * 100:.0f}%. "
+            "Staat dat laatste veel hoger, dan wijken de kaarten van vandaag af van wat het model kent.")
     return out
 
 

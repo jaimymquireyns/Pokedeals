@@ -185,8 +185,9 @@ def compute_today(store, today, log=print):
         try:
             import edge
             shadow = edge.shadow(series, today, log=log)
-            for r in rows:
-                r.update(shadow.get(r["product_id"], {}))
+            if shadow:
+                for r in rows:   # alle rijen dezelfde kolommen (ook kaarten zonder voorspelling): Supabase weigert een bulk-opslag met wisselende kolommen
+                    r.update(shadow.get(r["product_id"]) or {k: None for k in EDGE_COLS})
         except Exception as e:   # het eigen model is een proef: als het mislukt moeten de gewone signalen er gewoon staan
             log(f"! eigen model mislukt: {type(e).__name__}: {e}")
     if rows:
@@ -197,7 +198,7 @@ def compute_today(store, today, log=print):
             if slim == rows:
                 raise
             store.upsert("card_signals", slim, "product_id,date")   # zonder de kolommen van het eigen model; zijn die er niet, dan lukt dit wel
-            log(f"  (voorspellingen van het eigen model niet opgeslagen: {type(e).__name__}; draai supabase/schema.sql opnieuw voor de kolommen p_win, p_win0, p_up10, exp_ret en model)")
+            log(f"  (voorspellingen van het eigen model niet opgeslagen: {type(e).__name__}: {str(e)[:300]}; zijn de kolommen p_win, p_win0, p_up10, exp_ret en model aangemaakt via supabase/schema.sql?)")
     n_cand = sum(1 for r in rows if r["s_onder_gemiddelde"] == 1 and r["n_negative"] == 0)
     n_best = sum(1 for r in rows if r["s_onder_gemiddelde"] == 1 and r["s_stabiliseert"] == 1 and r["n_negative"] == 0)
     n_market = sum(1 for r in rows if r["s_aanbod"] is not None)
@@ -312,12 +313,21 @@ def extra_analysis(store, today, inputs, products, log=print):
     import reliability
     series_a = build_series(inputs, clean=False)
     series_b = build_series(inputs, clean=True)
-    for label, series in (("A. zoals het was", series_a), ("B. met pieken eruit gehaald", series_b)):
+    ids, raw, _nm = inputs
+    series_c = build_series((ids, raw, {}), clean=False)   # Cardmarkets eigen prijslijst (trend) in plaats van onze laagste vraagprijs
+    for label, series in (("A. zoals het was", series_a), ("B. met pieken eruit gehaald", series_b),
+                          ("C. Cardmarkets eigen prijslijst (trend) in plaats van de laagste vraagprijs", series_c)):
         log("")
         log(f"=== {label}: uitsplitsing en eigen model ===")
         samples = edge.collect_samples(series)
+        days = sorted({x["date"] for x in samples})
+        log(f"  {len(samples)} metingen van {len({x['pid'] for x in samples})} kaarten, op {len(days)} verschillende dagen"
+            + (f" ({days[0]} t/m {days[-1]})" if days else ""))
+        if label.startswith("C."):
+            log("  (kan een springerige reeks niet door één verkoper worden opgedreven? Dan hoort 'onder het gemiddelde' hier niet vooral bij springerige reeksen te werken.)")
         edge.report_splits(samples, log)
-        edge.report_walk_forward(edge.walk_forward(samples), log)
+        why = []
+        edge.report_walk_forward(edge.walk_forward(samples, why=why), log, why=why)
     log("")
     log("=== Voorspellingen die we de afgelopen weken zelf hebben vastgelegd ===")
     edge.evaluate_stored(store, today, series_a, log)
