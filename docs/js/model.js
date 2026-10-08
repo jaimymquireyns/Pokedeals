@@ -141,6 +141,15 @@ export const gradeLabel = (c) => (c.grade_company ? `${c.grade_company} ${c.grad
 // De verzamelaar (collector/advice.py) beoordeelt elke dag per product of de prijs ruim boven of onder normaal staat en of echte
 // verkopen dat bevestigen. Hier maken we daar per persoon een advies van, met jouw aankoopprijs en kosten erbij.
 export const ADVICE = { minBuyPrice: 10, sellProfit: 0.15, buyGain: 0.10 };
+export const CONTEXT_TEXT = {
+  herdruk: "er kwam onlangs een nieuwe versie van deze kaart uit",
+  "nieuwe set": "de set is nog nieuw: prijzen zakken de eerste maanden vaak verder",
+  "set daalt": "de hele set daalt",
+  "pokemon daalt": "alle kaarten van deze Pokémon dalen",
+  "markt daalt": "de hele markt daalt",
+  "set stijgt": "de hele set stijgt (hype)",
+  "pokemon stijgt": "alle kaarten van deze Pokémon stijgen (hype)",
+};
 export const ADVICE_FLAG_TEXT = {
   afwijking: "de vraagprijs wijkt sterk af van waarvoor de kaart echt verkocht wordt",
   springt: "de prijs maakte de laatste 2 maanden meerdere grote sprongen",
@@ -171,22 +180,37 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
     return { label: "Verdacht", tone: "warn", short: "De prijs lijkt gestuurd of onbetrouwbaar: geen advies.",
       reasons: [where, ...why.map((w) => w.charAt(0).toUpperCase() + w.slice(1) + "."), "Daarom geven we hier bewust geen kopen- of verkopenadvies."] };
   }
+  // achtergrondcontrole (collector/advice.py): heeft de daling of stijging een aanwijsbare reden?
+  const ctx = (a.context || []).map((c) => { const [k, ...rest] = String(c).split(": "); return { k, text: (CONTEXT_TEXT[k] || k) + (rest.length ? ` (${rest.join(": ")})` : "") }; });
+  const ctxDrop = a.state === "laag" ? ctx : [];
+  const ctxReasons = ctx.map((c) => c.text.charAt(0).toUpperCase() + c.text.slice(1) + ".");
   if (owned) {
     const net = price * (1 - s.fee_pct / 100) - PACKAGING, cost = costEach(owned), profit = cost ? net / cost - 1 : null;
     const pText = profit == null ? "" : `Verkoop je nu, dan hou je na commissie en verpakking ongeveer ${eur(net)} per stuk over: ${signed(profit)} op wat je betaalde (${eur(cost)}).`;
     if (a.state === "hoog" && profit != null && profit >= ADVICE.sellProfit) {
       return { label: "Verkopen", tone: "sell", short: `Prijs staat ruim boven normaal en je maakt ${signed(profit)} winst.`,
-        reasons: [where, sales, pText, "Prijzen die zo ver boven normaal staan, zakken meestal weer terug."] };
+        reasons: [where, sales, pText, ...ctxReasons, "Prijzen die zo ver boven normaal staan, zakken meestal weer terug."] };
     }
-    if (a.state === "hoog") return { label: "Houden", tone: "hold", short: "De prijs is hoog, maar na kosten hou je nog te weinig over.", reasons: [where, sales, pText] };
-    if (a.state === "laag") return { label: "Houden", tone: "hold", short: "De prijs staat tijdelijk laag: nu verkopen zet verlies vast.", reasons: [where, sales, pText, "Prijzen die ver onder normaal staan, herstellen meestal. Een goed moment om bij te kopen als je dat wilt."] };
+    if (a.state === "hoog") return { label: "Houden", tone: "hold", short: "De prijs is hoog, maar na kosten hou je nog te weinig over.", reasons: [where, sales, pText, ...ctxReasons] };
+    if (a.state === "laag") {
+      const gain = recoveryGain(price, normal, s);
+      if (ctxDrop.length) return { label: "Houden", tone: "hold", short: `De prijs staat laag, maar daar is een reden voor: ${ctxDrop[0].text}.`,
+        reasons: [where, sales, pText, ...ctxReasons, "Daarom raden we bijkopen nu af: zo'n daling herstelt minder vaak vanzelf. Verkopen zet wel verlies vast."] };
+      if (price >= ADVICE.minBuyPrice && gain >= ADVICE.buyGain) return { label: "Bijkopen", tone: "buy", short: `Tijdelijk ${signed(-ratio).replace("+", "")} onder normaal; bijkopen levert ${signed(gain)} op als hij herstelt.`,
+        reasons: [where, sales, pText, `Koop je er nu één bij en verkoop je die als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Geen aanwijsbare reden voor de daling gevonden (geen herdruk, de rest van de set en de markt staan gewoon). Zulke dalingen herstellen meestal, maar niet altijd."] };
+      return { label: "Houden", tone: "hold", short: "De prijs staat tijdelijk laag: nu verkopen zet verlies vast.", reasons: [where, sales, pText, "Prijzen die ver onder normaal staan, herstellen meestal."] };
+    }
     return { label: "Houden", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where, pText].filter(Boolean) };
+  }
+  if (a.state === "laag" && ctxDrop.length) {
+    return { label: "Afwachten", tone: "hold", short: `Onder normaal, maar met een reden: ${ctxDrop[0].text}.`,
+      reasons: [where, sales, ...ctxReasons, "Zo'n daling herstelt minder vaak vanzelf, dus geen koopadvies."] };
   }
   if (a.state === "laag") {
     const gain = recoveryGain(price, normal, s);
     if (price >= ADVICE.minBuyPrice && gain >= ADVICE.buyGain) {
       return { label: "Kopen", tone: "buy", short: `${signed(-ratio).replace("+", "")} onder normaal; ${signed(gain)} winst als hij herstelt.`,
-        reasons: [where, sales, `Koop je nu (met ongeveer ${eur(shipCost(price))} verzending) en verkoop je als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Prijzen die ver onder normaal staan, herstellen meestal, maar niet altijd."] };
+        reasons: [where, sales, `Koop je nu (met ongeveer ${eur(shipCost(price))} verzending) en verkoop je als de prijs terug op normaal staat, dan hou je na kosten ongeveer ${signed(gain)} over.`, "Geen aanwijsbare reden voor de daling gevonden (geen herdruk, de rest van de set en de markt staan gewoon). Zulke dalingen herstellen meestal, maar niet altijd."] };
     }
     return { label: "Afwachten", tone: "hold", short: price < ADVICE.minBuyPrice ? "Onder normaal, maar te goedkoop: de kosten eten de winst op." : "Onder normaal, maar na kosten blijft er te weinig over.", reasons: [where, sales] };
   }
@@ -194,9 +218,14 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
   return { label: "Afwachten", tone: "hold", short: "Niets bijzonders: de prijs staat rond normaal.", reasons: [where] };
 }
 
-/** Zin over hoe vaak het advies klopte (advice_stats, bron 'live'). */
+/** Zin over hoe vaak het advies klopte (advice_stats, bron 'live'), met het toeval (willekeurige gewone kaarten) ernaast. */
 export function adviceTrack(stats, state) {
-  const st = (stats || []).find((x) => x.source === "live" && x.state === state);
-  if (!st || !st.n) return "Elk advies wordt na 30 dagen gecontroleerd; de eerste uitkomsten komen er nog aan.";
-  return `Dit advies klopte tot nu toe ${st.hits} van ${st.n} keer (${Math.round((st.hits / st.n) * 100)}%), gecontroleerd na 30 dagen.`;
+  const get = (k) => (stats || []).find((x) => x.source === "live" && x.state === k);
+  const st = get(state), ctrl = get(state === "hoog" ? "controle_daalt" : "controle");
+  if (!st || !st.n) return "Elk advies wordt na 30 dagen gecontroleerd en vergeleken met willekeurige kaarten; de eerste uitkomsten komen er nog aan.";
+  const pct = (x) => Math.round((x.hits / x.n) * 100);
+  const base = `Dit advies klopte tot nu toe ${st.hits} van ${st.n} keer (${pct(st)}%)` + (ctrl && ctrl.n ? `; bij willekeurige kaarten was dat ${pct(ctrl)}%.` : ", gecontroleerd na 30 dagen.");
+  // eerlijk zijn: met genoeg uitkomsten en niet beter dan toeval, dan zeggen we dat ook
+  if (ctrl && ctrl.n >= 30 && st.n >= 30 && pct(st) <= pct(ctrl)) return base + " Dat is nog niet beter dan toeval: neem dit advies met een korrel zout.";
+  return base;
 }

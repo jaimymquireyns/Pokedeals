@@ -361,6 +361,8 @@ create table if not exists advice (
     primary key (product_id, date)
 );
 create index if not exists advice_state_date on advice (date, state);
+alter table advice add column if not exists context text[] not null default '{}';    -- achtergrondcontrole: reden voor een daling of stijging (herdruk, nieuwe set, hele set...)
+alter table advice add column if not exists control boolean not null default false;  -- willekeurige gewone kaart (controlegroep), om het advies tegen toeval te toetsen
 create table if not exists advice_stats (        -- hoe vaak het advies klopte (live = echte uitkomsten na 30 dagen)
     source text not null, state text not null,
     n int not null default 0, hits int not null default 0, avg_ret numeric, updated date,
