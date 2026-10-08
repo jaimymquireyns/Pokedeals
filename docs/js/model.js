@@ -147,6 +147,7 @@ export const CONTEXT_TEXT = {
   "set daalt": "de hele set daalt",
   "pokemon daalt": "alle kaarten van deze Pokémon dalen",
   "markt daalt": "de hele markt daalt",
+  "na een piek": "de langere geschiedenis laat zien dat de prijs eerder een piek had en nu terugzakt",
   "set stijgt": "de hele set stijgt (hype)",
   "pokemon stijgt": "alle kaarten van deze Pokémon stijgen (hype)",
 };

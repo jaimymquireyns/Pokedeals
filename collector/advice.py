@@ -172,6 +172,16 @@ def load_raw(store, ids, since):
     return {pid: [days[d] for d in sorted(days)] for pid, days in out.items()}
 
 
+def load_nm(store, ids, since):
+    """Near Mint-geschiedenis van PkmnPrices (grade_key 'nm'): vraagprijzen, geen verkopen, maar wel tot maanden terug."""
+    out = {}
+    for ch in _chunks(ids):
+        for r in store.select("prices", {"select": "product_id,date,price", "product_id": f"in.({','.join(ch)})",
+                                         "grade_key": "eq.nm", "date": f"gte.{since}", "order": "product_id.asc,date.asc"}):
+            out.setdefault(r["product_id"], []).append(r)
+    return out
+
+
 def load_offers(store):
     """Per product: (aantal verschillende verkopers onder de 5 goedkoopste aanbiedingen, goedkoopste prijs). Alleen waar aanbiedingen zijn opgehaald."""
     by, low = {}, {}
@@ -213,6 +223,7 @@ CONTEXT_TEXT = {
     "set daalt": "de hele set daalt",
     "pokemon daalt": "alle kaarten van deze Pokémon dalen",
     "markt daalt": "de hele markt daalt",
+    "na een piek": "de langere geschiedenis (Near Mint, PkmnPrices) laat zien dat de prijs eerder een piek had en nu terugzakt",
     "set stijgt": "de hele set stijgt (hype)",
     "pokemon stijgt": "alle kaarten van deze Pokémon stijgen (hype)",
 }
@@ -222,7 +233,25 @@ def _norm_name(n):
     return " ".join(str(n or "").lower().split())
 
 
-def context_flags(results, products, sets, today):
+def after_peak(nm_rows, today):
+    """Vergelijkt de Near Mint-reeks van PkmnPrices met zichzelf (appels met appels): de mediaan van de laatste 45 dagen tegen
+    die van de 3 maanden daarvoor, zonder pieken. Geeft de verhouding, of None bij te weinig punten. Ligt die verhouding hoog,
+    dan was de prijs waar we nu 'normaal' mee vergelijken zelf al een piek, en is een daling eerder een terugkeer dan een koopje."""
+    import analysis
+    t = _d(today)
+    mid, start = (t - timedelta(days=45)).isoformat(), (t - timedelta(days=135)).isoformat()
+    pts = [{"date": r["date"], "price": _f(r.get("price"))} for r in nm_rows or [] if start <= r["date"] and _f(r.get("price"))]
+    if len(pts) < 20:
+        return None
+    kept, _ = analysis.clean_nm_rows(pts)
+    recent = [r["price"] for r in kept if r["date"] >= mid]
+    longer = [r["price"] for r in kept if r["date"] < mid]
+    if len(recent) < 6 or len(longer) < 10:
+        return None
+    return _median(recent) / _median(longer)
+
+
+def context_flags(results, products, sets, today, nm=None):
     """Achtergrondcontrole: heeft een grote beweging een aanwijsbare reden? Kijkt naar herdrukken (zelfde naam in een set van
     de laatste ADVICE_REPRINT_DAYS dagen), een nog jonge set, en of de hele set, alle kaarten van die Pokémon of de hele markt
     meebewegen. results: {product_id: assess-uitkomst}; products: {product_id: product}; sets: {set_id: set}.
@@ -272,6 +301,9 @@ def context_flags(results, products, sets, today):
                 flags.append(("pokemon daalt", f"gemiddeld {(dm[0] - 1) * 100:+.0f}% over {dm[1]} kaarten"))
             if market and market <= config.ADVICE_MARKET_DROP:
                 flags.append(("markt daalt", f"gemiddeld {(market - 1) * 100:+.0f}%"))
+            peak = after_peak((nm or {}).get(pid), today)
+            if peak and peak >= config.ADVICE_PEAK:
+                flags.append(("na een piek", f"de laatste 6 weken {(peak - 1) * 100:+.0f}% boven de 3 maanden daarvoor"))
         else:
             sm = by_set.get(p.get("set_id"))
             if sm and sm[1] >= config.ADVICE_GROUP_MIN and sm[0] >= config.ADVICE_GROUP_RISE:
@@ -310,7 +342,9 @@ def run(store, today, log=print):
                for pid in sorted(ids)}
     try:
         products = {p["product_id"]: p for p in store.select("products", {"select": "product_id,kind,name,set_id,dex_id", "order": "product_id.asc"})}
-        ctx = context_flags(results, products, store.known_sets(), today)
+        laag_ids = [pid for pid, a in results.items() if a["state"] == "laag"]
+        nm = load_nm(store, laag_ids, (t - timedelta(days=140)).isoformat())
+        ctx = context_flags(results, products, store.known_sets(), today, nm=nm)
     except Exception as e:  # zonder context gaat het advies gewoon door
         log(f"  (achtergrondcontrole overgeslagen: {e})")
         ctx = {}
@@ -445,7 +479,8 @@ def dry_run(store, today, log=print, top=15):
     res = {pid: assess(raw.get(pid, []), None, today, sellers=sellers.get(pid), lowest_offer=lows.get(pid)) for pid in ids}
     try:
         prods = {p["product_id"]: p for p in store.select("products", {"select": "product_id,kind,name,set_id,dex_id", "order": "product_id.asc"})}
-        ctx = context_flags(res, prods, store.known_sets(), today)
+        nm = load_nm(store, [pid for pid, a in res.items() if a["state"] == "laag"], (t - timedelta(days=140)).isoformat())
+        ctx = context_flags(res, prods, store.known_sets(), today, nm=nm)
         laag = [pid for pid, a in res.items() if a["state"] == "laag"]
         log(f"  achtergrondcontrole: {sum(1 for pid in laag if pid in ctx)} van {len(laag)} dalers hebben een reden: {_count_flags(ctx)}")
         for pid in sorted(laag, key=lambda x: -(res[x]["price"] or 0))[:10]:

@@ -169,3 +169,4 @@ ADVICE_GROUP_DROP = 0.85        # de hele groep staat gemiddeld minstens 15% ond
 ADVICE_GROUP_RISE = 1.15        # of minstens 15% erboven (hype)
 ADVICE_MARKET_DROP = 0.90       # de hele markt staat gemiddeld minstens 10% onder normaal
 ADVICE_CONTROL_SHARE = 0.05     # zoveel van de gewone kaarten bewaren we als controlegroep
+ADVICE_PEAK = 1.30              # Near Mint-geschiedenis: de laatste 6 weken minstens 30% boven de 3 maanden daarvoor = de 'normale' prijs was zelf een piek
