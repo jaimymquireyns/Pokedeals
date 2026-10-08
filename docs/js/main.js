@@ -15,7 +15,7 @@ import { salesView } from "./views/sales.js";
 
 const app = $("#app");
 const tabsEl = $("#tabs");
-const TABS = [["home", "Home", "home"], ["search", "Zoeken", "search"], ["watchlist", "Volglijst", "star"], ["collection", "Collectie", "cards"]];
+const TABS = [["home", "Home", "home"], ["search", "Search", "search"], ["watchlist", "Watchlist", "star"], ["collection", "Collection", "cards"], ["settings", "Settings", "gear"]];
 
 function drawTabs(active) {
   tabsEl.hidden = !active;
@@ -34,8 +34,8 @@ async function route() {
   window.scrollTo(0, 0);
   if (!configured) {
     drawTabs(null);
-    app.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Bijna klaar" })),
-      note("Verbinding ontbreekt", "Vul SUPABASE_URL en SUPABASE_KEY in bij docs/config.js. Zie de README, stap 3.")));
+    app.replaceChildren(h("div", { class: "page" }, h("div", { class: "head" }, h("h1", { text: "Almost ready" })),
+      note("No connection", "Fill in SUPABASE_URL and SUPABASE_KEY in docs/config.js. See the README, step 3.")));
     return;
   }
   try {
@@ -44,24 +44,24 @@ async function route() {
       case "search": drawTabs("search"); await searchView(app); break;
       case "collection":
         drawTabs("collection");
-        if (!isLoggedIn()) loginView(app, { reason: "Log in om je collectie te zien en bij te houden.", onDone: route });
+        if (!isLoggedIn()) loginView(app, { reason: "Log in to see and track your collection.", onDone: route });
         else await collectionView(app);
         break;
       case "gekocht": case "verkocht":
         drawTabs("collection");
-        if (!isLoggedIn()) loginView(app, { reason: "Log in om je aankopen en verkopen te zien.", onDone: route });
+        if (!isLoggedIn()) loginView(app, { reason: "Log in to see your purchases and sales.", onDone: route });
         else await (view === "gekocht" ? purchasesView(app) : salesView(app));
         break;
       case "watchlist": drawTabs("watchlist"); await watchlistView(app); break;
       case "detail": drawTabs(null); await detailView(app, parts[1], q.get("c")); break;
-      case "settings": drawTabs(null); await settingsView(app); break;
+      case "settings": drawTabs("settings"); await settingsView(app); break;
       case "track": drawTabs(null); await trackView(app); break;
       case "login": drawTabs(null); loginView(app, { onDone: () => { const next = q.get("next"); go(next || "#/home"); } }); break;
       default: go("#/home");
     }
   } catch (e) {
     console.error(e);
-    app.replaceChildren(h("div", { class: "page" }, note("Er ging iets mis", "Probeer de app opnieuw te openen.")));
+    app.replaceChildren(h("div", { class: "page" }, note("Something went wrong", "Try reopening the app.")));
   }
 }
 

@@ -8,13 +8,13 @@ import { debounce, eur, h, icon, openSheet, closeSheet, segment, thumb, toast } 
 let state = { q: "", kind: "alles" };
 
 export async function searchView(root) {
-  const input = h("input", { type: "search", placeholder: "Zoek naam, set of nummer", value: state.q, "aria-label": "Zoeken", autocomplete: "off" });
+  const input = h("input", { type: "search", placeholder: "Search name, set or number", value: state.q, "aria-label": "Search", autocomplete: "off" });
   const list = h("ul", { class: "list" });
   const owned = new Map();
 
   const need = () => {
     if (isLoggedIn()) return true;
-    toast("Log eerst in om je collectie te gebruiken");
+    toast("Log in first to use your collection");
     go("#/login?next=" + encodeURIComponent("#/search"));
     return false;
   };
@@ -25,7 +25,7 @@ export async function searchView(root) {
 
   let rows = [];
   const draw = () => {
-    if (!state.q.trim()) { list.replaceChildren(emptyNote("Typ een naam, set of nummer. Bijvoorbeeld \"charizard 30th 4\". Of gebruik de camera om een kaart te scannen.")); return; }
+    if (!state.q.trim()) { list.replaceChildren(emptyNote("Type a name, set or number, e.g. \"charizard 30th 4\". Or scan a card with the camera.")); return; }
     list.replaceChildren(...(rows.length ? rows.map((r) => {
       const n = owned.get(r.product_id);
       return h("li", {}, h("div", { class: "resrow" },
@@ -35,11 +35,11 @@ export async function searchView(root) {
             h("div", { class: "l1" }, h("span", { class: "name", text: r.name }), h("span", { class: "price num", text: r.price ? eur(Number(r.price)) : "–" })),
             h("div", { class: "l2" }, h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }), kindTag(r.kind)),
             r.cm_name && r.kind === "card" && /\(.+\)/.test(r.cm_name) && r.cm_name.toLowerCase() !== String(r.name).toLowerCase() ? h("div", { class: "set cmn", text: `Cardmarket: ${r.cm_name}` }) : null)),
-        h("button", { class: "addb" + (n ? " done" : ""), type: "button", "aria-label": n ? "Nog een toevoegen" : "Toevoegen aan collectie", onclick: () => addSheet(r) }, icon(n ? "check" : "plus"))));
-    }) : [emptyNote("Niets gevonden.")]));
+        h("button", { class: "addb" + (n ? " done" : ""), type: "button", "aria-label": n ? "Add another" : "Add to collection", onclick: () => addSheet(r) }, icon(n ? "check" : "plus"))));
+    }) : [emptyNote("Nothing found.")]));
     const d = rows.debug;
     if (d && state.q.trim()) {   // hoe de zoekopdracht gelezen is: zo zie je meteen of het lezen of de data het probleem is
-      list.append(h("li", { class: "readas" }, `Gelezen als: naam "${d.name}"${d.set ? ` · set "${d.set}"` : ""}${d.numbers.length ? ` · nummer ${d.numbers.join(" / ")}` : ""}. Gevonden via: ${d.via || "–"} (${d.found} rijen).`));
+      list.append(h("li", { class: "readas" }, `Read as: name "${d.name}"${d.set ? ` · set "${d.set}"` : ""}${d.numbers.length ? ` · number ${d.numbers.join(" / ")}` : ""}. Found via: ${d.via || "–"} (${d.found} rows).`));
     }
   };
 
@@ -51,17 +51,17 @@ export async function searchView(root) {
     if (!raw) { rows = []; draw(); return; }
     try {
       rows = await searchCards(raw, { kind: state.kind });
-    } catch { rows = []; list.replaceChildren(emptyNote("Zoeken lukte niet. Controleer je verbinding.")); return; }
+    } catch { rows = []; list.replaceChildren(emptyNote("Search failed. Check your connection.")); return; }
     draw();
   }, 250);
 
   input.oninput = () => { state.q = input.value; run(); };
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
-    h("div", { class: "head" }, h("h1", { text: "Zoeken" })),
+    h("div", { class: "head" }, h("h1", { text: "Search" })),
     h("div", { class: "searchrow" }, h("label", { class: "sbox" }, icon("search"), input),
-      h("button", { class: "camb", type: "button", "aria-label": "Kaart scannen met de camera", onclick: () => { if (need()) openScan({ onAdded: () => run() }); } }, icon("camera"))),
-    h("div", { class: "bar" }, segment([["alles", "Alles"], ["card", "Kaarten"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; run(); })),
+      h("button", { class: "camb", type: "button", "aria-label": "Scan card with camera", onclick: () => { if (need()) openScan({ onAdded: () => run() }); } }, icon("camera"))),
+    h("div", { class: "bar" }, segment([["alles", "All"], ["card", "Cards"], ["sealed", "Sealed"]], state.kind, (v) => { state.kind = v; run(); })),
     list));
   draw();
   if (state.q) run();

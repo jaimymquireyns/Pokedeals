@@ -358,7 +358,7 @@ sender.sent.clear()
 config.DIGEST_MIN_P_UP = 0.3      # de nagebootste markt is rustig; zo tellen er toch kansen mee
 assert alerts.send_digest(store, sender, day(32), log=quiet) == 1
 body = sender.sent[0][1]["body"]
-assert "aandacht" in body and "kans" in body, body
+assert "attention" in body and "opportunit" in body, body
 assert alerts.attention([{"name": "x", "value_each": 100, "purchase_price": 50, "p_up": 0.1, "p_down": 0.1}])[0][1] == "winst nemen"
 assert alerts.attention([{"name": "x", "value_each": 100, "purchase_price": 50, "p_up": 0.6, "p_down": 0.1}]) == []
 

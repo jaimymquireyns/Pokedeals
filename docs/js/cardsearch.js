@@ -173,7 +173,7 @@ async function findRows(q, kindF, dbg = {}) {
     tried.add(key);
     const rows = await rest.get(`v_search?select=*&${key}${kindF}&order=price.desc.nullslast&limit=300`);
     if (rows.length) {
-      dbg.via = [/(^|&)name=/.test(key) && "naam", /set_name=/.test(key) && "set", /(^|&)number=/.test(key) && "nummer", /cm_name=/.test(key) && "Cardmarket-naam", /cm_url=/.test(key) && "Cardmarket-link"].filter(Boolean).join(" + ");
+      dbg.via = [/(^|&)name=/.test(key) && "name", /set_name=/.test(key) && "set", /(^|&)number=/.test(key) && "number", /cm_name=/.test(key) && "Cardmarket name", /cm_url=/.test(key) && "Cardmarket link"].filter(Boolean).join(" + ");
       dbg.tries = tried.size;
       return rows;
     }
@@ -197,7 +197,7 @@ export async function searchCards(raw, { kind = "alles", limit = 40 } = {}) {
     }
   }
   if (!rows.length) {
-    dbg.via = "brede zoekopdracht (naam of set)";
+    dbg.via = "broad search (name or set)";
     const pat = encodeURIComponent(norm(raw).split(/\s+/).join("*"));
     rows = await rest.get(`v_search?select=*&or=(name.ilike.*${pat}*,set_name.ilike.*${pat}*)${kindF}&order=price.desc.nullslast&limit=${limit}`);
   }

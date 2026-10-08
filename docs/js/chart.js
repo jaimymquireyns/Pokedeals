@@ -29,7 +29,7 @@ function niceTicks(lo, hi, n = 3) {
  * series: [{ pts: [[ms, y], ...], stroke, width, dash }]  hlines: [{ y, label, dash }]
  * area:   { upper: pts, lower: pts, fill }  (vlak tussen twee lijnen)
  */
-export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Grafiek", scrubSeries = null }) {
+export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Chart", scrubSeries = null }) {
   const L = 50, R = 6, T = 10, B = 24;
   const all = [...series.flatMap((s) => s.pts), ...(area ? [...area.upper, ...area.lower] : [])];
   const xs = all.map((p) => p[0]);
@@ -46,7 +46,7 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
   for (const t0 of niceTicks(lo, hi)) {
     const t = Math.abs(t0) < 1e-9 ? 0 : t0;   // geen '€ -0' op de nullijn
     svg.append(el("line", { class: "grid", x1: L, x2: width - R, y1: Y(t), y2: Y(t) }));
-    svg.append(el("text", { x: L - 6, y: Y(t) + 4, "text-anchor": "end" }, eur(t).replace(/,00$/, "")));
+    svg.append(el("text", { x: L - 6, y: Y(t) + 4, "text-anchor": "end" }, eur(t).replace(/\.00$/, "")));
   }
   if (area) {
     const poly = [...area.upper, ...[...area.lower].reverse()].map((p) => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
@@ -85,7 +85,7 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
       multi.forEach((s, i) => {
         const p = atX(s.pts, px);
         dots[i].setAttribute("cx", X(p[0])); dots[i].setAttribute("cy", Y(p[1])); dots[i].style.display = "";
-        lines.push(`${s.name || "Waarde"} ${eur(p[1])}`);
+        lines.push(`${s.name || "Value"} ${eur(p[1])}`);
       });
       const boxW = Math.max(...lines.map((l) => l.length)) * 6.3 + 14, boxH = 14 + lines.length * 14;
       const bx = Math.min(Math.max(gx - boxW / 2, L), width - R - boxW);
