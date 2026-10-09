@@ -37,8 +37,8 @@ def corr(xs, ys):
     return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sx * sy) if sx and sy else None
 
 
-us = load("ppt_hist", "raw")
-L.append(f"- Amerikaanse geschiedenis (ppt_hist): {len(us)} kaarten" + (f", van {min(s[0][0] for s in us.values())} tot {max(s[-1][0] for s in us.values())}" if us else ""))
+us = load("tcgplayer", "us")
+L.append(f"- Amerikaanse geschiedenis (TCGplayer via PkmnPrices): {len(us)} kaarten" + (f", van {min(s[0][0] for s in us.values())} tot {max(s[-1][0] for s in us.values())}" if us else ""))
 eu_nm = load("pkmnprices", "nm") if us else {}
 eu_tr = load("tcgdex", "raw") if us else {}
 for name, eu in (("Cardmarket Near Mint (PkmnPrices)", eu_nm), ("Cardmarket trend (TCGdex)", eu_tr)):
