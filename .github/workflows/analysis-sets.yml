@@ -1,0 +1,30 @@
+name: Analyse prijsverloop nieuwe sets
+on:
+  push:
+    branches: [analysis/sets]
+    paths: [collector/set_lifecycle.py, .github/workflows/analysis-sets.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Analyseren
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python set_lifecycle.py --out ../reports/set_lifecycle.md
+      - name: Verslag bewaren op deze branch
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          git add reports/set_lifecycle.md
+          git commit -m "Verslag prijsverloop nieuwe sets" || exit 0
+          git push
