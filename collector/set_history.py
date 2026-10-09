@@ -56,6 +56,8 @@ def run(store, pk, today, log=print, deadline=None, budget=None):
             return run(store, pk, today, log=log, deadline=deadline)
         finally:
             pk.budget = original_budget
+    if not config.SET_HISTORY_ENABLED:
+        return 0
     order = targets(store, today, log=log)
     if not order or pk.over_budget():
         return 0
