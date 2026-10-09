@@ -40,6 +40,31 @@ def _num(x):
     return v if v > 0 else None
 
 
+US_FX = 0.92   # vaste omrekening USD -> EUR voor de Amerikaanse reeks (alleen om te vergelijken; 'native' bewaart de dollars)
+
+
+def parse_us_rows(product_id, data, today):
+    """Dezelfde geschiedenis bevat ook TCGplayer (Amerika, USD). Die bewaren we apart (source 'tcgplayer', grade_key 'us'), om
+    de Amerikaanse en Europese markt te kunnen vergelijken. Kost niets extra: PkmnPrices stuurt ze toch mee. Eén uitvoering
+    per kaart (de meest voorkomende), zodat Normal en Reverse Holofoil niet door elkaar lopen."""
+    by_var = {}
+    for d in data:
+        cur = (d.get("currency") or "USD").upper()
+        if not isinstance(d, dict) or (d.get("source") or "").lower() != "tcgplayer" or cur not in ("USD", "EUR"):
+            continue
+        if (d.get("condition") or "near mint").lower() != "near mint":
+            continue
+        price = _num(d.get("market_price") or d.get("avg") or d.get("price"))
+        dt = str(d.get("date") or "")[:10]
+        if price and dt and dt < today:
+            by_var.setdefault(d.get("variant") or "", {})[dt] = price if cur == "USD" else price / US_FX
+    if not by_var:
+        return []
+    var = max(by_var, key=lambda v: len(by_var[v]))
+    return [{"product_id": product_id, "date": dt, "source": "tcgplayer", "grade_key": "us", "price": round(p * US_FX, 4), "native": p, "currency": "USD"}
+            for dt, p in sorted(by_var[var].items())]
+
+
 def parse_rows(product_id, data, today):
     """PkmnPrices' '/cards/{id}/prices/history?condition=Near Mint' -> prijsrijen, in dezelfde vorm als de
     dagelijkse Near Mint-prijs (source='pkmnprices', grade_key='nm'), zodat beide reeksen naadloos aansluiten."""
@@ -113,7 +138,7 @@ def run(store, pk, today, log=print, deadline=None, only=None):
         except Exception as e:
             log(f"  {p['name']}: {e}")
             continue
-        rows = parse_rows(pid, data, today)
+        rows = parse_rows(pid, data, today) + parse_us_rows(pid, data, today)
         if rows:
             try:
                 store.upsert_prices(rows)

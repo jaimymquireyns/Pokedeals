@@ -88,6 +88,8 @@ FAMOUS_DEX_IDS = {
     144, 229, 382, 487, 484, 483, 208, 383, 26, 143, 146, 134, 643, 644, 250, 145, 65, 282, 135, 243, 136, 59,
     133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
 }
+US_SAMPLE_N = 200              # steekproef Amerikaanse prijzen (us_sample.py): zoveel kaarten; 0 = uit
+US_SAMPLE_BUDGET = 30000       # credits per dag tot de steekproef compleet is
 SET_HISTORY_ENABLED = False    # UIT (9 okt): PkmnPrices heeft geen Near Mint-geschiedenis van vóór 11 juni 2026, dieper vragen levert niets op en kost wel credits
 SET_HISTORY_YEARS = 3          # set-geschiedenis (set_history.py): sets van de laatste zoveel jaar
 SET_HISTORY_TOP = 25           # per set de zoveel duurste kaarten

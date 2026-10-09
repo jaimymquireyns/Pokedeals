@@ -256,6 +256,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     except Exception as e:
         log(f"! advies-gegevens overgeslagen: {e}")
     try:
+        import us_sample
+        us_sample.run(store, pk_client, today, log=log, deadline=deadline)   # eenmalig: Amerikaanse prijzen naast de Europese
+    except Exception as e:
+        log(f"! Amerikaanse steekproef overgeslagen: {e}")
+    try:
         import set_history
         set_history.run(store, pk_client, today, log=log, deadline=deadline, budget=config.SET_HISTORY_BUDGET)   # voorrang tot alles binnen is (terugtest van het advies)
     except Exception as e:
