@@ -111,8 +111,11 @@ export function rankCandidates(parsed, rows) {
     else if (first && n.startsWith(first)) s += 3;
     else if (sim >= 0.65) s += 2;
     else if (first || tokens.length) s -= 2;
-    const numOk = parsed.number && normNum(r.number) === normNum(parsed.number);
+    const pn = normNum(parsed.number), rn = normNum(r.number);
+    const digits = (x) => x.replace(/^[a-z]+/, "").replace(/^0+(?=\d)/, "");
+    const numOk = parsed.number && (rn === pn || (digits(rn) === digits(pn) && /promo|black star/i.test(r.set_name || "")));   // 'SVP101' = promo nr. 101
     if (numOk) s += 3;
+    else if (parsed.number && pn.length >= 2 && rn.length === pn.length && lev(rn, pn) === 1) s += 1.5;   // één cijfer verkeerd gelezen ('709' voor 109)
     if (parsed.total && r.set_total != null && String(Number(r.set_total)) === String(Number(parsed.total))) s += 2;
     if (code && String(r.set_name || "").toLowerCase().includes(code)) s += 2;
     return { ...r, score: s, sim };
