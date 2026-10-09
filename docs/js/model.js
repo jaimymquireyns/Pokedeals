@@ -268,7 +268,13 @@ export function adviceFacts(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
 export function adviceTrack(stats, state) {
   const get = (k) => (stats || []).find((x) => x.source === "live" && x.state === k);
   const st = get(state), ctrl = get(state === "hoog" ? "controle_daalt" : "controle");
-  if (!st || !st.n) return "Advice is checked after 30 days and compared with random cards; first results are on their way.";
+  if (!st || !st.n) {
+    const bt = (stats || []).find((x) => x.source === "backtest" && x.state === state && x.n >= 30);
+    const bc = (stats || []).find((x) => x.source === "backtest" && x.state === "controle" && x.n >= 30);
+    if (bt) return `On past prices this advice was right ${bt.hits} of ${bt.n} times (${Math.round((bt.hits / bt.n) * 100)}%)` +
+      (bc && state === "laag" ? `; random cards: ${Math.round((bc.hits / bc.n) * 100)}%.` : ".") + " Real results follow after 30 days.";
+    return "Advice is checked after 30 days and compared with random cards; first results are on their way.";
+  }
   const pct = (x) => Math.round((x.hits / x.n) * 100);
   const base = `This advice was right ${st.hits} of ${st.n} times so far (${pct(st)}%)` + (ctrl && ctrl.n ? `; for random cards it was ${pct(ctrl)}%.` : ", checked after 30 days.");
   // eerlijk zijn: met genoeg uitkomsten en niet beter dan toeval, dan zeggen we dat ook
@@ -282,7 +288,8 @@ const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 /** Verwachte beweging en de kans dat die echt gebeurt, voor het balkje in de lijsten. Alleen bij een kaart die al een week
  * ruim onder (laag) of boven (hoog) zijn normale prijs staat: dan verwachten we dat hij terugkeert naar normaal.
  * move: verwachte stijging (+) of daling (−) tot de normale prijs, als fractie. chance: 0..1.
- * Zolang er geen gecontroleerde uitkomsten zijn, telt de kans hoeveel controles de kaart doorstaat (verkopen, aantal
+ * Basis: hoe vaak dit soort advies uitkwam, eerst in het echt (advice_stats 'live'), anders in de terugtest op de
+ * Near Mint-geschiedenis ('backtest', per diepte van de daling en leeftijd van de set). Zonder 30 uitkomsten telt de kans hoeveel controles de kaart doorstaat (verkopen, aantal
  * verkoopdagen, eigen Near Mint-geschiedenis, geen reden voor de daling, geen waarschuwingen). Vanaf 30 uitkomsten
  * (advice_stats) vertrekt de kans van hoe vaak dit soort advies echt uitkwam, en schuiven de controles hem wat op of neer. */
 export function outlook(a, stats = null) {
@@ -298,9 +305,13 @@ export function outlook(a, stats = null) {
   score -= 0.2 * Math.min((a.context || []).length, 2);                                 // er is een reden voor de beweging
   score -= 0.1 * Math.min((a.flags || []).length, 2);                                   // kleine waarschuwingen
   if (Math.abs(move) > 0.8) score -= 0.1;                                               // heel grote afstand: herstelt zelden helemaal
-  const st = (stats || []).find((x) => x.source === "live" && x.state === a.state);
-  const chance = st && st.n >= 30 ? st.hits / st.n + (score - 0.5) * 0.6 : score;
-  return { move, chance: clamp(chance, 0.05, 0.95) };
+  // basis van de kans: eerst echte uitkomsten (live), anders de terugtest op de geschiedenis (backtest), anders de controles
+  const young = (a.context || []).some((c) => /^(nieuwe set|jonge set)/.test(String(c)));
+  const keys = a.state === "laag" ? [young ? "laag_jong" : (price / normal <= 0.65 ? "laag_diep" : "laag_mild"), "laag"] : ["hoog"];
+  const find = (src) => keys.map((k) => (stats || []).find((x) => x.source === src && x.state === k && x.n >= 30)).find(Boolean);
+  const st = find("live") || find("backtest");
+  const chance = st ? st.hits / st.n + (score - 0.5) * 0.6 : score;
+  return { move, chance: clamp(chance, 0.05, 0.95), basis: st ? st.source : "checks" };
 }
 
 /** Prijsverandering tussen twee prijzen, als fractie (of null). */

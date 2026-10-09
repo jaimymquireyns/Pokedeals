@@ -25,9 +25,11 @@ def targets(store, today, log=print):
     for p in store.products("card"):
         if p.get("set_id") in sets and p["product_id"] in price and p.get("pk_id"):
             by_set.setdefault(p["set_id"], []).append(p["product_id"])
-    order = []
-    for sid in sorted(by_set, key=lambda s: str(sets[s]["release_date"]), reverse=True):
-        order += sorted(by_set[sid], key=lambda pid: -price[pid])[:config.SET_HISTORY_TOP]
+    # eerst de SET_HISTORY_FIRST duurste kaarten van elke set (zo is er snel van elke set iets), daarna de rest tot SET_HISTORY_TOP
+    ranked = {sid: sorted(pids, key=lambda pid: -price[pid])[:config.SET_HISTORY_TOP] for sid, pids in by_set.items()}
+    newest = sorted(by_set, key=lambda s: str(sets[s]["release_date"]), reverse=True)
+    order = [pid for sid in newest for pid in ranked[sid][:config.SET_HISTORY_FIRST]]
+    order += [pid for sid in newest for pid in ranked[sid][config.SET_HISTORY_FIRST:]]
     log(f"Set-geschiedenis: {len(order)} kaarten uit {len(by_set)} sets van de laatste {config.SET_HISTORY_YEARS:g} jaar "
         f"(top {config.SET_HISTORY_TOP} per set), tot {config.SET_HISTORY_DAYS} dagen terug.")
     return order
@@ -45,7 +47,15 @@ def supported_period(store, pk, pid, log=print):
     return None
 
 
-def run(store, pk, today, log=print, deadline=None):
+def run(store, pk, today, log=print, deadline=None, budget=None):
+    """budget: hooguit zoveel credits van deze run (bovenop wat al gebruikt is); None = wat er nog over is."""
+    if budget is not None:
+        original_budget = pk.budget
+        pk.budget = min(original_budget, pk.credits + budget)
+        try:
+            return run(store, pk, today, log=log, deadline=deadline)
+        finally:
+            pk.budget = original_budget
     order = targets(store, today, log=log)
     if not order or pk.over_budget():
         return 0
