@@ -1,4 +1,4 @@
-name: VAPID-sleutel controleren
+name: VAPID-sleutel controleren (opnieuw)
 on:
   push:
     branches: [analysis/sets]
