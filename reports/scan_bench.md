@@ -1,34 +1,32 @@
 # Testbank kaartherkenning
 
-- easy: 45/85 juist (53%), naam juist 61/85, gemiddeld 10.9 s
-- hard: 37/85 juist (44%), naam juist 57/85, gemiddeld 8.6 s
+- easy: 49/85 juist (58%), naam juist 63/85, gemiddeld 8.3 s
+- hard: 37/85 juist (44%), naam juist 57/85, gemiddeld 6.7 s
 
 ## Fouten
 
 | foto | kaart | gelezen | gevonden |
 |---|---|---|---|
 | easy | Krokorok (Black Bolt #136) | sTace 136/086 | Purrloin White Flare, no. 136 |
-| easy | Mega Scrafty ex (Ascended Heroes #285) | TSN Scrafty | Scrafty Furious Fists, no. 67 |
+| easy | Mega Scrafty ex (Ascended Heroes #285) | Mega Scraftj PRK 55/21 | Scrafty Flashfire, no. 59 |
 | hard | Mega Scrafty ex (Ascended Heroes #285) | MegaScrafios | Mega Chandelure ex Pitch Black, no. 099 |
 | easy | Miriam (Scarlet & Violet #238) | Miriam | Miriam Scarlet & Violet, no. 251 |
 | easy | Teal Mask Ogerpon ex (SVP Black Star Promos #166) | Teal Mask Ogerpon | Teal Mask Ogerpon SVP Black Star Promos, no. 123 |
 | hard | Teal Mask Ogerpon ex (SVP Black Star Promos #166) | amas Ogerpon | Hearthflame Mask Ogerpon ex Prismatic Evolutions, no. 148 |
-| easy | Mabosstiff (Scarlet & Violet #218) | STAGE | Iron Leaves ex SVP Black Star Promos, no. 128 |
+| easy | Mabosstiff (Scarlet & Violet #218) | Lane bosstifflhe 278/198 | Boss's Orders Paldea Evolved, no. 248 |
 | hard | Mabosstiff (Scarlet & Violet #218) | dMabosstiff | Mabosstiff Paldea Evolved, no. 143 |
 | easy | Hoopa V (Crown Zenith Galarian Gallery #GG53) | STRIKE | Rapid Strike Urshifu VMAX Battle Styles, no. 170 |
 | hard | Hoopa V (Crown Zenith Galarian Gallery #GG53) | bioopa Vza | Hoopa Steam Siege, no. 51 |
 | hard | Psychic Energy (Crown Zenith #156) | ENERG | Energy Switch Roaring Skies, no. 109 |
 | easy | Mega Charizard X ex (MEP Black Star Promos #023) | Mega Charizard | Mega Charizard X ex Phantasmal Flames, no. 125 |
 | hard | Mega Charizard X ex (MEP Black Star Promos #023) | Mega Charizard EX | Mega Charizard X ex Phantasmal Flames, no. 125 |
-| easy | Marshadow (Mega Evolution #146) | enn anshadow 726/132 | Shadow Rider Calyrex V Chilling Reign, no. 74 |
+| easy | Marshadow (Mega Evolution #146) | enn anshadow 726/132 | Shadow Circle XY, no. 126 |
 | hard | Marshadow (Mega Evolution #146) | opcicdMaRshad oll | Mars Ultra Prism, no. 128 |
 | hard | Dunsparce (Crown Zenith Galarian Gallery #GG23) | BDunsparce | Dunsparce XY, no. 101 |
 | easy | Drakloak (Ascended Heroes #248) | hakioa | Dreepy Twilight Masquerade, no. 128 |
 | easy | Hitmontop (Ascended Heroes #240) | Hitmontop | Hitmontop Call of Legends, no. 8 |
-| easy | Roaring Moon ex (Prismatic Evolutions #162) | EES err Moon 152/13 | Mt. Moon FireRed & LeafGreen, no. 94 |
 | hard | Roaring Moon ex (Prismatic Evolutions #162) | ARGITIAMOON | Amoonguss Plasma Storm, no. 13 |
 | hard | Pyroar (Paldea Evolved #200) | Pyroay | Pyroar Paldea Evolved, no. 032 |
-| easy | Pikachu ex (30th Celebration #149) | Pikachu 159/128 | Pikachu 30th Celebration, no. 028 |
 | hard | Regigigas VSTAR (Crown Zenith Galarian Gallery #GG55) | var AREgioioas | Greavard Scarlet & Violet, no. 214 |
 | easy | Duosion (Black Bolt #119) | ZDuosionyl | Duosion Legendary Treasures, no. 75 |
 | hard | Duosion (Black Bolt #119) | SSS 4/00 | Duosion Legendary Treasures, no. 75 |
@@ -36,7 +34,6 @@
 | hard | Chandelure (White Flare #103) | Cradle wll | Cradily Legends Awakened, no. 21 |
 | hard | Zekrom ex (Black Bolt #166) | sacicd | Zekrom Legendary Treasures, no. 51 |
 | easy | Acerola's Mischief (Mega Evolution #183) | TELC LIA | Acerola's Mischief Mega Evolution, no. 113 |
-| easy | Pikachu (SVP Black Star Promos #101) | BASIC SVP101 | Pikachu 30th Celebration, no. 028 |
 | hard | Pikachu (SVP Black Star Promos #101) | Pikachu | Pikachu Pokémon Rumble, no. 7 |
 | hard | Morpeko (Paradox Rift #206) | Nothing read | Morpeko SWSH Black Star Promos, no. SWSH012 |
 | easy | Greninja ex (30th Celebration #148) | Hoo 148/128 | Ninja Boy Steam Siege, no. 103 |
@@ -48,14 +45,13 @@
 | hard | Zeraora VMAX (Crown Zenith Galarian Gallery #GG42) | max Vira | Umbreon VMAX Evolving Skies, no. 215 |
 | hard | Giratina VSTAR (Crown Zenith Galarian Gallery #GG69) | STAR | Metagross Star Delta Species, no. 113 |
 | easy | Night Stretcher (Mega Evolution #173) | Night Stretcher | Night Stretcher Surging Sparks, no. 251 |
-| easy | Mega Charizard X ex (Phantasmal Flames #109) | Mega Clizrizard 709/094 | Mega Charizard X ex Phantasmal Flames, no. 125 |
-| hard | Mega Charizard X ex (Phantasmal Flames #109) | Charizard | Charizard #146 Charizard Skyridge, no. 146 |
+| hard | Mega Charizard X ex (Phantasmal Flames #109) | Charizard | Charizard Skyridge, no. 146 |
 | hard | Mega Charizard Y ex (Ascended Heroes #022) | dMegalCharizard | Charizard G DP Black Star Promos, no. DP45 |
 | hard | Arven (Paldean Fates #235) | Supporter TRA 218/091 | Arven's Mabosstiff ex Destined Rivals, no. 218 |
 | easy | Tinkaton ex (SVP Black Star Promos #031) | Pan | Garchomp Spirit Link XY Black Star Promos, no. XY169 |
 | hard | Tinkaton ex (SVP Black Star Promos #031) | Tinkaton | Tinkaton Paldean Fates, no. 167 |
 | hard | Mega Dragonite ex (Ascended Heroes #152) | IMesalDrasonite | Dragonite GX SM Black Star Promos, no. SM156 |
-| easy | Nidoking (151 #174) | dag | Team Rocket's Nidoking ex #217 Team Rocket's Nidoking ex SVP Black Star Promos,  |
+| easy | Nidoking (151 #174) | Nidokiie Yar AR 74/165 | Nidoking 151, no. 034 |
 | hard | Nidoking (151 #174) | TAG Fgh | Tag Call Cosmic Eclipse, no. 270 |
 | hard | Moltres (30th Celebration #130) | Moltres Pe. | Moltres Supreme Victors, no. 149 |
 | easy | Sableye (Crystal Guardians #10) | Sableye | Sableye Sandstorm, no. 10 |
@@ -89,9 +85,9 @@
 | easy | Dragonite EX (Evolutions #72) | PDragonite deo | Dragonite GX SM Black Star Promos, no. SM156 |
 | hard | Dragonite EX (Evolutions #72) | Dragonite | Dragonite Expedition Base Set, no. 43 |
 | hard | Poké Kid (Shining Fates #70) | TRAIN ppontes FO 0/00 | Coach Trainer Unified Minds, no. 233 |
-| easy | Dialga G (Platinum #7) | TTT MD 2/77 | Dialga Majestic Dawn, no. 4 |
+| easy | Dialga G (Platinum #7) | rrr SSSI 77/515 | Dialga XY Black Star Promos, no. XY77 |
 | hard | Dialga G (Platinum #7) | Dialga | Dialga Great Encounters, no. 105 |
 | easy | Luxray BREAK (BREAKpoint #47) | SHE | Shedinja Dragon, no. 11 |
 | hard | Luxray BREAK (BREAKpoint #47) | TYAS |  |
-| easy | Ethan's Typhlosion (Destined Rivals #190) | Rome Sal well | Chaotic Swell Cosmic Eclipse, no. 187 |
+| easy | Ethan's Typhlosion (Destined Rivals #190) | Rome Sal well | Chaotic Swell #187 Chaotic Swell Cosmic Eclipse, no. 187 |
 | hard | Ethan's Cyndaquil (Destined Rivals #032) | Cyndaquil | Cyndaquil MEP Black Star Promos, no. 047 |
