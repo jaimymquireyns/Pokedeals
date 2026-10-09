@@ -10,3 +10,4 @@ text = f"# Meldingen\n\n- toestellen ingeschreven: {len(subs)}\n- laatst: {max((
 os.makedirs("../reports", exist_ok=True)
 open(sys.argv[1] if len(sys.argv) > 1 else "../reports/diag_today.md", "w").write(text)
 print(text)
+# Fri Oct  9 18:30:14 CEST 2026
