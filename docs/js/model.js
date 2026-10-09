@@ -145,6 +145,7 @@ export const ADVICE = { minBuyPrice: 10, sellProfit: 0.15, buyGain: 0.10 };
 export const CONTEXT_TEXT = {
   herdruk: "a new version of this card came out recently",
   "nieuwe set": "the set is still new: prices often keep falling in the first months",
+  "jonge set": "the set is a few months old: prices usually keep falling until about 6 months after release",
   "set daalt": "the whole set is falling",
   "pokemon daalt": "all cards of this Pokémon are falling",
   "markt daalt": "the whole market is falling",
@@ -226,7 +227,7 @@ export function adviceFor(a, { owned = null, s = DEFAULT_SETTINGS } = {}) {
 
 // Korte versies voor het 'Why?'-lijstje op de kaartpagina: per controle een vinkje of kruisje met een paar woorden.
 export const CONTEXT_SHORT = {
-  herdruk: "New print just released", "nieuwe set": "Set is still new", "set daalt": "Whole set is falling", "pokemon daalt": "This Pokémon is falling everywhere",
+  herdruk: "New print just released", "nieuwe set": "Set is still new", "jonge set": "Set under 6 months: prices still settling", "set daalt": "Whole set is falling", "pokemon daalt": "This Pokémon is falling everywhere",
   "markt daalt": "Whole market is falling", "na een piek": "Falling back after a peak", "set stijgt": "Whole set is rising (hype)", "pokemon stijgt": "This Pokémon is rising everywhere (hype)",
 };
 export const FLAG_SHORT = {

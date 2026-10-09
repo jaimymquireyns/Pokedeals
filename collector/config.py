@@ -88,6 +88,9 @@ FAMOUS_DEX_IDS = {
     144, 229, 382, 487, 484, 483, 208, 383, 26, 143, 146, 134, 643, 644, 250, 145, 65, 282, 135, 243, 136, 59,
     133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
 }
+SET_HISTORY_YEARS = 3          # set-geschiedenis (set_history.py): sets van de laatste zoveel jaar
+SET_HISTORY_TOP = 25           # per set de zoveel duurste kaarten
+SET_HISTORY_DAYS = 730         # zoveel dagen Near Mint-geschiedenis per kaart; alleen met de credits die op het einde overblijven
 FAMOUS_HISTORY_DAYS = 180
 
 # Opschonen van de Near Mint-reeks. De Near Mint-'prijs' van PkmnPrices blijkt de laagste vraagprijs te zijn, geen
@@ -163,7 +166,8 @@ ADVICE_KEEP_DAYS = 400          # zo lang bewaren we het advies (voor de control
 ADVICE_MIN_BUY = 10.0           # koopadvies pas vanaf deze prijs (daaronder eten de kosten de winst op); gelijk aan ADVICE.minBuyPrice in de app
 ADVICE_BUY_GAIN = 0.10          # en pas als je na kosten minstens zoveel overhoudt als de prijs herstelt
 ADVICE_REPRINT_DAYS = 90        # achtergrondcontrole: een nieuwere druk met dezelfde naam in een set van de laatste zoveel dagen
-ADVICE_YOUNG_SET_DAYS = 120     # een set jonger dan dit: prijzen zakken de eerste maanden vaak verder
+ADVICE_YOUNG_SET_DAYS = 180     # een set jonger dan dit: prijzen zakken tot ongeveer 6 maanden na de release (zie set_lifecycle.py)
+ADVICE_NEW_SET_DAYS = 90        # tot zoveel dagen heet een set 'nieuw'; daarna tot ADVICE_YOUNG_SET_DAYS 'jong' (zelfde gevolg voor het advies)
 ADVICE_GROUP_MIN = 8            # een set of Pokémon telt pas als groep vanaf zoveel kaarten met een prijs
 ADVICE_GROUP_DROP = 0.85        # de hele groep staat gemiddeld minstens 15% onder normaal
 ADVICE_GROUP_RISE = 1.15        # of minstens 15% erboven (hype)
