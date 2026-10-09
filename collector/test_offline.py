@@ -3058,6 +3058,15 @@ _tg = set_history.targets(storeS, _T, log=quiet)
 config.SET_HISTORY_TOP = _old_top
 assert _tg == ["new1-3", "new1-2", "mid1-3", "mid1-2"], _tg
 
+# -- terugtest van het advies: een tijdelijke daling die herstelt telt als 'klopte', een blijvende daling niet --
+import advice_backtest
+_s0 = _date(2025, 1, 1)
+_bt = advice_backtest.signals([((_s0 + _td(days=d)).isoformat(), 100 if d < 110 else (70 if d < 125 else 100)) for d in range(200)], release=_date(2023, 1, 1))
+assert any(k[0] == "laag" and ok and "laag_oud" in k for k, ok, _ in _bt), _bt
+_bt2 = advice_backtest.signals([((_s0 + _td(days=d)).isoformat(), 100 if d < 110 else 60) for d in range(200)])
+assert [ok for k, ok, _ in _bt2 if k[0] == "laag"] and not any(ok for k, ok, _ in _bt2 if k[0] == "laag"), _bt2
+assert all("laag_diep" in k for k, ok, _ in _bt2 if k[0] == "laag"), "40% onder normaal telt als diep"
+
 # -- advies-gegevens: eigen kaarten eerst, dan koopkandidaten (duurste eerst), dan hoog, dan verdacht; goedkope kaarten niet --
 import advice_data
 fakeD, storeD = new_store()

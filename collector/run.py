@@ -256,6 +256,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
     except Exception as e:
         log(f"! advies-gegevens overgeslagen: {e}")
     try:
+        import set_history
+        set_history.run(store, pk_client, today, log=log, deadline=deadline, budget=config.SET_HISTORY_BUDGET)   # voorrang tot alles binnen is (terugtest van het advies)
+    except Exception as e:
+        log(f"! set-geschiedenis (voorrang) overgeslagen: {e}")
+    try:
         import cm_links
         cm_links.run(store, pk_client, today, log=log, deadline=deadline)   # klein, eigen budget: de exacte Cardmarket-pagina per kaart
     except Exception as e:

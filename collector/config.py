@@ -90,6 +90,8 @@ FAMOUS_DEX_IDS = {
 }
 SET_HISTORY_YEARS = 3          # set-geschiedenis (set_history.py): sets van de laatste zoveel jaar
 SET_HISTORY_TOP = 25           # per set de zoveel duurste kaarten
+SET_HISTORY_FIRST = 10         # eerst de zoveel duurste van elke set, daarna de rest
+SET_HISTORY_BUDGET = 40000     # vaste credits per dag voor de set-geschiedenis zolang die niet compleet is (voor de terugtest van het advies)
 SET_HISTORY_DAYS = 730         # zoveel dagen Near Mint-geschiedenis per kaart; alleen met de credits die op het einde overblijven
 FAMOUS_HISTORY_DAYS = 180
 
