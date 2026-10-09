@@ -3,7 +3,7 @@
 export const normNum = (n) => String(n ?? "").split("/")[0].replace(/^0+(?=\d)/, "").toLowerCase();
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-const SKIP = /^(basic|stage\s*\d|pok[eé]mon|trainer|item|supporter|stadium|energy|illus|ability|attack|weakness|resistance|retreat)\b/i;
+const SKIP = /^(basic|stage\s*\d|pok[eé]mon|trainer|item|supporter|stadium|energy|illus|ability|attack|weakness|resistance|retreat|evolves)\b/i;
 
 export function parseCardText(text) {
   const raw = String(text || "");
@@ -33,18 +33,92 @@ export const searchTerm = (parsed) => {
   return words.sort((a, b) => b.length - a.length)[0] || null;
 };
 
+// ---- naam met een tikfout herkennen: 'Ehandelune' is Chandelure, 'gneasel' is Sneasel ----
+/** Afstand tussen twee woorden: hoeveel letters je moet veranderen, toevoegen of weghalen. */
+export function lev(a, b) {
+  a = String(a); b = String(b);
+  if (!a.length) return b.length; if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** Hoe goed past een gelezen woord in een woord van de kaartnaam (0..1)? Ook als er ruis aan vastplakt ('dMabosstiff'). */
+export function wordSim(read, word) {
+  read = norm(read); word = norm(word);
+  if (!read || !word || word.length < 3) return 0;
+  if (read === word) return 1;
+  let best = 1 - lev(read, word) / Math.max(read.length, word.length);
+  // het gelezen woord is langer (ruis ervoor of erna): vergelijk met elk stuk van dezelfde lengte, met een kleine aftrek
+  if (read.length > word.length) {
+    for (let i = 0; i + word.length <= read.length; i++) {
+      for (const L of [word.length - 1, word.length, word.length + 1]) {
+        if (L < 3 || i + L > read.length) continue;
+        best = Math.max(best, 1 - lev(read.slice(i, i + L), word) / Math.max(L, word.length) - 0.05);
+      }
+    }
+  }
+  return Math.max(0, best);
+}
+
+const NAME_STOP = /^(basic|stage|pokemon|trainer|item|supporter|stadium|energy|illus|ability|attack|weakness|resistance|retreat|tool|evolves|from|rule|when|your|this|the|and)$/i;
+
+/** De bruikbare woorden uit wat er bovenaan de kaart gelezen werd (namen van minstens 4 letters, zonder 'Basic', 'Stage' e.d.). */
+export function nameTokens(text) {
+  const out = [];
+  const clean = String(text || "").split(/\r?\n/).filter((l) => !/evolves|from|put .* on/i.test(l)).join(" ");
+  for (const w of clean.split(/[^A-Za-z\u00C0-\u017F'’]+/)) {
+    const t = w.replace(/['’]s?$/, "");
+    if (norm(t).length >= 4 && !NAME_STOP.test(norm(t)) && !/^(.)\1+$/.test(norm(t))) out.push(t);
+  }
+  return [...new Set(out)].slice(0, 8);
+}
+
+/** Stukjes van 4 letters om in de database op te zoeken: zo vind je 'Chandelure' ook via 'Ehandelune' (via 'ndel'). */
+export function nameGrams(tokens, max = 14) {
+  const grams = [];
+  for (const t of tokens) {
+    const n = norm(t).replace(/[0-9]/g, "");
+    for (let i = 0; i + 4 <= n.length; i += 2) grams.push(n.slice(i, i + 4));
+  }
+  return [...new Set(grams)].slice(0, max);
+}
+
+/** Beste overeenkomst tussen de gelezen woorden en de naam van een kaart (0..1); bij namen van 2 woorden telt het belangrijkste woord. */
+export function nameSim(tokens, cardName) {
+  const words = String(cardName || "").split(/[^A-Za-z\u00C0-\u017F]+/).filter((w) => w.length >= 3 && !/^(ex|gx|vmax|vstar|mega|team|dark|light)$/i.test(w));
+  let best = 0;
+  for (const t of tokens) for (const w of words) best = Math.max(best, wordSim(t, w));
+  return best;
+}
+
 export function rankCandidates(parsed, rows) {
   const first = norm(searchTerm(parsed) || "");
   const full = norm(parsed.name);
+  const tokens = parsed.tokens && parsed.tokens.length ? parsed.tokens : nameTokens(parsed.name || "");
+  const code = String(parsed.setName || "").toLowerCase();
   return rows.map((r) => {
     const n = norm(r.name);
     let s = 0;
     // de naam weegt het zwaarst: een verkeerd gelezen cijfer komt vaker voor dan een kaart met een heel andere naam
-    if (full && n === full) s += 4; else if (first && n.startsWith(first)) s += 3; else if (first && n.includes(first)) s += 2;
-    else if (first) s -= 2;
-    if (parsed.number && normNum(r.number) === normNum(parsed.number)) s += 3;
+    const sim = nameSim(tokens, r.name);
+    if (full && n === full) s += 5;
+    else if (sim >= 0.8) s += 4 + (sim - 0.8) * 5;
+    else if (first && n.startsWith(first)) s += 3;
+    else if (sim >= 0.65) s += 2;
+    else if (first || tokens.length) s -= 2;
+    const pn = normNum(parsed.number), rn = normNum(r.number);
+    const digits = (x) => x.replace(/^[a-z]+/, "").replace(/^0+(?=\d)/, "");
+    const numOk = parsed.number && (rn === pn || (digits(rn) === digits(pn) && /promo|black star/i.test(r.set_name || "")));   // 'SVP101' = promo nr. 101
+    if (numOk) s += 3;
+    else if (parsed.number && pn.length >= 2 && rn.length === pn.length && lev(rn, pn) === 1) s += 1.5;   // één cijfer verkeerd gelezen ('709' voor 109)
     if (parsed.total && r.set_total != null && String(Number(r.set_total)) === String(Number(parsed.total))) s += 2;
-    return { ...r, score: s };
+    if (code && String(r.set_name || "").toLowerCase().includes(code)) s += 2;
+    return { ...r, score: s, sim };
   }).filter((r) => r.score > 0).sort((a, b) => b.score - a.score).slice(0, 6);   // (bij score 0 of lager: niets dat bij de foto past)
 }
 

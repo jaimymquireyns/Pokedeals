@@ -1,0 +1,37 @@
+name: Testbank kaartherkenning
+on:
+  push:
+    branches: [scan-bench]
+  workflow_dispatch:
+    inputs:
+      n:
+        description: "Aantal kaarten"
+        default: "80"
+permissions:
+  contents: write
+concurrency:
+  group: scan-bench
+  cancel-in-progress: true
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright pillow requests && python -m playwright install --with-deps chromium
+      - name: Testbank
+        run: python tests/scan_bench.py --n "${{ github.event.inputs.n || '80' }}" --out reports/scan_bench.md
+      - name: Verslag bewaren (branch reports)
+        if: always()
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          mkdir -p /tmp/rep && cp reports/scan_bench.* /tmp/rep/ 2>/dev/null || exit 0
+          rm -rf reports
+          git fetch -q origin reports && git checkout -q -f -B reports origin/reports
+          mkdir -p reports && cp /tmp/rep/* reports/
+          git add reports/scan_bench.*
+          git commit -qm "Testbank kaartherkenning $(date -u +%F' '%H:%M)" || exit 0
+          git push -q origin reports
