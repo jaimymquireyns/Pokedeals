@@ -163,6 +163,12 @@ async function readCard(T, card) {
   const top = await readText(T, band(card, 0.03, 0.02, 0.78, 0.13));
   const bottom = await readText(T, band(card, 0, 0.86, 1, 1, 1800), { tessedit_char_whitelist: "0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz " });
   let parsed = { ...parseCardText(top), ...parseBottom(bottom, codes), tokens: nameTokens(top) };
+  if (!parsed.number) {   // nummer niet gelezen: links- en rechtsonder apart en groter (nieuwe kaarten links, oudere rechts)
+    for (const [x0, x1] of [[0, 0.55], [0.45, 1]]) {
+      const b2 = parseBottom(await readText(T, band(card, x0, 0.87, x1, 0.995, 1800), { tessedit_char_whitelist: "0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz " }), codes);
+      if (b2.number) { parsed = { ...parsed, number: b2.number, total: b2.total || parsed.total, setCode: parsed.setCode || b2.setCode }; break; }
+    }
+  }
   if (!parsed.name || !parsed.number) {   // vangnet: de hele kaart
     const full = await readText(T, band(card, 0, 0, 1, 1, 1200));
     const all = parseCardText(full), b = parseBottom(full, codes);

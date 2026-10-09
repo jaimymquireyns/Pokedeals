@@ -3,7 +3,7 @@
 export const normNum = (n) => String(n ?? "").split("/")[0].replace(/^0+(?=\d)/, "").toLowerCase();
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-const SKIP = /^(basic|stage\s*\d|pok[eé]mon|trainer|item|supporter|stadium|energy|illus|ability|attack|weakness|resistance|retreat)\b/i;
+const SKIP = /^(basic|stage\s*\d|pok[eé]mon|trainer|item|supporter|stadium|energy|illus|ability|attack|weakness|resistance|retreat|evolves)\b/i;
 
 export function parseCardText(text) {
   const raw = String(text || "");
@@ -70,7 +70,8 @@ const NAME_STOP = /^(basic|stage|pokemon|trainer|item|supporter|stadium|energy|i
 /** De bruikbare woorden uit wat er bovenaan de kaart gelezen werd (namen van minstens 4 letters, zonder 'Basic', 'Stage' e.d.). */
 export function nameTokens(text) {
   const out = [];
-  for (const w of String(text || "").split(/[^A-Za-z\u00C0-\u017F'’]+/)) {
+  const clean = String(text || "").split(/\r?\n/).filter((l) => !/evolves|from|put .* on/i.test(l)).join(" ");
+  for (const w of clean.split(/[^A-Za-z\u00C0-\u017F'’]+/)) {
     const t = w.replace(/['’]s?$/, "");
     if (norm(t).length >= 4 && !NAME_STOP.test(norm(t)) && !/^(.)\1+$/.test(norm(t))) out.push(t);
   }
