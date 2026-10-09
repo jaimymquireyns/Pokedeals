@@ -1,0 +1,30 @@
+name: Controle dagelijkse update
+on:
+  push:
+    branches: [analysis/sets]
+    paths: [collector/diag_today.py, .github/workflows/analysis-diag.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Controleren
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: mkdir -p ../reports && python diag_today.py ../reports/diag_today.md
+      - name: Verslag bewaren
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          git add reports/diag_today.md
+          git commit -m "Verslag controle dagelijkse update" || exit 0
+          git pull --rebase -q && git push
