@@ -3079,3 +3079,12 @@ fakeD.t["collection"][("c",)] = {"id": "c", "product_id": "own", "quantity": 1}
 assert advice_data.targets(storeD, _T, log=quiet) == ["own", "l2", "l1", "h1", "v1"]
 
 print("alle tests geslaagd")
+
+# -- VAPID-sleutel: ook zonder BEGIN/END-regels (zo stond hij in de GitHub-secret) --
+from push import normalize_pem
+from cryptography.hazmat.primitives import serialization as _ser
+from cryptography.hazmat.primitives.asymmetric import ec as _ec
+_pem = _ec.generate_private_key(_ec.SECP256R1()).private_bytes(_ser.Encoding.PEM, _ser.PrivateFormat.PKCS8, _ser.NoEncryption()).decode()
+for _v in (_pem, "\n".join(_pem.strip().splitlines()[1:-1]), _pem.replace("\n", "\\n")):
+    _ser.load_pem_private_key(normalize_pem(_v).encode(), None)
+print("alle tests geslaagd (ook de VAPID-sleutel)")
