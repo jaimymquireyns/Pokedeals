@@ -2,11 +2,11 @@
  {
   "card": "Krokorok (Black Bolt #136)",
   "level": "easy",
-  "ok": true,
-  "name_ok": true,
+  "ok": false,
+  "name_ok": false,
   "read": "sTace 136/086",
-  "found": "Krokorok Black Bolt, no. 136",
-  "secs": 6.9
+  "found": "Purrloin White Flare, no. 136",
+  "secs": 17.6
  },
  {
   "card": "Krokorok (Black Bolt #136)",
@@ -15,16 +15,16 @@
   "name_ok": true,
   "read": "STAGE 136/086",
   "found": "Krokorok Black Bolt, no. 136",
-  "secs": 11.4
+  "secs": 10.4
  },
  {
   "card": "Mega Scrafty ex (Ascended Heroes #285)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "Evolves from Scraggy Mega",
+  "read": "TSN Scrafty",
   "found": "Scrafty Furious Fists, no. 67",
-  "secs": 14.5
+  "secs": 15.5
  },
  {
   "card": "Mega Scrafty ex (Ascended Heroes #285)",
@@ -33,7 +33,7 @@
   "name_ok": false,
   "read": "MegaScrafios",
   "found": "Mega Chandelure ex Pitch Black, no. 099",
-  "secs": 8.9
+  "secs": 10.4
  },
  {
   "card": "Miriam (Scarlet & Violet #238)",
@@ -42,7 +42,7 @@
   "name_ok": true,
   "read": "Miriam",
   "found": "Miriam Scarlet & Violet, no. 251",
-  "secs": 7.4
+  "secs": 9.5
  },
  {
   "card": "Miriam (Scarlet & Violet #238)",
@@ -51,7 +51,7 @@
   "name_ok": true,
   "read": "Miriam 238/198",
   "found": "Miriam Scarlet & Violet, no. 238",
-  "secs": 1.3
+  "secs": 1.4
  },
  {
   "card": "Teal Mask Ogerpon ex (SVP Black Star Promos #166)",
@@ -60,7 +60,7 @@
   "name_ok": false,
   "read": "Teal Mask Ogerpon",
   "found": "Teal Mask Ogerpon SVP Black Star Promos, no. 123",
-  "secs": 8.4
+  "secs": 11.4
  },
  {
   "card": "Teal Mask Ogerpon ex (SVP Black Star Promos #166)",
@@ -69,7 +69,7 @@
   "name_ok": false,
   "read": "amas Ogerpon",
   "found": "Hearthflame Mask Ogerpon ex Prismatic Evolutions, no. 148",
-  "secs": 8.9
+  "secs": 12.9
  },
  {
   "card": "Mabosstiff (Scarlet & Violet #218)",
@@ -78,7 +78,7 @@
   "name_ok": false,
   "read": "STAGE",
   "found": "Iron Leaves ex SVP Black Star Promos, no. 128",
-  "secs": 9.9
+  "secs": 10.9
  },
  {
   "card": "Mabosstiff (Scarlet & Violet #218)",
@@ -87,16 +87,16 @@
   "name_ok": true,
   "read": "dMabosstiff",
   "found": "Mabosstiff Paldea Evolved, no. 143",
-  "secs": 6.4
+  "secs": 7.4
  },
  {
   "card": "Murkrow (SVP Black Star Promos #021)",
   "level": "easy",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "Murkrow",
-  "found": "Murkrow POP Series 1, no. 8",
-  "secs": 10.9
+  "read": "Murkrow SVP021",
+  "found": "Murkrow SVP Black Star Promos, no. 021",
+  "secs": 12.9
  },
  {
   "card": "Murkrow (SVP Black Star Promos #021)",
@@ -105,7 +105,7 @@
   "name_ok": true,
   "read": "pypmmy",
   "found": "Murkrow SVP Black Star Promos, no. 021",
-  "secs": 8.4
+  "secs": 11.4
  },
  {
   "card": "Hoopa V (Crown Zenith Galarian Gallery #GG53)",
@@ -114,7 +114,7 @@
   "name_ok": false,
   "read": "STRIKE",
   "found": "Rapid Strike Urshifu VMAX Battle Styles, no. 170",
-  "secs": 10.4
+  "secs": 12.4
  },
  {
   "card": "Hoopa V (Crown Zenith Galarian Gallery #GG53)",
@@ -123,7 +123,7 @@
   "name_ok": false,
   "read": "bioopa Vza",
   "found": "Hoopa Steam Siege, no. 51",
-  "secs": 5.9
+  "secs": 7.4
  },
  {
   "card": "Psychic Energy (Crown Zenith #156)",
@@ -132,7 +132,7 @@
   "name_ok": true,
   "read": "156/159",
   "found": "Psychic Energy Crown Zenith, no. 156",
-  "secs": 6.4
+  "secs": 6.9
  },
  {
   "card": "Psychic Energy (Crown Zenith #156)",
@@ -141,7 +141,7 @@
   "name_ok": false,
   "read": "ENERG",
   "found": "Energy Switch Roaring Skies, no. 109",
-  "secs": 4.3
+  "secs": 4.9
  },
  {
   "card": "Mega Charizard X ex (MEP Black Star Promos #023)",
@@ -150,7 +150,7 @@
   "name_ok": true,
   "read": "Mega Charizard",
   "found": "Mega Charizard X ex Phantasmal Flames, no. 125",
-  "secs": 9.4
+  "secs": 12.4
  },
  {
   "card": "Mega Charizard X ex (MEP Black Star Promos #023)",
@@ -159,7 +159,7 @@
   "name_ok": true,
   "read": "Mega Charizard EX",
   "found": "Mega Charizard X ex Phantasmal Flames, no. 125",
-  "secs": 8.4
+  "secs": 11.0
  },
  {
   "card": "Misty's Lapras (Destined Rivals #194)",
@@ -168,7 +168,7 @@
   "name_ok": true,
   "read": "BAS py\u2019 194/182",
   "found": "Misty's Lapras Destined Rivals, no. 194",
-  "secs": 10.4
+  "secs": 8.9
  },
  {
   "card": "Misty's Lapras (Destined Rivals #194)",
@@ -177,16 +177,16 @@
   "name_ok": true,
   "read": "BAas 194/182",
   "found": "Misty's Lapras Destined Rivals, no. 194",
-  "secs": 11.4
+  "secs": 14.5
  },
  {
   "card": "Marshadow (Mega Evolution #146)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "enn anshadow",
+  "read": "enn anshadow 726/132",
   "found": "Shadow Rider Calyrex V Chilling Reign, no. 74",
-  "secs": 9.4
+  "secs": 14.4
  },
  {
   "card": "Marshadow (Mega Evolution #146)",
@@ -195,7 +195,7 @@
   "name_ok": false,
   "read": "opcicdMaRshad oll",
   "found": "Mars Ultra Prism, no. 128",
-  "secs": 6.9
+  "secs": 7.4
  },
  {
   "card": "Dunsparce (Crown Zenith Galarian Gallery #GG23)",
@@ -204,7 +204,7 @@
   "name_ok": true,
   "read": "ADunsparce GG23",
   "found": "Dunsparce Crown Zenith Galarian Gallery, no. GG23",
-  "secs": 11.9
+  "secs": 12.5
  },
  {
   "card": "Dunsparce (Crown Zenith Galarian Gallery #GG23)",
@@ -213,7 +213,7 @@
   "name_ok": true,
   "read": "BDunsparce",
   "found": "Dunsparce XY, no. 101",
-  "secs": 8.0
+  "secs": 12.5
  },
  {
   "card": "Drakloak (Ascended Heroes #248)",
@@ -222,7 +222,7 @@
   "name_ok": false,
   "read": "hakioa",
   "found": "Dreepy Twilight Masquerade, no. 128",
-  "secs": 7.9
+  "secs": 11.5
  },
  {
   "card": "Drakloak (Ascended Heroes #248)",
@@ -231,7 +231,7 @@
   "name_ok": true,
   "read": "srAGE",
   "found": "Drakloak Ascended Heroes, no. 248",
-  "secs": 6.9
+  "secs": 9.9
  },
  {
   "card": "Hitmontop (Ascended Heroes #240)",
@@ -240,7 +240,7 @@
   "name_ok": true,
   "read": "Hitmontop",
   "found": "Hitmontop Call of Legends, no. 8",
-  "secs": 9.9
+  "secs": 11.9
  },
  {
   "card": "Hitmontop (Ascended Heroes #240)",
@@ -258,7 +258,7 @@
   "name_ok": true,
   "read": "Wailord 097/084",
   "found": "Wailord ex Pitch Black, no. 097",
-  "secs": 1.3
+  "secs": 1.4
  },
  {
   "card": "Wailord ex (Pitch Black #097)",
@@ -276,7 +276,7 @@
   "name_ok": false,
   "read": "EES err Moon 152/13",
   "found": "Mt. Moon FireRed & LeafGreen, no. 94",
-  "secs": 24.9
+  "secs": 29.0
  },
  {
   "card": "Roaring Moon ex (Prismatic Evolutions #162)",
@@ -285,7 +285,7 @@
   "name_ok": false,
   "read": "ARGITIAMOON",
   "found": "Amoonguss Plasma Storm, no. 13",
-  "secs": 9.4
+  "secs": 24.0
  },
  {
   "card": "Pyroar (Paldea Evolved #200)",
@@ -294,7 +294,7 @@
   "name_ok": true,
   "read": "STAGE LAr 200/793",
   "found": "Pyroar Paldea Evolved, no. 200",
-  "secs": 17.4
+  "secs": 16.9
  },
  {
   "card": "Pyroar (Paldea Evolved #200)",
@@ -303,7 +303,7 @@
   "name_ok": true,
   "read": "Pyroay",
   "found": "Pyroar Paldea Evolved, no. 032",
-  "secs": 6.9
+  "secs": 7.4
  },
  {
   "card": "Pikachu ex (30th Celebration #149)",
@@ -312,7 +312,7 @@
   "name_ok": false,
   "read": "Pikachu 159/128",
   "found": "Pikachu 30th Celebration, no. 028",
-  "secs": 14.4
+  "secs": 16.9
  },
  {
   "card": "Pikachu ex (30th Celebration #149)",
@@ -321,7 +321,7 @@
   "name_ok": true,
   "read": "149/128",
   "found": "Pikachu ex 30th Celebration, no. 149",
-  "secs": 7.4
+  "secs": 9.5
  },
  {
   "card": "Energy Recycler (Perfect Order #108)",
@@ -329,8 +329,8 @@
   "ok": true,
   "name_ok": true,
   "read": "CorAanrcayv Recvcler 108/088",
-  "found": "Energy Recycler Perfect Order, no. 108",
-  "secs": 3.4
+  "found": "Energy Recycler #108 Energy Recycler Perfect Order, no. 108",
+  "secs": 3.9
  },
  {
   "card": "Energy Recycler (Perfect Order #108)",
@@ -338,7 +338,7 @@
   "ok": true,
   "name_ok": true,
   "read": "108/088",
-  "found": "Energy Recycler Perfect Order, no. 108",
+  "found": "Energy Recycler #108 Energy Recycler Perfect Order, no. 108",
   "secs": 1.9
  },
  {
@@ -348,7 +348,7 @@
   "name_ok": true,
   "read": "Thwackey",
   "found": "Thwackey SVP Black Star Promos, no. 115",
-  "secs": 9.9
+  "secs": 12.4
  },
  {
   "card": "Thwackey (SVP Black Star Promos #115)",
@@ -357,15 +357,15 @@
   "name_ok": true,
   "read": "Thwackey",
   "found": "Thwackey SVP Black Star Promos, no. 115",
-  "secs": 7.9
+  "secs": 10.9
  },
  {
   "card": "Regigigas VSTAR (Crown Zenith Galarian Gallery #GG55)",
   "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "V STAR REgigIgas Var",
-  "found": "Regigigas-EX Next Destinies, no. 82",
+  "ok": true,
+  "name_ok": true,
+  "read": "Regigigash Link GG55",
+  "found": "Regigigas VSTAR Crown Zenith Galarian Gallery, no. GG55",
   "secs": 20.4
  },
  {
@@ -373,9 +373,9 @@
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "EEEEEEEEEEEEE",
-  "found": "Metagross Star Delta Species, no. 113",
-  "secs": 13.9
+  "read": "var AREgioioas",
+  "found": "Greavard Scarlet & Violet, no. 214",
+  "secs": 16.5
  },
  {
   "card": "Duosion (Black Bolt #119)",
@@ -384,16 +384,16 @@
   "name_ok": true,
   "read": "ZDuosionyl",
   "found": "Duosion Legendary Treasures, no. 75",
-  "secs": 15.9
+  "secs": 20.0
  },
  {
   "card": "Duosion (Black Bolt #119)",
   "level": "hard",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "Zed Duosiongl. BLK 119/086",
-  "found": "Duosion Black Bolt, no. 119",
-  "secs": 8.4
+  "read": "SSS 4/00",
+  "found": "Duosion Legendary Treasures, no. 75",
+  "secs": 16.4
  },
  {
   "card": "Dolliv (Scarlet & Violet #200)",
@@ -402,7 +402,7 @@
   "name_ok": true,
   "read": "STAGE 200/19",
   "found": "Dolliv Scarlet & Violet, no. 200",
-  "secs": 8.9
+  "secs": 7.9
  },
  {
   "card": "Dolliv (Scarlet & Violet #200)",
@@ -411,7 +411,7 @@
   "name_ok": true,
   "read": "Dolliy 200/198",
   "found": "Dolliv Scarlet & Violet, no. 200",
-  "secs": 2.9
+  "secs": 2.4
  },
  {
   "card": "Sneasel (Paldean Fates #182)",
@@ -420,7 +420,7 @@
   "name_ok": true,
   "read": "bia Sneasel HP. PAF 182/007",
   "found": "Sneasel Paldean Fates, no. 182",
-  "secs": 11.4
+  "secs": 8.9
  },
  {
   "card": "Sneasel (Paldean Fates #182)",
@@ -434,11 +434,11 @@
  {
   "card": "Simisear VSTAR (Crown Zenith Galarian Gallery #GG37)",
   "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "eran Sihisear eri 7",
-  "found": "Simisage Next Destinies, no. 7",
-  "secs": 12.4
+  "ok": true,
+  "name_ok": true,
+  "read": "eran Sihisear eri GG37",
+  "found": "Simisear VSTAR Crown Zenith Galarian Gallery, no. GG37",
+  "secs": 10.4
  },
  {
   "card": "Simisear VSTAR (Crown Zenith Galarian Gallery #GG37)",
@@ -446,17 +446,17 @@
   "ok": false,
   "name_ok": false,
   "read": "irhise",
-  "found": "Simisear XY, no. 23",
-  "secs": 3.4
+  "found": "",
+  "secs": 3.9
  },
  {
   "card": "Chandelure (White Flare #103)",
   "level": "easy",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "Ehandelune",
-  "found": "Mega Chandelure ex Pitch Black, no. 099",
-  "secs": 12.4
+  "read": "Ehandelune WHT 103/086",
+  "found": "Chandelure White Flare, no. 103",
+  "secs": 9.9
  },
  {
   "card": "Chandelure (White Flare #103)",
@@ -464,8 +464,8 @@
   "ok": false,
   "name_ok": false,
   "read": "Cradle wll",
-  "found": "Lampent Plasma Freeze, no. 15",
-  "secs": 8.4
+  "found": "Cradily Legends Awakened, no. 21",
+  "secs": 11.0
  },
  {
   "card": "Zekrom ex (Black Bolt #166)",
@@ -474,7 +474,7 @@
   "name_ok": true,
   "read": "NEL 166/086",
   "found": "Zekrom ex Black Bolt, no. 166",
-  "secs": 6.9
+  "secs": 8.9
  },
  {
   "card": "Zekrom ex (Black Bolt #166)",
@@ -483,7 +483,7 @@
   "name_ok": false,
   "read": "sacicd",
   "found": "Zekrom Legendary Treasures, no. 51",
-  "secs": 6.4
+  "secs": 7.9
  },
  {
   "card": "Acerola's Mischief (Mega Evolution #183)",
@@ -492,7 +492,7 @@
   "name_ok": true,
   "read": "TELC LIA",
   "found": "Acerola's Mischief Mega Evolution, no. 113",
-  "secs": 9.9
+  "secs": 13.9
  },
  {
   "card": "Acerola's Mischief (Mega Evolution #183)",
@@ -501,7 +501,7 @@
   "name_ok": true,
   "read": "Acerola\u2019s Mischief",
   "found": "Acerola's Mischief Mega Evolution, no. 183",
-  "secs": 8.9
+  "secs": 11.4
  },
  {
   "card": "Charizard V (Crown Zenith #018)",
@@ -510,7 +510,7 @@
   "name_ok": true,
   "read": "CharizardV 018/159",
   "found": "Charizard V Crown Zenith, no. 018",
-  "secs": 3.3
+  "secs": 3.9
  },
  {
   "card": "Charizard V (Crown Zenith #018)",
@@ -519,16 +519,16 @@
   "name_ok": true,
   "read": "eharizardVil 018/159",
   "found": "Charizard V Crown Zenith, no. 018",
-  "secs": 3.4
+  "secs": 3.9
  },
  {
   "card": "Pikachu (SVP Black Star Promos #101)",
   "level": "easy",
   "ok": false,
   "name_ok": true,
-  "read": "BASIC",
+  "read": "BASIC SVP101",
   "found": "Pikachu 30th Celebration, no. 028",
-  "secs": 7.9
+  "secs": 9.9
  },
  {
   "card": "Pikachu (SVP Black Star Promos #101)",
@@ -537,16 +537,16 @@
   "name_ok": true,
   "read": "Pikachu",
   "found": "Pikachu Pok\u00e9mon Rumble, no. 7",
-  "secs": 7.8
+  "secs": 11.9
  },
  {
   "card": "Morpeko (Paradox Rift #206)",
   "level": "easy",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "tdMorpeko. IAET",
-  "found": "Morpeko SWSH Black Star Promos, no. SWSH012",
-  "secs": 7.9
+  "read": "tdMorpeko. IAET 206/182",
+  "found": "Morpeko Paradox Rift, no. 206",
+  "secs": 8.4
  },
  {
   "card": "Morpeko (Paradox Rift #206)",
@@ -555,7 +555,7 @@
   "name_ok": true,
   "read": "Nothing read",
   "found": "Morpeko SWSH Black Star Promos, no. SWSH012",
-  "secs": 9.4
+  "secs": 10.5
  },
  {
   "card": "Origin Forme Palkia VSTAR (Crown Zenith Galarian Gallery #GG67)",
@@ -564,79 +564,133 @@
   "name_ok": true,
   "read": "YSTAR Origin Forme Pallqa Var. GG67",
   "found": "Origin Forme Palkia VSTAR Crown Zenith Galarian Gallery, no. GG67",
-  "secs": 10.9
+  "secs": 9.9
  },
  {
   "card": "Origin Forme Palkia VSTAR (Crown Zenith Galarian Gallery #GG67)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "Yar GG67",
+  "read": "STAR Origin Forme Palkia Lor GG67",
   "found": "Origin Forme Palkia VSTAR Crown Zenith Galarian Gallery, no. GG67",
-  "secs": 5.9
+  "secs": 18.4
  },
  {
-  "card": "Zeraora VMAX (Crown Zenith Galarian Gallery #GG42)",
+  "card": "Greninja ex (30th Celebration #148)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "Pax era Viax",
-  "found": "Zeraora V Chilling Reign, no. 166",
-  "secs": 15.4
+  "read": "Hoo 148/128",
+  "found": "Ninja Boy Steam Siege, no. 103",
+  "secs": 10.9
  },
  {
-  "card": "Zeraora VMAX (Crown Zenith Galarian Gallery #GG42)",
+  "card": "Greninja ex (30th Celebration #148)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "vax Zeraora Waray",
-  "found": "Zeraora V Chilling Reign, no. 166",
+  "read": "cer",
+  "found": "Survival Brace Twilight Masquerade, no. 164",
+  "secs": 10.4
+ },
+ {
+  "card": "Galarian Meowth (30th Celebration #141)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "aazier\u2019IMeowth 141/128",
+  "found": "Galarian Meowth 30th Celebration, no. 141",
   "secs": 8.9
  },
  {
-  "card": "Giratina VSTAR (Crown Zenith Galarian Gallery #GG69)",
+  "card": "Galarian Meowth (30th Celebration #141)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": false,
+  "read": "Gaarian Meowth",
+  "found": "Meowth \u03b4 Holon Phantoms, no. 71",
+  "secs": 11.4
+ },
+ {
+  "card": "Larry's Staraptor (Ascended Heroes #249)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "Evolves from Giratina V",
-  "found": "Garchomp & Giratina GX SM Black Star Promos, no. SM193",
-  "secs": 13.4
+  "read": "STAGE",
+  "found": "Staravia Scarlet & Violet, no. 149",
+  "secs": 12.4
+ },
+ {
+  "card": "Larry's Staraptor (Ascended Heroes #249)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": true,
+  "read": "STAGE ASC 21/43",
+  "found": "Larry's Staraptor Ascended Heroes, no. 170",
+  "secs": 14.4
+ },
+ {
+  "card": "Zeraora VMAX (Crown Zenith Galarian Gallery #GG42)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "Zeraora Yuax 6/08",
+  "found": "Zeraora V Chilling Reign, no. 166",
+  "secs": 12.9
+ },
+ {
+  "card": "Zeraora VMAX (Crown Zenith Galarian Gallery #GG42)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": false,
+  "read": "max Vira",
+  "found": "Umbreon VMAX Evolving Skies, no. 215",
+  "secs": 12.5
+ },
+ {
+  "card": "Giratina VSTAR (Crown Zenith Galarian Gallery #GG69)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "Giliatinal GG69",
+  "found": "Giratina VSTAR Crown Zenith Galarian Gallery, no. GG69",
+  "secs": 14.9
  },
  {
   "card": "Giratina VSTAR (Crown Zenith Galarian Gallery #GG69)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "Torn",
-  "found": "Garchomp & Giratina GX SM Black Star Promos, no. SM193",
-  "secs": 9.9
+  "read": "STAR",
+  "found": "Metagross Star Delta Species, no. 113",
+  "secs": 12.0
  },
  {
   "card": "Night Stretcher (Mega Evolution #173)",
   "level": "easy",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "wltem",
-  "found": "Night Stretcher #173 Night Stretcher Mega Evolution, no. 173",
-  "secs": 6.4
+  "read": "Night Stretcher",
+  "found": "Night Stretcher Surging Sparks, no. 251",
+  "secs": 8.9
  },
  {
   "card": "Night Stretcher (Mega Evolution #173)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "fase Stretcher",
+  "read": "wltem TRA",
   "found": "Night Stretcher Mega Evolution, no. 173",
-  "secs": 5.4
+  "secs": 12.5
  },
  {
   "card": "Mega Charizard X ex (Phantasmal Flames #109)",
   "level": "easy",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "STAGE 109/094",
-  "found": "Mega Charizard X ex Phantasmal Flames, no. 109",
-  "secs": 8.4
+  "read": "Mega Clizrizard 709/094",
+  "found": "Mega Charizard X ex Phantasmal Flames, no. 125",
+  "secs": 16.4
  },
  {
   "card": "Mega Charizard X ex (Phantasmal Flames #109)",
@@ -645,79 +699,79 @@
   "name_ok": false,
   "read": "Charizard",
   "found": "Charizard #146 Charizard Skyridge, no. 146",
-  "secs": 8.9
+  "secs": 7.9
  },
  {
   "card": "Mega Charizard Y ex (Ascended Heroes #022)",
   "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "Crimchex 022/217",
-  "found": "Charmeleon Ascended Heroes, no. 021",
-  "secs": 10.4
+  "ok": true,
+  "name_ok": true,
+  "read": "pss Mees Charizard 022/21",
+  "found": "Mega Charizard Y ex Ascended Heroes, no. 022",
+  "secs": 4.9
  },
  {
   "card": "Mega Charizard Y ex (Ascended Heroes #022)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "TAGE",
-  "found": "Charmeleon Power Keepers, no. 28",
-  "secs": 12.9
+  "read": "dMegalCharizard",
+  "found": "Charizard G DP Black Star Promos, no. DP45",
+  "secs": 7.9
  },
  {
   "card": "Cynthia's Garchomp ex (Destined Rivals #215)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "boi GarchoNp EX DRI 215/182",
+  "read": "ist Garchomp 215/182",
   "found": "Cynthia's Garchomp ex Destined Rivals, no. 215",
-  "secs": 17.4
+  "secs": 2.9
  },
  {
   "card": "Cynthia's Garchomp ex (Destined Rivals #215)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "diss Garchom 215/182",
+  "read": "Cri Garchomp 215/182",
   "found": "Cynthia's Garchomp ex Destined Rivals, no. 215",
-  "secs": 8.4
- },
- {
-  "card": "Kadabra (Paldean Fates #149)",
-  "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "Kadabra 149/091",
-  "found": "Kadabra Paldean Fates, no. 149",
   "secs": 3.9
  },
  {
   "card": "Kadabra (Paldean Fates #149)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "STAGE NBR 149/091",
+  "found": "Kadabra Paldean Fates, no. 149",
+  "secs": 3.4
+ },
+ {
+  "card": "Kadabra (Paldean Fates #149)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "MARR URIANR 9/001",
+  "read": "Ares umn Ade",
   "found": "Kadabra Paldean Fates, no. 149",
-  "secs": 13.4
+  "secs": 7.9
  },
  {
   "card": "Foongus (Black Bolt #095)",
   "level": "easy",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "WAN",
-  "found": "Foongus Plasma Storm, no. 12",
-  "secs": 13.9
+  "read": "Eoongus BWA 095/086",
+  "found": "Foongus Black Bolt, no. 095",
+  "secs": 4.9
  },
  {
   "card": "Foongus (Black Bolt #095)",
   "level": "hard",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "SEARLS Foongus",
-  "found": "Foongus Plasma Storm, no. 12",
-  "secs": 8.9
+  "read": "Foengush BLK 095/086",
+  "found": "Foongus Black Bolt, no. 095",
+  "secs": 5.4
  },
  {
   "card": "Arven (Paldean Fates #235)",
@@ -726,16 +780,16 @@
   "name_ok": true,
   "read": "Arven",
   "found": "Arven Paldean Fates, no. 235",
-  "secs": 7.9
+  "secs": 10.5
  },
  {
   "card": "Arven (Paldean Fates #235)",
   "level": "hard",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "Pees 35/091",
-  "found": "Arven Paldean Fates, no. 235",
-  "secs": 7.8
+  "read": "Supporter TRA 218/091",
+  "found": "Arven's Mabosstiff ex Destined Rivals, no. 218",
+  "secs": 2.9
  },
  {
   "card": "Cramorant (Twilight Masquerade #176)",
@@ -744,43 +798,43 @@
   "name_ok": true,
   "read": "Cramorant 176/167",
   "found": "Cramorant Twilight Masquerade, no. 176",
-  "secs": 4.9
+  "secs": 7.9
  },
  {
   "card": "Cramorant (Twilight Masquerade #176)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "was Cramorant",
+  "read": "Cramorant",
   "found": "Cramorant Twilight Masquerade, no. 176",
-  "secs": 4.8
+  "secs": 9.4
  },
  {
   "card": "Alakazam ex (Paldean Fates #215)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "Alakazam 215/091",
+  "read": "Alakazam 215/001",
   "found": "Alakazam ex Paldean Fates, no. 215",
-  "secs": 1.4
+  "secs": 2.4
  },
  {
   "card": "Alakazam ex (Paldean Fates #215)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "Alakazam 215/001",
+  "read": "pide Alakazam 215/001",
   "found": "Alakazam ex Paldean Fates, no. 215",
-  "secs": 1.8
+  "secs": 2.9
  },
  {
   "card": "Tinkaton ex (SVP Black Star Promos #031)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "Nothing read",
-  "found": "Tinkaton SVP Black Star Promos, no. 140",
-  "secs": 9.4
+  "read": "Pan",
+  "found": "Garchomp Spirit Link XY Black Star Promos, no. XY169",
+  "secs": 13.5
  },
  {
   "card": "Tinkaton ex (SVP Black Star Promos #031)",
@@ -789,52 +843,52 @@
   "name_ok": false,
   "read": "Tinkaton",
   "found": "Tinkaton Paldean Fates, no. 167",
-  "secs": 5.9
+  "secs": 7.4
  },
  {
   "card": "Lilligant (Black Bolt #092)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "Zaz Lilligant 092/086",
+  "read": "sracel ogpe yyy EM 092/086",
   "found": "Lilligant Black Bolt, no. 092",
-  "secs": 3.8
+  "secs": 11.4
  },
  {
   "card": "Lilligant (Black Bolt #092)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "sracel illigant 092/086",
+  "read": "zea Lilligant 092/086",
   "found": "Lilligant Black Bolt, no. 092",
-  "secs": 5.3
+  "secs": 4.9
  },
  {
   "card": "Cyclizar (Paradox Rift #215)",
   "level": "easy",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "Cyclizak 275/782",
-  "found": "Cyclizar SVP Black Star Promos, no. 096",
-  "secs": 12.4
+  "read": "eCyclizay PAR 215/182",
+  "found": "Cyclizar Paradox Rift, no. 215",
+  "secs": 4.9
  },
  {
   "card": "Cyclizar (Paradox Rift #215)",
   "level": "hard",
-  "ok": false,
+  "ok": true,
   "name_ok": true,
-  "read": "TOY 01/80",
-  "found": "Cyclizar SVP Black Star Promos, no. 096",
-  "secs": 14.9
+  "read": "wieGyclizay 215/182",
+  "found": "Cyclizar Paradox Rift, no. 215",
+  "secs": 10.9
  },
  {
   "card": "Wailord (Journey Together #162)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "WalilordES 162/159",
+  "read": "Wailor 162/159",
   "found": "Wailord Journey Together, no. 162",
-  "secs": 3.3
+  "secs": 5.9
  },
  {
   "card": "Wailord (Journey Together #162)",
@@ -843,70 +897,70 @@
   "name_ok": true,
   "read": "Wailord 162/159",
   "found": "Wailord Journey Together, no. 162",
-  "secs": 2.8
+  "secs": 2.9
  },
  {
   "card": "Mega Dragonite ex (Ascended Heroes #152)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "TAGES WIN 152/217",
+  "read": "STAGE piek 152/217",
   "found": "Mega Dragonite ex Ascended Heroes, no. 152",
-  "secs": 4.8
+  "secs": 3.9
  },
  {
   "card": "Mega Dragonite ex (Ascended Heroes #152)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "sie Dregs 3/06",
-  "found": "Dragonite \u03b4 Delta Species, no. 3",
-  "secs": 13.3
+  "read": "IMesalDrasonite",
+  "found": "Dragonite GX SM Black Star Promos, no. SM156",
+  "secs": 7.9
  },
  {
   "card": "Nidoking (151 #174)",
   "level": "easy",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "Nidokins Yar MEW 174/165",
-  "found": "Nidoking 151, no. 174",
-  "secs": 15.9
+  "read": "dag",
+  "found": "Team Rocket's Nidoking ex #217 Team Rocket's Nidoking ex SVP Black Star Promos, ",
+  "secs": 25.0
  },
  {
   "card": "Nidoking (151 #174)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "Fido",
-  "found": "Fidough Scarlet & Violet, no. 213",
-  "secs": 9.3
+  "read": "TAG Fgh",
+  "found": "Tag Call Cosmic Eclipse, no. 270",
+  "secs": 10.0
  },
  {
   "card": "Moltres (30th Celebration #130)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "eam 130/128",
+  "read": "fish 50/128",
   "found": "Moltres 30th Celebration, no. 130",
-  "secs": 6.4
+  "secs": 9.9
  },
  {
   "card": "Moltres (30th Celebration #130)",
   "level": "hard",
   "ok": false,
   "name_ok": true,
-  "read": "OER",
-  "found": "Galarian Moltres V Chilling Reign, no. 177",
-  "secs": 6.8
+  "read": "Moltres Pe.",
+  "found": "Moltres Supreme Victors, no. 149",
+  "secs": 10.0
  },
  {
   "card": "Sableye (Crystal Guardians #10)",
   "level": "easy",
   "ok": false,
   "name_ok": true,
-  "read": "vor 10/100",
+  "read": "Sableye",
   "found": "Sableye Sandstorm, no. 10",
-  "secs": 4.3
+  "secs": 12.5
  },
  {
   "card": "Sableye (Crystal Guardians #10)",
@@ -915,142 +969,142 @@
   "name_ok": true,
   "read": "Sableye 10/100",
   "found": "Sableye Sandstorm, no. 10",
-  "secs": 3.9
+  "secs": 11.0
  },
  {
   "card": "Ivysaur (Legendary Collection #47)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "Evolves from Bulbasaur Put lvysaur the 47/110",
+  "read": "STAGE 47/110",
   "found": "Ivysaur Legendary Collection, no. 47",
-  "secs": 5.3
+  "secs": 3.4
  },
  {
   "card": "Ivysaur (Legendary Collection #47)",
   "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "Evolves from Bulbasaur Basic Pokemon",
-  "found": "Bulbasaur 151, no. 166",
-  "secs": 9.9
- },
- {
-  "card": "Giratina (SM Black Star Promos #SM151)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "aie",
-  "found": "Basic Fire Energy #010 Basic Fire Energy Mega Evolution Energy, no. 010",
-  "secs": 10.4
- },
- {
-  "card": "Giratina (SM Black Star Promos #SM151)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "sasic HCI",
-  "found": "",
-  "secs": 5.9
- },
- {
-  "card": "Pidgey (POP Series 4 #12)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": true,
-  "read": "Pidgey",
-  "found": "Pidgey Obsidian Flames, no. 207",
-  "secs": 4.9
- },
- {
-  "card": "Pidgey (POP Series 4 #12)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": true,
-  "read": "Pidgey",
-  "found": "Pidgey Obsidian Flames, no. 207",
-  "secs": 4.8
- },
- {
-  "card": "Onix GX (Hidden Fates #36)",
-  "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "RLS 36/68",
-  "found": "Onix GX Hidden Fates, no. 36",
-  "secs": 7.9
- },
- {
-  "card": "Onix GX (Hidden Fates #36)",
-  "level": "hard",
-  "ok": true,
-  "name_ok": true,
-  "read": "eam 36/68",
-  "found": "Onix GX Hidden Fates, no. 36",
-  "secs": 5.8
- },
- {
-  "card": "Pikachu (FireRed & LeafGreen #74)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": true,
-  "read": "Pikachu",
-  "found": "Pikachu Pok\u00e9mon Rumble, no. 7",
-  "secs": 6.9
- },
- {
-  "card": "Pikachu (FireRed & LeafGreen #74)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": true,
-  "read": "Pikachu",
-  "found": "Pikachu Pok\u00e9mon Rumble, no. 7",
-  "secs": 5.3
- },
- {
-  "card": "Clefable (Call of Legends #1)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": true,
-  "read": "ana EAE aaa dee",
-  "found": "Erika's Clefable Gym Heroes, no. 3",
-  "secs": 10.9
- },
- {
-  "card": "Clefable (Call of Legends #1)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": true,
-  "read": "ama",
-  "found": "Erika's Clefable Gym Heroes, no. 3",
-  "secs": 9.3
- },
- {
-  "card": "Raichu & Alolan Raichu GX (Unified Minds #221)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "Bas FEE",
-  "found": "Seer Aquapolis, no. 133",
+  "read": "als Evolves from Bulbasaur Put lvysaur the Basic 47/100",
+  "found": "Ivysaur Legendary Collection, no. 47",
   "secs": 9.4
  },
  {
+  "card": "Giratina (SM Black Star Promos #SM151)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "SAL Ram RIT",
+  "found": "Salamence ex Deoxys, no. 103",
+  "secs": 11.9
+ },
+ {
+  "card": "Giratina (SM Black Star Promos #SM151)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": false,
+  "read": "sasic Girath",
+  "found": "Misty's Wrath Gym Heroes, no. 114",
+  "secs": 6.4
+ },
+ {
+  "card": "Pidgey (POP Series 4 #12)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": true,
+  "read": "Pidgey 85/20",
+  "found": "Pidgey Legendary Collection, no. 85",
+  "secs": 5.4
+ },
+ {
+  "card": "Pidgey (POP Series 4 #12)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": true,
+  "read": "Pidgey",
+  "found": "Pidgey Obsidian Flames, no. 207",
+  "secs": 5.9
+ },
+ {
+  "card": "Onix GX (Hidden Fates #36)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "AEE 36/68",
+  "found": "Onix GX Hidden Fates, no. 36",
+  "secs": 11.9
+ },
+ {
+  "card": "Onix GX (Hidden Fates #36)",
+  "level": "hard",
+  "ok": true,
+  "name_ok": true,
+  "read": "sasic",
+  "found": "Onix GX Hidden Fates, no. 36",
+  "secs": 8.9
+ },
+ {
+  "card": "Pikachu (FireRed & LeafGreen #74)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": true,
+  "read": "Pikachu",
+  "found": "Pikachu Pok\u00e9mon Rumble, no. 7",
+  "secs": 15.9
+ },
+ {
+  "card": "Pikachu (FireRed & LeafGreen #74)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": true,
+  "read": "Pikachu",
+  "found": "Pikachu Pok\u00e9mon Rumble, no. 7",
+  "secs": 4.9
+ },
+ {
+  "card": "Clefable (Call of Legends #1)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": true,
+  "read": "Clefable",
+  "found": "Clefable Expedition Base Set, no. 41",
+  "secs": 12.9
+ },
+ {
+  "card": "Clefable (Call of Legends #1)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": true,
+  "read": "Clefable",
+  "found": "Clefable Expedition Base Set, no. 41",
+  "secs": 9.5
+ },
+ {
+  "card": "Raichu & Alolan Raichu GX (Unified Minds #221)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "RaichuSeRaichul SM221",
+  "found": "Raichu FireRed & LeafGreen, no. 12",
+  "secs": 9.9
+ },
+ {
   "card": "Raichu & Alolan Raichu GX (Unified Minds #221)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "Raichu Geet RAICN ULE SM21",
-  "found": "Raichu Neo Revelation, no. 21",
-  "secs": 9.8
+  "read": "mem",
+  "found": "Raichu FireRed & LeafGreen, no. 12",
+  "secs": 10.9
  },
  {
   "card": "Entei (SM Black Star Promos #SM219)",
   "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "BANE SM219",
-  "found": "Entei SM Black Star Promos, no. SM219",
-  "secs": 10.4
+  "ok": false,
+  "name_ok": false,
+  "read": "ETRE SM219",
+  "found": "Team Rocket's Petrel Destined Rivals, no. 226",
+  "secs": 13.4
  },
  {
   "card": "Entei (SM Black Star Promos #SM219)",
@@ -1059,52 +1113,52 @@
   "name_ok": true,
   "read": "Entei",
   "found": "Entei Aquapolis, no. 10",
-  "secs": 4.8
+  "secs": 10.9
  },
  {
   "card": "Ice Rider Calyrex V (Astral Radiance Trainer Gallery #TG14)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "yeitter Called",
-  "found": "Call Energy Majestic Dawn, no. 92",
-  "secs": 9.4
+  "read": "vse Calyreadl TG30",
+  "found": "Shadow Rider Calyrex VMAX Astral Radiance Trainer Gallery, no. TG30",
+  "secs": 16.5
  },
  {
   "card": "Ice Rider Calyrex V (Astral Radiance Trainer Gallery #TG14)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "Pop Cabral TG30",
-  "found": "Popplio #045 Popplio MEP Black Star Promos, no. 045",
+  "read": "ECR 14",
+  "found": "Lugia Secret Wonders, no. 14",
+  "secs": 6.9
+ },
+ {
+  "card": "Pidgeot (Triumphant #29)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": true,
+  "read": "Pidgeot CHF 1/09",
+  "found": "Pidgeot Expedition Base Set, no. 23",
+  "secs": 23.0
+ },
+ {
+  "card": "Pidgeot (Triumphant #29)",
+  "level": "hard",
+  "ok": true,
+  "name_ok": true,
+  "read": "Pdgeor 29/102",
+  "found": "Pidgeot #29 Pidgeot Triumphant, no. 29",
   "secs": 8.9
- },
- {
-  "card": "Pidgeot (Triumphant #29)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": true,
-  "read": "Evolves from Pidgeotto ERREEICY TIN GE 2/20",
-  "found": "Pidgeotto #2 Pidgeotto XY trainer Kit (Wigglytuff), no. 2",
-  "secs": 17.4
- },
- {
-  "card": "Pidgeot (Triumphant #29)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": true,
-  "read": "STAGES ves from POGESLLS",
-  "found": "M Pidgeot EX Evolutions, no. 65",
-  "secs": 7.3
  },
  {
   "card": "Charizard (Stormfront #103)",
   "level": "easy",
   "ok": false,
   "name_ok": true,
-  "read": "Charizard...",
+  "read": "Char izard",
   "found": "Charizard Skyridge, no. 146",
-  "secs": 7.4
+  "secs": 10.9
  },
  {
   "card": "Charizard (Stormfront #103)",
@@ -1113,7 +1167,7 @@
   "name_ok": true,
   "read": "Charizard",
   "found": "Charizard Skyridge, no. 146",
-  "secs": 8.4
+  "secs": 6.9
  },
  {
   "card": "Shauna (Fusion Strike #263)",
@@ -1122,105 +1176,105 @@
   "name_ok": true,
   "read": "Shauna 263/264",
   "found": "Shauna Fusion Strike, no. 263",
-  "secs": 5.9
+  "secs": 4.9
  },
  {
   "card": "Shauna (Fusion Strike #263)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "Shauna SS 263/264",
+  "read": "Shauna 263/264",
   "found": "Shauna Fusion Strike, no. 263",
-  "secs": 5.8
+  "secs": 1.4
  },
  {
   "card": "Golurk V (Evolving Skies #181)",
   "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "party NTT",
-  "found": "All-Night Party BREAKpoint, no. 96",
-  "secs": 11.4
+  "ok": true,
+  "name_ok": true,
+  "read": "Gouri 181/203",
+  "found": "Golurk V Evolving Skies, no. 181",
+  "secs": 12.5
  },
  {
   "card": "Golurk V (Evolving Skies #181)",
   "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "Nothing read",
-  "found": "Single Strike Urshifu V Battle Styles, no. 85",
-  "secs": 5.8
+  "ok": true,
+  "name_ok": true,
+  "read": "GolurkV 181/203",
+  "found": "Golurk V Evolving Skies, no. 181",
+  "secs": 3.4
  },
  {
   "card": "Lugia (Vivid Voltage #132)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "Lugia 132/185",
+  "read": "zasc Lugia 132/185",
   "found": "Lugia Vivid Voltage, no. 132",
-  "secs": 1.3
+  "secs": 2.9
  },
  {
   "card": "Lugia (Vivid Voltage #132)",
   "level": "hard",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "Lugia 132/185",
-  "found": "Lugia Vivid Voltage, no. 132",
-  "secs": 1.3
+  "read": "Liat Lugia",
+  "found": "Lugia XY Black Star Promos, no. XY156",
+  "secs": 7.4
  },
  {
   "card": "Entei (Aquapolis #H08)",
   "level": "easy",
   "ok": false,
-  "name_ok": false,
-  "read": "fig belts",
-  "found": "Fighting Fury Belt BREAKpoint, no. 99",
-  "secs": 9.4
+  "name_ok": true,
+  "read": "SNE TEARS",
+  "found": "Entei Crown Zenith, no. 021",
+  "secs": 15.0
  },
  {
   "card": "Entei (Aquapolis #H08)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "po.",
-  "found": "Pok\u00e9mon Fan Club POP Series 4, no. 9",
-  "secs": 8.3
+  "read": "TAR",
+  "found": "Tarountula Scarlet & Violet, no. 199",
+  "secs": 7.4
  },
  {
   "card": "Chandelure (Phantom Forces #43)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "STAGE 43/119",
+  "read": "STAGE Chandelurg 43/119",
   "found": "Chandelure Phantom Forces, no. 43",
-  "secs": 4.8
+  "secs": 4.4
  },
  {
   "card": "Chandelure (Phantom Forces #43)",
   "level": "hard",
-  "ok": true,
+  "ok": false,
   "name_ok": true,
-  "read": "Chandelure 43/119",
-  "found": "Chandelure Phantom Forces, no. 43",
-  "secs": 3.3
+  "read": "amp Chandelure",
+  "found": "Mega Chandelure ex Pitch Black, no. 099",
+  "secs": 8.4
  },
  {
   "card": "Pikachu & Zekrom GX (Team Up #33)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "tkachu Zekrom IGOR 33/181",
+  "read": "aasic Pikachu Zekrom 33/181",
   "found": "Pikachu & Zekrom GX Team Up, no. 33",
-  "secs": 5.3
+  "secs": 4.4
  },
  {
   "card": "Pikachu & Zekrom GX (Team Up #33)",
   "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "sass Pikachu Zekrom GX",
-  "found": "Pikachu 30th Celebration, no. 028",
+  "ok": true,
+  "name_ok": true,
+  "read": "sasic Pikachu Zekrom EX 33/181",
+  "found": "Pikachu & Zekrom GX Team Up, no. 33",
   "secs": 7.9
  },
  {
@@ -1230,74 +1284,83 @@
   "name_ok": true,
   "read": "VMAX 009/025",
   "found": "Surfing Pikachu VMAX Celebrations, no. 9",
-  "secs": 2.3
+  "secs": 2.4
  },
  {
   "card": "Surfing Pikachu VMAX (Celebrations #9)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "EEE 009/078",
+  "read": "max Surfin iach PRE 009/025",
   "found": "Surfing Pikachu VMAX Celebrations, no. 9",
-  "secs": 11.4
+  "secs": 4.9
  },
  {
   "card": "Dragonite ex (Dragon #90)",
   "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "Bae ims",
+  "found": "Dragonite GX SM Black Star Promos, no. SM156",
+  "secs": 16.5
+ },
+ {
+  "card": "Dragonite ex (Dragon #90)",
+  "level": "hard",
   "ok": true,
   "name_ok": true,
   "read": "Dragonite ex",
   "found": "Dragonite ex Dragon, no. 90",
-  "secs": 11.4
- },
- {
-  "card": "Dragonite ex (Dragon #90)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "Dontnnits",
-  "found": "Dragonite GX SM Black Star Promos, no. SM156",
-  "secs": 7.4
+  "secs": 9.9
  },
  {
   "card": "Gyarados EX (BREAKpoint #114)",
   "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "sed Gyarados\u2019",
+  "found": "Gyarados Paldea Evolved, no. 043",
+  "secs": 25.0
+ },
+ {
+  "card": "Gyarados EX (BREAKpoint #114)",
+  "level": "hard",
   "ok": false,
   "name_ok": false,
   "read": "BRSIC",
   "found": "Gyarados Paldea Evolved, no. 043",
-  "secs": 7.3
- },
- {
-  "card": "Gyarados EX (BREAKpoint #114)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "pis dGyarados",
-  "found": "Gyarados Paldea Evolved, no. 043",
-  "secs": 7.8
+  "secs": 9.4
  },
  {
   "card": "Galarian Farfetch'd (Shining Fates Shiny Vault #SV063)",
   "level": "easy",
   "ok": false,
   "name_ok": false,
-  "read": "TRA ERROR RAT",
-  "found": "Galarian Zapdos SWSH Black Star Promos, no. SWSH283",
-  "secs": 15.4
+  "read": "Wadlatiall INU RIES",
+  "found": "Latias SWSH Black Star Promos, no. SWSH171",
+  "secs": 22.5
  },
  {
   "card": "Galarian Farfetch'd (Shining Fates Shiny Vault #SV063)",
   "level": "hard",
   "ok": false,
   "name_ok": false,
-  "read": "sasic Galarian Farfetch\u2019d",
-  "found": "Galarian Zapdos SWSH Black Star Promos, no. SWSH283",
-  "secs": 8.8
+  "read": "calarian Farfetch\u2019d",
+  "found": "Farfetch'd Base Set, no. 27",
+  "secs": 9.4
  },
  {
   "card": "Dragonite EX (Evolutions #72)",
   "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "PDragonite deo",
+  "found": "Dragonite GX SM Black Star Promos, no. SM156",
+  "secs": 17.0
+ },
+ {
+  "card": "Dragonite EX (Evolutions #72)",
+  "level": "hard",
   "ok": false,
   "name_ok": true,
   "read": "Dragonite",
@@ -1305,40 +1368,31 @@
   "secs": 9.9
  },
  {
-  "card": "Dragonite EX (Evolutions #72)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "AONGS",
-  "found": "Dragonite GX SM Black Star Promos, no. SM156",
-  "secs": 6.8
- },
- {
   "card": "Pok\u00e9 Kid (Shining Fates #70)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "Pok\u00e9 Kid 070/072",
+  "read": "Poke Kid SS 070/072",
   "found": "Pok\u00e9 Kid Shining Fates, no. 70",
-  "secs": 3.3
+  "secs": 7.9
  },
  {
   "card": "Pok\u00e9 Kid (Shining Fates #70)",
   "level": "hard",
-  "ok": true,
-  "name_ok": true,
-  "read": "Pok\u00e9 Kid 070/072",
-  "found": "Pok\u00e9 Kid Shining Fates, no. 70",
-  "secs": 14.9
+  "ok": false,
+  "name_ok": false,
+  "read": "TRAIN ppontes FO 0/00",
+  "found": "Coach Trainer Unified Minds, no. 233",
+  "secs": 19.5
  },
  {
   "card": "Dialga G (Platinum #7)",
   "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "Pus 7/77",
-  "found": "Dialga G Platinum, no. 7",
-  "secs": 9.4
+  "ok": false,
+  "name_ok": false,
+  "read": "TTT MD 2/77",
+  "found": "Dialga Majestic Dawn, no. 4",
+  "secs": 21.5
  },
  {
   "card": "Dialga G (Platinum #7)",
@@ -1347,132 +1401,132 @@
   "name_ok": true,
   "read": "Dialga",
   "found": "Dialga Great Encounters, no. 105",
-  "secs": 5.8
- },
- {
-  "card": "Luxray BREAK (BREAKpoint #47)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "lis",
-  "found": "Lisia Celestial Storm, no. 164",
-  "secs": 6.4
- },
- {
-  "card": "Luxray BREAK (BREAKpoint #47)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "rds",
-  "found": "Magmar Wizards Black Star Promos, no. 44",
-  "secs": 5.3
- },
- {
-  "card": "Lugia GX (Lost Thunder #227)",
-  "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "case Lugia GX 227/214",
-  "found": "Lugia GX Lost Thunder, no. 227",
-  "secs": 4.3
- },
- {
-  "card": "Lugia GX (Lost Thunder #227)",
-  "level": "hard",
-  "ok": true,
-  "name_ok": true,
-  "read": "ENP 23/214",
-  "found": "Lugia GX Lost Thunder, no. 227",
-  "secs": 11.9
- },
- {
-  "card": "Ethan's Typhlosion (Destined Rivals #190)",
-  "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "FREER 00/52",
-  "found": "Ethan's Typhlosion Destined Rivals, no. 190",
-  "secs": 12.4
- },
- {
-  "card": "Ethan's Typhlosion (Destined Rivals #190)",
-  "level": "hard",
-  "ok": false,
-  "name_ok": false,
-  "read": "STAGES",
-  "found": "Galarian Obstagoon Ascended Heroes, no. 132",
-  "secs": 5.4
- },
- {
-  "card": "Ethan's Pinsir (Destined Rivals #001)",
-  "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "BAZ bye Pinsir 001/182",
-  "found": "Ethan's Pinsir Destined Rivals, no. 001",
-  "secs": 5.3
- },
- {
-  "card": "Ethan's Pinsir (Destined Rivals #001)",
-  "level": "hard",
-  "ok": true,
-  "name_ok": true,
-  "read": "CES Pinsir 001/182",
-  "found": "Ethan's Pinsir Destined Rivals, no. 001",
-  "secs": 4.3
- },
- {
-  "card": "Ethan's Pichu (Destined Rivals #071)",
-  "level": "easy",
-  "ok": true,
-  "name_ok": true,
-  "read": "Pichu 071/182",
-  "found": "Ethan's Pichu Destined Rivals, no. 071",
-  "secs": 11.4
- },
- {
-  "card": "Ethan's Pichu (Destined Rivals #071)",
-  "level": "hard",
-  "ok": true,
-  "name_ok": true,
-  "read": "pans Pichu DR 071/182",
-  "found": "Ethan's Pichu Destined Rivals, no. 071",
-  "secs": 8.4
- },
- {
-  "card": "Ethan's Cyndaquil (Destined Rivals #032)",
-  "level": "easy",
-  "ok": false,
-  "name_ok": false,
-  "read": "Ethans Cyn 035/152",
-  "found": "Ethan's Slugma Destined Rivals, no. 035",
-  "secs": 11.9
- },
- {
-  "card": "Ethan's Cyndaquil (Destined Rivals #032)",
-  "level": "hard",
-  "ok": true,
-  "name_ok": true,
-  "read": "cea Cyndauill 032/182",
-  "found": "Ethan's Cyndaquil Destined Rivals, no. 032",
   "secs": 7.9
  },
  {
+  "card": "Luxray BREAK (BREAKpoint #47)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "SHE",
+  "found": "Shedinja Dragon, no. 11",
+  "secs": 8.4
+ },
+ {
+  "card": "Luxray BREAK (BREAKpoint #47)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": false,
+  "read": "TYAS",
+  "found": "",
+  "secs": 7.4
+ },
+ {
+  "card": "Lugia GX (Lost Thunder #227)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "Lugia 227/214",
+  "found": "Lugia GX Lost Thunder, no. 227",
+  "secs": 1.4
+ },
+ {
+  "card": "Lugia GX (Lost Thunder #227)",
+  "level": "hard",
+  "ok": true,
+  "name_ok": true,
+  "read": "Lygia GX 227/214",
+  "found": "Lugia GX Lost Thunder, no. 227",
+  "secs": 2.9
+ },
+ {
+  "card": "Ethan's Typhlosion (Destined Rivals #190)",
+  "level": "easy",
+  "ok": false,
+  "name_ok": false,
+  "read": "Rome Sal well",
+  "found": "Chaotic Swell Cosmic Eclipse, no. 187",
+  "secs": 13.9
+ },
+ {
+  "card": "Ethan's Typhlosion (Destined Rivals #190)",
+  "level": "hard",
+  "ok": true,
+  "name_ok": true,
+  "read": "WNC DRI 190/182",
+  "found": "Ethan's Typhlosion Destined Rivals, no. 190",
+  "secs": 11.9
+ },
+ {
+  "card": "Ethan's Pinsir (Destined Rivals #001)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "RAZ Pinsir wl. DRI 001/182",
+  "found": "Ethan's Pinsir Destined Rivals, no. 001",
+  "secs": 9.4
+ },
+ {
+  "card": "Ethan's Pinsir (Destined Rivals #001)",
+  "level": "hard",
+  "ok": true,
+  "name_ok": true,
+  "read": "Ethan's inst 001/182",
+  "found": "Ethan's Pinsir Destined Rivals, no. 001",
+  "secs": 2.3
+ },
+ {
+  "card": "Ethan's Pichu (Destined Rivals #071)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "Ethan's Pichu 071/152",
+  "found": "Ethan's Pichu Destined Rivals, no. 071",
+  "secs": 2.4
+ },
+ {
+  "card": "Ethan's Pichu (Destined Rivals #071)",
+  "level": "hard",
+  "ok": true,
+  "name_ok": true,
+  "read": "BASIS Fan's Pichu DRI 071/182",
+  "found": "Ethan's Pichu Destined Rivals, no. 071",
+  "secs": 8.9
+ },
+ {
+  "card": "Ethan's Cyndaquil (Destined Rivals #032)",
+  "level": "easy",
+  "ok": true,
+  "name_ok": true,
+  "read": "asic 032/182",
+  "found": "Ethan's Cyndaquil Destined Rivals, no. 032",
+  "secs": 3.9
+ },
+ {
+  "card": "Ethan's Cyndaquil (Destined Rivals #032)",
+  "level": "hard",
+  "ok": false,
+  "name_ok": false,
+  "read": "Cyndaquil",
+  "found": "Cyndaquil MEP Black Star Promos, no. 047",
+  "secs": 6.4
+ },
+ {
   "card": "Ethan's Adventure (Destined Rivals #236)",
   "level": "easy",
   "ok": true,
   "name_ok": true,
-  "read": "uppor ter 236/182",
+  "read": "wSupponter. 236/15",
   "found": "Ethan's Adventure Destined Rivals, no. 236",
-  "secs": 3.4
+  "secs": 2.9
  },
  {
   "card": "Ethan's Adventure (Destined Rivals #236)",
   "level": "hard",
   "ok": true,
   "name_ok": true,
-  "read": "Ethan\u2019s Adventure 236/152",
+  "read": "Ethan\u2019s Adventure 256/142",
   "found": "Ethan's Adventure Destined Rivals, no. 236",
-  "secs": 1.8
+  "secs": 8.9
  }
 ]
