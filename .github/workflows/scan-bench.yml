@@ -29,7 +29,8 @@ jobs:
         run: |
           git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
           mkdir -p /tmp/rep && cp reports/scan_bench.* /tmp/rep/ 2>/dev/null || exit 0
-          git fetch -q origin reports && git checkout -q -B reports origin/reports
+          rm -rf reports
+          git fetch -q origin reports && git checkout -q -f -B reports origin/reports
           mkdir -p reports && cp /tmp/rep/* reports/
           git add reports/scan_bench.*
           git commit -qm "Testbank kaartherkenning $(date -u +%F' '%H:%M)" || exit 0
