@@ -1,0 +1,35 @@
+name: VAPID-sleutel controleren
+on:
+  push:
+    branches: [analysis/sets]
+    paths: [.github/workflows/vapid-check.yml]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install cryptography
+      - name: Publieke sleutel afleiden (de publieke sleutel is niet geheim)
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          mkdir -p reports
+          python - <<'PY' > reports/vapid.md
+          import os, base64
+          pem = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
+          print("# VAPID")
+          print("subject gezet:", bool(os.environ.get("VAPID_SUBJECT")))
+          if not pem.strip():
+              print("PRIVATE KEY: ONTBREEKT")
+          else:
+              from cryptography.hazmat.primitives import serialization
+              k = serialization.load_pem_private_key(pem.encode(), None)
+              pub = k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+              print("PUBLIC:", base64.urlsafe_b64encode(pub).decode().rstrip("="))
+          PY
+          cat reports/vapid.md
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          git add reports/vapid.md; git commit -qm "VAPID-controle" || exit 0; git pull --rebase -q; git push -q
