@@ -281,6 +281,7 @@ def candidates(store, log=print, today=None):
 CONTEXT_TEXT = {
     "herdruk": "er kwam onlangs een nieuwe versie van deze kaart uit",
     "nieuwe set": "de set is nog nieuw: prijzen zakken de eerste maanden vaak verder",
+    "jonge set": "de set is een paar maanden oud: prijzen zakken meestal nog tot ongeveer 6 maanden na de release",
     "set daalt": "de hele set daalt",
     "pokemon daalt": "alle kaarten van deze Pokémon dalen",
     "markt daalt": "de hele markt daalt",
@@ -341,6 +342,7 @@ def context_flags(results, products, sets, today, nm=None):
             newest[k] = (d, p.get("set_id"))
     recent = (t - timedelta(days=config.ADVICE_REPRINT_DAYS)).isoformat()
     young = (t - timedelta(days=config.ADVICE_YOUNG_SET_DAYS)).isoformat()
+    new = (t - timedelta(days=config.ADVICE_NEW_SET_DAYS)).isoformat()
     out = {}
     for pid, a in results.items():
         if a["state"] not in ("laag", "hoog"):
@@ -352,8 +354,10 @@ def context_flags(results, products, sets, today, nm=None):
         if a["state"] == "laag":
             if nd and mine and nd[0] > mine and nd[0] >= recent:
                 flags.append(("herdruk", f"in {setname.get(nd[1], nd[1])} ({nd[0]})"))
-            if mine and mine >= young:
+            if mine and mine >= new:
                 flags.append(("nieuwe set", f"uitgekomen op {mine}"))
+            elif mine and mine >= young:   # 3 tot 6 maanden oud: geen 'nieuwe' set meer, maar de prijzen zakken meestal nog
+                flags.append(("jonge set", f"uitgekomen op {mine}"))
             sm = by_set.get(p.get("set_id"))
             if sm and sm[1] >= config.ADVICE_GROUP_MIN and sm[0] <= config.ADVICE_GROUP_DROP:
                 flags.append(("set daalt", f"{setname.get(p.get('set_id'), '')}: gemiddeld {(sm[0] - 1) * 100:+.0f}% t.o.v. normaal"))

@@ -3006,6 +3006,10 @@ _sets = {"oud": {"name": "Oude set", "release_date": "2020-01-01"}, "nieuw": {"n
 _ctx = advice.context_flags(_res, _prods, _sets, _T)
 assert [k for k, _ in _ctx["a"]] == ["set daalt"], _ctx.get("a")
 assert [k for k, _ in _ctx["b"]] == ["nieuwe set"], _ctx.get("b")
+_sets_j = {**_sets, "nieuw": {"name": "Jonge set", "release_date": (_date.fromisoformat(_T) - _td(days=130)).isoformat()}}
+assert [k for k, _ in advice.context_flags(_res, _prods, _sets_j, _T)["b"]] == ["jonge set"], "3 tot 6 maanden oud: 'jonge set'"
+_sets_o = {**_sets, "nieuw": {"name": "Oudere set", "release_date": (_date.fromisoformat(_T) - _td(days=200)).isoformat()}}
+assert "b" not in advice.context_flags(_res, _prods, _sets_o, _T), "ouder dan 6 maanden: geen reden meer"
 assert [k for k, _ in _ctx["c"]] == ["herdruk"] and "Herdruk-set" in _ctx["c"][0][1], _ctx.get("c")
 assert "d" not in _ctx, "een stijger zonder groepsbeweging heeft geen context"
 _ctx2 = advice.context_flags({**{f"m{i}": {"state": "normaal", "ratio": 0.8} for i in range(30)}, "c": {"state": "laag", "ratio": 0.7}}, {"c": {"kind": "card", "name": "Zzz", "set_id": "x"}}, _sets, _T)
@@ -3041,6 +3045,18 @@ assert a["state"] == "verdacht", "Near Mint past ook niet bij de aanbiedingen: b
 # meer dan 3x normaal, ook als de week gemengd is: verdacht (niet 'normaal')
 a = advice.assess(_raw([100] * 12 + [100, 900, 900, 950, 1000, 1000, 1000, 1000]), None, _T)
 assert a["state"] == "verdacht" and "onwaarschijnlijk" in a["flags"], a
+
+# -- set-geschiedenis: per recente set de duurste kaarten, nieuwste set eerst; oude en digitale sets niet --
+import set_history
+fakeS, storeS = new_store()
+storeS.upsert_sets([{"set_id": "new1", "name": "Nieuw", "release_date": "2026-05-01"}, {"set_id": "mid1", "name": "Midden", "release_date": "2025-01-01"},
+                    {"set_id": "old1", "name": "Oud", "release_date": "2018-01-01"}])
+storeS.upsert_products([{"product_id": f"{s}-{i}", "kind": "card", "name": f"K{i}", "set_id": s, "pk_id": f"pk{s}{i}"} for s in ("new1", "mid1", "old1") for i in range(4)])
+storeS.upsert_prices([{"product_id": f"{s}-{i}", "date": _T, "source": "tcgdex", "grade_key": "raw", "price": 10.0 + i} for s in ("new1", "mid1", "old1") for i in range(4)])
+_old_top = config.SET_HISTORY_TOP; config.SET_HISTORY_TOP = 2
+_tg = set_history.targets(storeS, _T, log=quiet)
+config.SET_HISTORY_TOP = _old_top
+assert _tg == ["new1-3", "new1-2", "mid1-3", "mid1-2"], _tg
 
 # -- advies-gegevens: eigen kaarten eerst, dan koopkandidaten (duurste eerst), dan hoog, dan verdacht; goedkope kaarten niet --
 import advice_data

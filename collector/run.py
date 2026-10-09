@@ -319,6 +319,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         sealed_history.run(store, pk_client, today, log=log, deadline=deadline)   # krijgt wat de twee taken hierboven nog overlaten
     except Exception as e:
         log(f"! sealed-geschiedenis overgeslagen: {e}")
+    try:
+        import set_history
+        set_history.run(store, pk_client, today, log=log, deadline=deadline)   # wat dan nog overblijft: lange geschiedenis van recente sets
+    except Exception as e:
+        log(f"! set-geschiedenis overgeslagen: {e}")
     # (de oude, op kansen gebaseerde aanbiedingenronde achteraan is vervallen: de kansen zijn verborgen tot ze beter kloppen)
 
 
