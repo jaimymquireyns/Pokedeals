@@ -1,6 +1,6 @@
 # Amerikaanse tegenover Europese markt
 
-- Amerikaanse geschiedenis (ppt_hist): 0 kaarten
+- Amerikaanse geschiedenis (TCGplayer via PkmnPrices): 0 kaarten
 
 ## Tegenover Cardmarket Near Mint (PkmnPrices)
 
