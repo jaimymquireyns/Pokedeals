@@ -2,7 +2,7 @@
 import { addForm } from "./add.js";
 import { rest } from "./api.js";
 import { SET_ALIASES, searchCards } from "./cardsearch.js";
-import { normNum, parseBottom, parseCardText, rankCandidates, scanQueries, searchTerm } from "./ocr.js";
+import { nameGrams, nameTokens, normNum, parseBottom, parseCardText, rankCandidates, scanQueries, searchTerm } from "./ocr.js";
 import { closeSheet, debounce, h, icon, openSheet } from "./ui.js";
 
 const TESS = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
@@ -38,10 +38,91 @@ async function findCandidates(parsed) {
       extra.forEach((r) => { if (!seen.has(r.product_id)) seen.set(r.product_id, { ...r, hits: 1, best: 50 }); });
     } catch { /* zonder deze extra poging verder */ }
   }
+  // naam met leesfouten ('Ehandelune'): kaarten zoeken die stukjes van 4 letters gemeen hebben, en die op gelijkenis laten scoren
+  const grams = nameGrams(parsed.tokens || []);
+  if (grams.length) {
+    try {
+      const or = grams.map((g) => `name.ilike.*${g}*`).join(",");
+      const extra = await rest.get(`v_search?select=*&kind=eq.card&or=(${encodeURIComponent(or)})&limit=400`);
+      extra.forEach((r) => { if (!seen.has(r.product_id)) seen.set(r.product_id, { ...r, hits: 0, best: 60 }); });
+    } catch { /* zonder deze extra poging verder */ }
+  }
   const rows = [...seen.values()];
   const ranked = rankCandidates(parsed, rows);
   const rest_ = rows.filter((r) => !ranked.some((x) => x.product_id === r.product_id)).sort((a, b) => b.hits - a.hits || a.best - b.best);
   return [...ranked, ...rest_].slice(0, 6);
+}
+
+/** Zoekt de kaart in een foto: alles wat duidelijk anders is dan de rand van de foto (de achtergrond), het grootste aaneengesloten
+ * stuk daarvan, en hoe scheef dat ligt. Geeft { cx, cy, w, h, angle } in de maat van de foto, of null als er niets duidelijks is. */
+export function locateCard(source, sw, sh) {
+  const scale = 320 / Math.max(sw, sh);
+  const w = Math.max(8, Math.round(sw * scale)), hh = Math.max(8, Math.round(sh * scale));
+  const c = h("canvas", { width: w, height: hh });
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(source, 0, 0, w, hh);
+  const px = ctx.getImageData(0, 0, w, hh).data;
+  // achtergrondkleur: de mediaan van een smalle rand rond de foto
+  const rs = [], gs = [], bs = [], m = Math.max(2, Math.round(Math.min(w, hh) * 0.03));
+  for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+    if (x >= m && x < w - m && y >= m && y < hh - m) continue;
+    const i = (y * w + x) * 4; rs.push(px[i]); gs.push(px[i + 1]); bs.push(px[i + 2]);
+  }
+  const med = (a) => a.sort((p, q) => p - q)[a.length >> 1];
+  const br = med(rs), bg = med(gs), bb = med(bs);
+  // spreiding van de achtergrond: bij een drukke achtergrond (hout) moet het verschil groter zijn
+  let spread = 0; for (let k = 0; k < rs.length; k++) spread += Math.abs(rs[k] - br) + Math.abs(gs[k] - bg) + Math.abs(bs[k] - bb);
+  const T = Math.max(60, (spread / rs.length) * 2.2);
+  const mask = new Uint8Array(w * hh);
+  for (let k = 0, i = 0; k < w * hh; k++, i += 4) mask[k] = Math.abs(px[i] - br) + Math.abs(px[i + 1] - bg) + Math.abs(px[i + 2] - bb) > T ? 1 : 0;
+  // grootste aaneengesloten stuk
+  const lab = new Int32Array(w * hh); let best = null, id = 0;
+  for (let k = 0; k < w * hh; k++) {
+    if (!mask[k] || lab[k]) continue;
+    id++; const stack = [k]; lab[k] = id; const pts = [];
+    while (stack.length) {
+      const q = stack.pop(); pts.push(q);
+      const x = q % w, y = (q - x) / w;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= hh) continue;
+        const n = ny * w + nx;
+        if (mask[n] && !lab[n]) { lab[n] = id; stack.push(n); }
+      }
+    }
+    if (!best || pts.length > best.length) best = pts;
+  }
+  if (!best || best.length < w * hh * 0.12) return null;
+  // ligging: hoofdas van het stuk (een kaart staat rechtop, de lange kant is de hoogte)
+  let sx = 0, sy = 0; for (const q of best) { sx += q % w; sy += (q - (q % w)) / w; }
+  const mx = sx / best.length, my = sy / best.length;
+  let cxx = 0, cyy = 0, cxy = 0;
+  for (const q of best) { const x = (q % w) - mx, y = (q - (q % w)) / w - my; cxx += x * x; cyy += y * y; cxy += x * y; }
+  const theta = 0.5 * Math.atan2(2 * cxy, cxx - cyy);                 // hoek van de lange as t.o.v. de x-as
+  let angle = theta - Math.PI / 2; while (angle > Math.PI / 4) angle -= Math.PI / 2; while (angle < -Math.PI / 4) angle += Math.PI / 2;
+  if (Math.abs(angle) > 0.35) return null;                              // meer dan 20° scheef: liever niet gokken
+  const ca = Math.cos(angle), sa = Math.sin(angle);
+  let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  for (const q of best) {
+    const x = (q % w) - mx, y = (q - (q % w)) / w - my;
+    const u = x * ca + y * sa, v = -x * sa + y * ca;                    // u langs de breedte, v langs de hoogte (rechtgezet)
+    if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
+  }
+  const bw = u1 - u0, bh = v1 - v0;
+  if (bw < 10 || bh < 10 || bh / bw < 1.05 || bh / bw > 1.8) return null;   // geen kaartvorm
+  const ucx = (u0 + u1) / 2, vcy = (v0 + v1) / 2;
+  const cx = mx + ucx * ca - vcy * sa, cy = my + ucx * sa + vcy * ca;
+  return { cx: cx / scale, cy: cy / scale, w: bw / scale, h: bh / scale, angle };
+}
+
+/** De gevonden kaart rechtgezet en uitgeknipt. */
+export function cardFromBox(source, box) {
+  const c = h("canvas", { width: Math.round(box.w), height: Math.round(box.h) });
+  const ctx = c.getContext("2d");
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate(-box.angle);
+  ctx.drawImage(source, -box.cx, -box.cy);
+  return c;
 }
 
 /** De kaart uit de foto halen: bij de camera het kader in het midden, bij een gekozen foto de hele foto. */
@@ -81,12 +162,14 @@ async function readCard(T, card) {
   const codes = Object.keys(SET_ALIASES);
   const top = await readText(T, band(card, 0.03, 0.02, 0.78, 0.13));
   const bottom = await readText(T, band(card, 0, 0.86, 1, 1, 1800), { tessedit_char_whitelist: "0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz " });
-  let parsed = { ...parseCardText(top), ...parseBottom(bottom, codes) };
+  let parsed = { ...parseCardText(top), ...parseBottom(bottom, codes), tokens: nameTokens(top) };
   if (!parsed.name || !parsed.number) {   // vangnet: de hele kaart
     const full = await readText(T, band(card, 0, 0, 1, 1, 1200));
     const all = parseCardText(full), b = parseBottom(full, codes);
-    parsed = { ...parsed, name: parsed.name || all.name, number: parsed.number || b.number || all.number, total: parsed.total || b.total || all.total, setCode: parsed.setCode || b.setCode };
+    parsed = { ...parsed, name: parsed.name || all.name, number: parsed.number || b.number || all.number, total: parsed.total || b.total || all.total, setCode: parsed.setCode || b.setCode,
+      tokens: parsed.tokens.length ? parsed.tokens : nameTokens(full.split(/\r?\n/).slice(0, 4).join(" ")) };
   }
+  if (parsed.setCode && SET_ALIASES[parsed.setCode.toLowerCase()]) parsed.setName = SET_ALIASES[parsed.setCode.toLowerCase()];
   return parsed;
 }
 
@@ -115,10 +198,20 @@ export function openScan({ onAdded }) {
     shutter.disabled = true;
     try {
       const T = await loadTesseract();
-      const parsed = await readCard(T, cardCanvas(source, w, h_, crop));
+      // pogingen, van best naar ruimst: de kaart zoals gevonden in de foto, het kader (camera) of de hele foto, en het midden
+      const box = locateCard(source, w, h_);
+      const tries = [box ? cardFromBox(source, box) : null, cardCanvas(source, w, h_, crop), crop ? null : cardCanvas(source, w, h_, true)].filter(Boolean);
+      let parsed = null, cands = [], bestScore = -99;
+      for (const card of tries) {
+        const p = await readCard(T, card);
+        const cs = (p.name || p.number || p.tokens?.length) ? await findCandidates(p) : [];
+        const sc = cs[0]?.score ?? -1;
+        if (sc > bestScore) { parsed = p; cands = cs; bestScore = sc; }
+        if (sc >= 8) break;                                             // naam én nummer kloppen: klaar
+      }
       const read = [parsed.name, parsed.setCode, parsed.number ? (parsed.total ? `${parsed.number}/${parsed.total}` : parsed.number) : ""].filter(Boolean).join(" ");
       status.textContent = read ? `Read: ${read}` : "Nothing read";
-      showResults(parsed, read ? await findCandidates(parsed) : []);
+      showResults(parsed, cands);
     } catch (e) {
       status.textContent = e.message || "Couldn't recognise";
       showResults({ name: null }, []);

@@ -150,8 +150,9 @@ def main():
                 status = page.inner_text(".vf-hint") if page.locator(".vf-hint").count() else ""
                 found = page.inner_text(".scanpanel .found") if page.locator(".scanpanel .found").count() else ""
                 want_name, want_num = c["name"], str(c["number"])
-                ok_name = norm(want_name) and norm(want_name) in norm(found)
-                ok_num = re.search(rf"#0*{re.escape(want_num.lstrip('0') or '0')}\b", found.replace("\n", " ")) is not None
+                ok_name = bool(norm(want_name)) and norm(want_name) in norm(found)
+                mm = re.search(r"no\. (\S+)\s*$", " ".join(found.split()))
+                ok_num = bool(mm) and mm.group(1).lstrip("0") == want_num.lstrip("0") and norm(c["set_name"]) in norm(found)
                 results.append({"card": f"{want_name} ({c['set_name']} #{want_num})", "level": level, "ok": bool(ok_name and ok_num), "name_ok": bool(ok_name),
                                 "read": status.replace("Read: ", ""), "found": " ".join(found.split())[:80], "secs": round(time.time() - t0, 1)})
                 print(f"[{i + 1}/{len(cases)}] {'OK ' if results[-1]['ok'] else 'FOUT'} {level:4} {results[-1]['card']} | gelezen: {results[-1]['read']} | gevonden: {results[-1]['found']}")
