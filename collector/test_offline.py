@@ -863,6 +863,8 @@ raw_ch = [{"date": "2026-07-01", "source": "cardmarket", "currency": "EUR", "con
           {"date": "2026-07-03", "source": "tcgplayer", "currency": "USD", "condition": "Near Mint", "market_price": 35.0},  # andere bron: overslaan
           {"date": "2026-09-21", "source": "cardmarket", "currency": "EUR", "condition": "Near Mint", "avg": 60.0}]         # vandaag zelf: overslaan
 parsed_ch = card_history.parse_rows("x-1", raw_ch, "2026-09-21")
+_us = card_history.parse_us_rows("x-1", raw_ch, "2026-09-21")
+assert [r["date"] for r in _us] == ["2026-07-03"] and _us[0]["grade_key"] == "us" and _us[0]["source"] == "tcgplayer" and _us[0]["native"] == 35.0, _us
 assert len(parsed_ch) == 2 and parsed_ch[0]["source"] == "pkmnprices" and parsed_ch[0]["grade_key"] == "nm", parsed_ch
 
 fake10, store10 = new_store()
