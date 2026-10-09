@@ -1,4 +1,4 @@
-name: VAPID-sleutel controleren (opnieuw)
+name: VAPID-sleutel controleren (3)
 on:
   push:
     branches: [analysis/sets]
@@ -25,10 +25,14 @@ jobs:
           if not pem.strip():
               print("PRIVATE KEY: ONTBREEKT")
           else:
-              from cryptography.hazmat.primitives import serialization
-              k = serialization.load_pem_private_key(pem.encode(), None)
-              pub = k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
-              print("PUBLIC:", base64.urlsafe_b64encode(pub).decode().rstrip("="))
+              print("lengte:", len(pem), "regels:", len(pem.strip().splitlines()), "begint goed:", pem.strip().startswith("-----BEGIN PRIVATE KEY-----"), "eindigt goed:", pem.strip().endswith("-----END PRIVATE KEY-----"))
+              try:
+                  from cryptography.hazmat.primitives import serialization
+                  k = serialization.load_pem_private_key(pem.strip().encode(), None)
+                  pub = k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+                  print("PUBLIC:", base64.urlsafe_b64encode(pub).decode().rstrip("="))
+              except Exception as e:
+                  print("FOUT bij lezen:", type(e).__name__, str(e)[:120])
           PY
           cat reports/vapid.md
           git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
