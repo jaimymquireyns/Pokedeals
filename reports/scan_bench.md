@@ -1,7 +1,7 @@
 # Testbank kaartherkenning
 
-- easy: 49/85 juist (58%), naam juist 63/85, gemiddeld 8.3 s
-- hard: 37/85 juist (44%), naam juist 57/85, gemiddeld 6.7 s
+- easy: 49/85 juist (58%), naam juist 63/85, gemiddeld 9.9 s
+- hard: 37/85 juist (44%), naam juist 57/85, gemiddeld 8.2 s
 
 ## Fouten
 
@@ -86,8 +86,8 @@
 | hard | Dragonite EX (Evolutions #72) | Dragonite | Dragonite Expedition Base Set, no. 43 |
 | hard | Poké Kid (Shining Fates #70) | TRAIN ppontes FO 0/00 | Coach Trainer Unified Minds, no. 233 |
 | easy | Dialga G (Platinum #7) | rrr SSSI 77/515 | Dialga XY Black Star Promos, no. XY77 |
-| hard | Dialga G (Platinum #7) | Dialga | Dialga Great Encounters, no. 105 |
+| hard | Dialga G (Platinum #7) | Dialga | Dialga #105 Dialga Great Encounters, no. 105 |
 | easy | Luxray BREAK (BREAKpoint #47) | SHE | Shedinja Dragon, no. 11 |
 | hard | Luxray BREAK (BREAKpoint #47) | TYAS |  |
-| easy | Ethan's Typhlosion (Destined Rivals #190) | Rome Sal well | Chaotic Swell #187 Chaotic Swell Cosmic Eclipse, no. 187 |
+| easy | Ethan's Typhlosion (Destined Rivals #190) | Rome Sal well | Chaotic Swell Cosmic Eclipse, no. 187 |
 | hard | Ethan's Cyndaquil (Destined Rivals #032) | Cyndaquil | Cyndaquil MEP Black Star Promos, no. 047 |
