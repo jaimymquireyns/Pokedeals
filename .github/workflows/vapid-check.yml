@@ -1,4 +1,4 @@
-name: VAPID-sleutel controleren (3)
+name: VAPID-sleutel controleren (4)
 on:
   push:
     branches: [analysis/sets]
@@ -28,7 +28,9 @@ jobs:
               print("lengte:", len(pem), "regels:", len(pem.strip().splitlines()), "begint goed:", pem.strip().startswith("-----BEGIN PRIVATE KEY-----"), "eindigt goed:", pem.strip().endswith("-----END PRIVATE KEY-----"))
               try:
                   from cryptography.hazmat.primitives import serialization
-                  k = serialization.load_pem_private_key(pem.strip().encode(), None)
+                  b64 = "".join(pem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").split())
+                  fixed = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(b64[i:i + 64] for i in range(0, len(b64), 64)) + "\n-----END PRIVATE KEY-----\n"
+                  k = serialization.load_pem_private_key(fixed.encode(), None)
                   pub = k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
                   print("PUBLIC:", base64.urlsafe_b64encode(pub).decode().rstrip("="))
               except Exception as e:
