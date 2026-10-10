@@ -125,7 +125,7 @@ function buySection(f, hook, reset) {
     const s = getSettings();
     const all = rows.map((r) => ({ r, a: adviceFor(r, { s }), o: outlook(r, stats), price: Number(r.price), normal: Number(r.normal), gain: recoveryGain(Number(r.price), Number(r.normal), s) }))
       .filter((x) => x.a.tone === "buy");
-    const SHOWN = 8;
+    const SHOWN = 5;
     let showAll = false;
     const row = ({ r, o }) => h("li", {}, h("button", { type: "button", class: "rowc", onclick: () => go(detailHash(r.product_id)) },
       thumb(r.image, "ph", r.kind === "sealed"),
@@ -168,13 +168,16 @@ async function dealsHome(root) {
   let deals = [];
   const buyHook = { draw: () => {} };
   const title = h("h3", { text: "Cheap listings" });
+  const SHOWN = 5;
+  let showAll = false;
+  const moreBtn = h("button", { class: "linkbtn", type: "button", hidden: true, onclick: () => { showAll = true; draw(); } });
 
   const dealSec = h("div", { class: "sec dealsec" },
     h("div", { class: "sech" }, title, infoBtn("Cheap listings",
       "The cheapest Cardmarket listing is well below the next cheapest, within the same variant (Normal, Reverse Holofoil, ...).",
       "Red is how much cheaper; green is what you keep if you buy and resell at the next cheapest price, after shipping, fees and packaging.",
       "Near Mint cards only. A very low price may be a mistake: always check Cardmarket yourself.")),
-    list);
+    list, moreBtn);
   const fbar = filterBar(f, () => { buyHook.draw(); draw(); });
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
@@ -187,8 +190,10 @@ async function dealsHome(root) {
     const shown = filterDeals(deals, f);
     title.replaceChildren("Cheap listings ", h("span", { class: "cnt", text: String(shown.length) }));
     if (!deals.length) return;
+    moreBtn.hidden = showAll || shown.length <= SHOWN;
+    moreBtn.textContent = `Show all ${shown.length}`;
     if (!shown.length) { list.replaceChildren(h("li", { class: "emptyfilter" }, emptyNote("No listings match these filters."), h("button", { class: "linkbtn", type: "button", text: "Clear filters", onclick: () => fbar.reset() }))); return; }
-    list.replaceChildren(...shown.map((d) => marketRow(d, watched.get(d.product_id), async (e) => {
+    list.replaceChildren(...(showAll ? shown : shown.slice(0, SHOWN)).map((d) => marketRow(d, watched.get(d.product_id), async (e) => {
       e.stopPropagation();
       if (!getSession()) { go("#/login?next=" + encodeURIComponent("#/home")); return; }
       try {
