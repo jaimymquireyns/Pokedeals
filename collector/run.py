@@ -392,6 +392,7 @@ def daily(store, tcg, ppt, sender, today, set_ids, log=print, pk_time_budget=Non
         cm_names.run(store, requests.Session(), today, log=log)
     step("Cardmarket-namen bijwerken", _cm_names)
     step("trackrecord bijwerken", lambda: trackrecord.resolve(store, today, log=log))
+    step("dagelijkse controle van het model", lambda: __import__("daily_check").run(store, today, log=log))
     if date.fromisoformat(today).weekday() == 0:   # maandag: ook de backtest bijwerken (dekt alle periodes, ook de lange)
         try:
             trackrecord.backtest(store, today, log=log)

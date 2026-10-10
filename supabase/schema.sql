@@ -490,3 +490,32 @@ create policy "own rows" on watch_folder_items for all to authenticated
                 and exists (select 1 from watch_items i where i.id = item_id and i.user_id = auth.uid()));
 grant all on all tables in schema public to service_role;
 grant all on all sequences in schema public to service_role;
+
+-- Dagelijkse controle van het model (collector/daily_check.py)
+create table if not exists model_checks (
+    check_date date not null,
+    product_id text not null,
+    basis text,                 -- nm | trend: op welke prijsreeks het model draaide
+    price_then numeric,         -- de laatste prijs die het model zag (30 dagen geleden)
+    predicted numeric,          -- wat het model voorspelde voor vandaag
+    actual numeric,             -- de echte prijs van vandaag
+    dir_pred text, dir_actual text,   -- up | down | flat (binnen 3%)
+    dir_ok boolean,             -- richting juist
+    price_ok boolean,           -- echte prijs binnen 10% van de voorspelling
+    naive_ok boolean,           -- de gok 'prijs blijft gelijk' was binnen 10%
+    primary key (check_date, product_id)
+);
+alter table model_checks enable row level security;
+drop policy if exists "public read" on model_checks;
+create policy "public read" on model_checks for select to anon, authenticated using (true);
+grant select on model_checks to anon, authenticated;
+
+create or replace view v_model_checks_daily with (security_invoker = on) as
+    select check_date, count(*)::int as n,
+           count(*) filter (where dir_ok)::int as dir_ok,
+           count(*) filter (where price_ok)::int as price_ok,
+           count(*) filter (where naive_ok)::int as naive_ok,
+           count(*) filter (where dir_pred = 'flat' and dir_actual = 'flat')::int as flat_ok,
+           count(*) filter (where dir_actual = 'flat')::int as flat_actual
+    from model_checks group by check_date;
+grant select on v_model_checks_daily to anon, authenticated;

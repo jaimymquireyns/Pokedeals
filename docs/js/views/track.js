@@ -10,9 +10,26 @@ export function summarize(rows) {
   return pick ? { source: pick, ...by[pick] } : null;
 }
 
+/** Dagelijkse controle: het model ziet de prijs van 30 dagen geleden en raadt die van vandaag (collector/daily_check.py). */
+export function dailyCheck(days) {
+  if (!days.length) return null;
+  const sum = (rows, k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+  const today = days[0], all = days.slice(0, 30);
+  const n = sum(all, "n");
+  const better = sum(all, "price_ok") > sum(all, "naive_ok");
+  return h("div", { class: "grp dcheck" }, h("h3", { text: "Daily check" }),
+    h("p", { class: "mini", text: `Every day the model sees random cards' prices from 30 days ago and guesses today's price. Today: ${fmtDate(today.check_date)}, ${today.n} cards.` }),
+    h("div", { class: "dchead" }, h("span", {}), h("small", { text: "Today" }), h("small", { text: `Last ${all.length} day${all.length > 1 ? "s" : ""}` })),
+    ...[["Direction right (up / down / same)", "dir_ok"], ["Price within 10%", "price_ok"], ["Just guessing 'no change'", "naive_ok"]].map(([label, k]) =>
+      h("div", { class: "dcrow3" }, h("span", { text: label }),
+        h("b", { text: today.n ? pp(today[k] / today.n) : "–" }), h("b", { text: n ? pp(sum(all, k) / n) : "–" }))),
+    h("p", { class: "p14 " + (better ? "ok2" : "no2"), text: better ? "The model beats guessing 'no change'." : "The model does not beat guessing 'no change' yet." }));
+}
+
 export async function trackView(root) {
   root.replaceChildren(h("p", { class: "muted pad", text: "Loading…" }));
-  let stats = [], signals = [];
+  let stats = [], signals = [], days = [];
+  days = await rest.get("v_model_checks_daily?select=*&order=check_date.desc&limit=30").catch(() => []);
   try {
     [stats, signals] = await Promise.all([rest.get("trackrecord_stats?select=*&horizon_days=eq.30&threshold_pct=eq.10"),
       rest.get("trackrecord_signals?select=*&horizon_days=eq.30&threshold_pct=eq.10&order=resolved_on.desc,id.desc&limit=6")]);
@@ -25,6 +42,8 @@ export async function trackView(root) {
     h("div", { class: "head" }, h("h1", { text: "Track record" }),
       h("p", { class: "muted", text: "How often past buy signals came true. Only predictions older than 30 days count." })));
 
+  const dc = dailyCheck(days || []);
+  if (dc) page.append(dc);
   if (!s) {
     page.append(h("div", { class: "grp" }, h("p", { class: "p14", text: "No results yet. Predictions are judged after 30 days. Once historical prices are fetched, a backtest can show numbers here." })));
     root.replaceChildren(page); return;
