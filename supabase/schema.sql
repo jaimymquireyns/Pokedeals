@@ -270,6 +270,8 @@ alter table collection add column if not exists purchase_seller text;           
 alter table collection add column if not exists purchase_order text;                         -- zelfde waarde = zelfde bestelling
 alter table sale_items add column if not exists purchase_seller text;   -- van wie je deze kaart ooit kocht (voor 'Gekocht', ook na verkoop)
 alter table sale_items add column if not exists purchase_order text;    -- bij welke aankoop hij hoorde
+alter table collection add column if not exists language text;   -- taal van de kaart als die niet Engels is (bijv. German)
+alter table collection add column if not exists variant text;    -- bijv. 'Reverse holo'
 
 drop view if exists v_deals;
 create view v_deals with (security_invoker = on) as   -- goedkope aanbiedingen (Home): de goedkoopste aanbieding tegen de tweede goedkoopste van dezelfde uitvoering
@@ -290,7 +292,7 @@ grant select on v_deals to anon, authenticated;
 
 drop view if exists v_collection;
 create view v_collection with (security_invoker = on) as
-    select c.id, c.product_id, c.quantity, c.condition, c.grade_company, c.grade,
+    select c.id, c.product_id, c.quantity, c.condition, c.grade_company, c.grade, c.language, c.variant,
            c.purchase_price, c.purchase_shipping, c.purchase_costs, c.purchase_seller, c.purchase_order, c.purchase_date, c.created_at,
            p.kind, p.name, p.set_name, p.number, p.rarity, p.image, p.cm_name,
            lp.price as value_each, lp.date as value_date, p30.price as value_30d_ago,
