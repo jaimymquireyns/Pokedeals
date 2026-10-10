@@ -34,9 +34,12 @@ try:
         if u.get("product_id"): data["product_id"] = u["product_id"]
         st.patch("collection", {"id": f"eq.{u['id']}"}, data)
     say("collectie-rijen aangepast:", len(plan["update_collection"]))
+    for pw in plan.get("patch_where", []):
+        st.patch("collection", dict(pw["params"], user_id=f"eq.{UID}"), pw["data"])
+    say("extra aanpassingen:", len(plan.get("patch_where", [])))
     cols = ("product_id", "quantity", "condition", "purchase_price", "purchase_shipping", "purchase_costs", "purchase_date", "purchase_seller", "purchase_order")
     rows = [dict({k: r[k] for k in cols}, user_id=UID) for r in plan["insert_collection"]]
-    st.insert("collection", rows)
+    if rows: st.insert("collection", rows)
     say("collectie-rijen erbij:", len(rows))
     sales, items = [], []
     for s in plan["insert_sales"]:
