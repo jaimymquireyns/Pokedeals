@@ -2,7 +2,7 @@ import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
 import { adviceBox, arrow, cardmarketHref, chanceBar, extraTags, go, gradeTag, hasExactCm, kindTag, median, outlookBar, pill } from "../components.js";
-import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFacts, adviceFor, adviceTrack, breakEven, change, outlook, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
+import { PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFacts, adviceFor, adviceTrack, breakEven, change, outlook, costEach, gradeKey, marketValue, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
@@ -41,14 +41,14 @@ export async function detailView(root, pid, cid) {
 
   const gk = c ? gradeKey(c) : "raw";
   const num2 = (x) => (x == null ? null : Number(x));
-  const trendPrice = c ? num2(c.value_each) : num2(p.price);
-  // Hoofdprijs ("Waarde nu", winst en winstgrens): de mediaan van de (maximaal) MAIN_PRICE_N goedkoopste aanbiedingen van de
-  // uitvoering van de goedkoopste aanbieding. Een mediaan trekt zich weinig aan van een enkele absurde vraagprijs (EUR 9.001)
-  // of een enkel afwijkend goedkoop exemplaar, en vergelijkt geen uitvoeringen die tien keer in prijs kunnen verschillen
-  // (Normal en Reverse Holofoil). Het gemiddelde van alle aanbiedingen liet zich door zo'n uitschieter ver omhoog trekken.
-  const refVariant = offerRows.length ? (offerRows[0].variant ?? null) : null;
-  const refOffers = offerRows.filter((o) => (o.variant ?? null) === refVariant).slice(0, MAIN_PRICE_N);
-  const offerAvg = refOffers.length ? median(refOffers.map((o) => Number(o.price))) : null;
+  const trendPrice = c ? num2(c.value_trend ?? c.value_each) : num2(p.price);
+  // Waarde ("Value now", winst en winstgrens): het gemiddelde van de 10 goedkoopste Engelse aanbiedingen van dezelfde uitvoering,
+  // elke verkoper één keer en zonder je eigen aanbiedingen (model.marketValue, zelfde regel als v_market). De trendprijs schiet
+  // soms weken omhoog door een paar dure verkopen; wat een kaart echt opbrengt zie je beter aan de aanbiedingen.
+  const mv = c && (c.language || c.grade_company) ? null : marketValue(offerRows, s.cm_name);
+  const refVariant = mv ? mv.variant : null;
+  const refOffers = mv ? mv.ref : [];
+  const offerAvg = mv ? mv.value : null;
   const lowestOffer = refOffers.length ? Number(refOffers[0].price) : null;
   const price = offerAvg ?? trendPrice;
   const graded = gk !== "raw";

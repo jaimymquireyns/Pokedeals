@@ -23,7 +23,7 @@ export async function collectionView(root) {
       rest.get("alerts?select=product_id,grade_key,active&active=eq.true").then((a) => new Set(a.map((x) => `${x.product_id}|${x.grade_key}`))),
     ]);
   } catch (e) { root.replaceChildren(h("p", { class: "err pad", text: "Couldn't load your collection. Check your connection." })); console.error(e); return; }
-  items = items.map((c) => ({ ...c, value_each: c.value_each == null ? null : Number(c.value_each), value_30d_ago: c.value_30d_ago == null ? null : Number(c.value_30d_ago),
+  items = items.map((c) => ({ ...c, value_each: c.value_each == null ? null : Number(c.value_each), value_30d_ago: c.value_30d_ago == null ? null : Number(c.value_30d_ago), value_trend: c.value_trend == null ? null : Number(c.value_trend),
     purchase_price: Number(c.purchase_price), purchase_shipping: Number(c.purchase_shipping || 0), purchase_costs: Number(c.purchase_costs || 0), p_up: c.p_up == null ? null : Number(c.p_up), p_down: c.p_down == null ? null : Number(c.p_down) }));
 
   // advies per kaart (Verkopen / Houden / Verdacht); zonder adviestabel gewoon zonder
@@ -40,7 +40,7 @@ export async function collectionView(root) {
   const outlookOf = (g) => (g.grade_company ? null : outlook(advRows.get(g.product_id), advStats));
 
   const val = (c) => (c.value_each ?? costEach(c)) * c.quantity;
-  const gain = (c) => (ui.measure === "30d" ? (c.value_each && c.value_30d_ago ? c.value_each / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / costEach(c) - 1 : null));
+  const gain = (c) => (ui.measure === "30d" ? ((c.value_trend ?? c.value_each) && c.value_30d_ago ? (c.value_trend ?? c.value_each) / c.value_30d_ago - 1 : null) : (c.value_each ? c.value_each / costEach(c) - 1 : null));
   // Het moment van toevoegen (created_at); zonder dat veld (de weergave is nog niet bijgewerkt) vallen we terug op de aankoopdatum.
   // Een kaart met meerdere aankopen telt mee met zijn laatst toegevoegde aankoop.
   const addedAt = (c) => String((c.copies ? c.copies.reduce((m, x) => (String(x.created_at || x.purchase_date || "") > m ? String(x.created_at || x.purchase_date || "") : m), "") : (c.created_at || c.purchase_date)) || "");
@@ -112,7 +112,7 @@ export async function collectionView(root) {
     const groupRow = (g) => {
       const multi = g.copies.length > 1;
       const ggain = ui.measure === "30d"
-        ? (g.value_each && g.value_30d_ago ? g.value_each / g.value_30d_ago - 1 : null)
+        ? ((g.value_trend ?? g.value_each) && g.value_30d_ago ? (g.value_trend ?? g.value_each) / g.value_30d_ago - 1 : null)
         : (g._invested ? g._value / g._invested - 1 : null);
       const head = h("button", { class: "rowc grouphead", type: "button", onclick: () => {
         if (selecting) { if (picked.has(g.key)) picked.delete(g.key); else picked.add(g.key); drawSel(); drawList(); return; }
