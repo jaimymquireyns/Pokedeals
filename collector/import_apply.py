@@ -52,6 +52,7 @@ try:
                           "purchase_seller": l.get("purchase_seller"), "purchase_order": l.get("purchase_order")})
     if sales: st.insert("sales", sales)
     say("verkopen erbij:", len(sales))
+    items += plan.get("insert_items", [])
     if items: st.insert("sale_items", items)
     say("verkoopregels erbij:", len(items))
     after = {"collection": len(st.select("collection", q)), "sales": len(st.select("sales", q)), "sale_items": len(st.select("sale_items", q))}
