@@ -600,6 +600,14 @@ def main():
             check(page.locator(".orderform input[aria-label='Commission']").input_value() == "0.6", "commissie vooraf ingevuld op 6%: " + page.locator(".orderform input[aria-label='Commission']").input_value())
             # 10 + 1,50 - 1,20 - 0,60 commissie - 0,50 verpakking - kostprijs (6+3) + (2+1) = -2,80
             check("2.80" in page.inner_text(".orderform .bigline"), "winst op de verkoop: " + page.inner_text(".orderform .bigline").replace("\n", " "))
+            # prijs per kaart typen: het invulveld blijft hetzelfde (toetsenbord blijft open) en het totaal loopt mee
+            share = page.locator(".orderform input[aria-label='Share of price']").first
+            share.click(); share.press("Control+A"); share.press_sequentially("7.25", delay=40)
+            still = page.evaluate("() => document.activeElement === document.querySelector(\".orderform input[aria-label='Share of price']\")")
+            other_share = page.locator(".orderform input[aria-label='Share of price']").nth(1).input_value()
+            check(still, "tijdens het typen blijft het invulveld actief (toetsenbord blijft open)")
+            check(abs(float(page.locator(".orderform input[aria-label='Total price']").input_value()) - (7.25 + float(other_share))) < 0.001, "totaal = som van de prijzen per kaart: " + page.locator(".orderform input[aria-label='Total price']").input_value())
+            page.locator(".orderform input[aria-label='Total price']").fill("10.00")
             page.get_by_role("button", name="Save sale").click()
             page.wait_for_selector(".salecard")
             sale = mock.db["sales"][-1]
@@ -642,9 +650,7 @@ def main():
             page.screenshot(path=str(SHOTS / "verkocht_grafiek.png"), full_page=True)
             page.get_by_role("button", name="Per month").click()
             check(page.locator(".salesbox svg.chart path").count() == 2, "per maand: ook twee lijnen")
-            page.get_by_role("button", name="3M", exact=True).click()
-            check(page.locator(".salesbox svg.chart path").count() == 2 or "too few" in page.inner_text(".salesbox .chartbox").lower() or "only one month" in page.inner_text(".salesbox .chartbox").lower(), "periode 3M werkt")
-            page.get_by_role("button", name="Cumulative").click(); page.get_by_role("button", name="Max", exact=True).click()
+            page.get_by_role("button", name="Cumulative").click()
             # zoekbalk
             zoek_v = lambda term: (page.locator("input[aria-label^='Search buyer']").fill(term), page.wait_for_timeout(350))
             zoek_v("anna")
@@ -669,11 +675,13 @@ def main():
             dates = [td, "2026-09-01", "2026-08-10"]
             buyers = lambda: page.locator(".salecard .salehead > div b").all_inner_texts()
             press = lambda label: page.get_by_role("button", name=label, exact=True).first.click()
-            exp = {"month": sum(d[:7] == td[:7] for d in dates), "3m": sum(d >= (_d.today() - _td(days=92)).isoformat() for d in dates), "year": sum(d[:4] == td[:4] for d in dates)}
+            within = lambda n: sum(d > (_d.today() - _td(days=n)).isoformat() for d in dates)
+            exp = {"1w": within(7), "1m": within(30), "3m": within(91), "1y": within(365), "2y": within(730)}
             check(buyers() == ["kopersnaam", "Anna", "Bob"], f"standaard nieuwste eerst: {buyers()}")
-            press("This month"); check(len(buyers()) == exp["month"], f"periode deze maand: {buyers()} (verwacht {exp['month']})")
-            press("3 months"); check(len(buyers()) == exp["3m"], f"periode 3 maanden: {buyers()} (verwacht {exp['3m']})")
-            press("This year"); check(len(buyers()) == exp["year"], f"periode dit jaar: {buyers()} (verwacht {exp['year']})")
+            for key, label in (("1w", "1W"), ("1m", "1M"), ("3m", "3M"), ("1y", "1Y"), ("2y", "2Y")):
+                press(label); check(len(buyers()) == exp[key], f"periode {label}: {buyers()} (verwacht {exp[key]})")
+                if exp[key]:
+                    check(page.locator(".salesbox svg.chart path").count() == 2 or "too few" in page.inner_text(".salesbox .chartbox").lower(), f"grafiek bij periode {label}")
             page.get_by_role("button", name="All", exact=True).nth(0).click()   # periode terug op Alles
             press("Profit")
             check(buyers() == ["Anna"] and "24.70" in page.inner_text(".salesbox .sum").replace("\xa0", " ") and "Profit (filtered)" in page.inner_text(".salesbox .sum"), f"uitkomst Winst: {buyers()}, totaal gefilterd: " + page.inner_text(".salesbox .sum").replace("\n", " "))

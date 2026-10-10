@@ -112,7 +112,9 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
   return { cost: shown.map((x) => [x[0], x[1]]), profit: shown.map((x) => [x[0], x[2]]) };
 }
 
-const SALE_PERIODS = [["all", "All"], ["month", "This month"], ["3m", "3 months"], ["year", "This year"]];
+const SALE_PERIODS = [["1w", "1W"], ["1m", "1M"], ["3m", "3M"], ["1y", "1Y"], ["2y", "2Y"], ["all", "All"]];
+const PERIOD_DAYS = { "1w": 7, "1m": 30, "3m": 91, "1y": 365, "2y": 730 };
+const OLD_PERIOD = { month: "1m", year: "1y" };   // oude bewaarde keuzes
 const SALE_RESULTS = [["all", "All"], ["win", "Profit"], ["loss", "Loss"]];
 const SALE_SORTS = [["new", "Newest first"], ["old", "Oldest first"], ["win", "Biggest profit"], ["loss", "Biggest loss"]];
 export const SALE_FILTER_DEFAULT = { period: "all", result: "all", sort: "new" };
@@ -120,12 +122,8 @@ export const SALE_FILTER_DEFAULT = { period: "all", result: "all", sort: "new" }
 /** Periode, uitkomst en volgorde toepassen op de verkopen. now: 'YYYY-MM-DD' (voor de tests). */
 export function filterSales(sales, f, now = new Date().toISOString().slice(0, 10)) {
   const day = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
-  const ok = {
-    all: () => true,
-    month: (s) => s.sale_date.slice(0, 7) === now.slice(0, 7),
-    "3m": (s) => s.sale_date >= day(now, -92),
-    year: (s) => s.sale_date.slice(0, 4) === now.slice(0, 4),
-  }[f.period] || (() => true);
+  const p = OLD_PERIOD[f.period] || f.period;
+  const ok = PERIOD_DAYS[p] ? (s) => s.sale_date > day(now, -PERIOD_DAYS[p]) : () => true;   // de laatste 7 / 30 / 91 / 365 / 730 dagen
   const res = { all: () => true, win: (s) => s.profit.total > 0, loss: (s) => s.profit.total < 0 }[f.result] || (() => true);
   const cmp = {
     new: (a, b) => b.sale_date.localeCompare(a.sale_date),
@@ -144,7 +142,8 @@ export async function renderSales(box, { onChange } = {}) {
     box.replaceChildren(emptyNote("No sales yet. In your collection, tap 'Select' and then 'Sell' to record one."));
     return;
   }
-  const ui = { mode: "cum", range: "MAX", ...SALE_FILTER_DEFAULT, ...store.get("pd:sales", {}) };
+  const ui = { mode: "cum", ...SALE_FILTER_DEFAULT, ...store.get("pd:sales", {}) };
+  ui.period = OLD_PERIOD[ui.period] || ui.period;
   const saveUi = () => store.set("pd:sales", ui);
   let query = "";
   let current = sales;   // de verkopen die door de zoekbalk komen: de totalen, de grafiek, de lijst en de CSV gaan daar allemaal over
@@ -153,7 +152,6 @@ export async function renderSales(box, { onChange } = {}) {
   const chartBox = h("div", { class: "chartbox" });
   const chartCard = h("div", { class: "chartcard" },
     segment([["cum", "Cumulative"], ["month", "Per month"]], ui.mode, (m) => { ui.mode = m; saveUi(); drawChart(); }, "small"),
-    segment([["3M", "3M"], ["1J", "1Y"], ["MAX", "Max"]], ui.range, (r) => { ui.range = r; saveUi(); drawChart(); }, "small"),
     chartBox);
   const csvBox = h("div", { class: "more" });
   const listBox = h("div", { class: "salelist" });
@@ -171,7 +169,7 @@ export async function renderSales(box, { onChange } = {}) {
   const clearFilters = () => { ui.period = "all"; ui.result = "all"; saveUi(); renderSales(box, { onChange }); };
 
   function drawChart() {
-    const r = salesPoints(current, ui.mode, ui.range);
+    const r = salesPoints(current, ui.mode, "MAX");   // de periode-knoppen hierboven filteren de verkopen al
     if (r.note) { chartBox.replaceChildren(h("p", { class: "muted small", text: r.note })); return; }
     chartBox.replaceChildren(
       lineChart({ series: [{ pts: r.cost, stroke: "var(--ink)", width: 2.4, name: "Cost" }, { pts: r.profit, stroke: "var(--up)", width: 3, name: "Profit" }],
