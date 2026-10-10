@@ -1,7 +1,7 @@
 // Pagina 'Gekocht': al je aankopen als bestelling (verkoper, datum, kaarten, wat je betaalde), ook van kaarten die je al verkocht hebt.
 // Kaarten die je nog hebt, kun je hier aanpassen of verwijderen; verkochte kaarten pas je aan bij hun verkoop.
 import { rest } from "../api.js";
-import { emptyNote, filterBox, go, gradeTag, matchQuery } from "../components.js";
+import { emptyNote, extras, filterBox, go, gradeTag, matchQuery } from "../components.js";
 import { costEach } from "../model.js";
 import { openPurchaseEdit, openPurchaseOrder } from "../orders.js";
 import { loadSales } from "./sales.js";
@@ -37,7 +37,7 @@ export async function purchasesView(root) {
   let owned, sales;
   try {
     [owned, sales] = await Promise.all([
-      rest.get("v_collection?select=id,product_id,quantity,condition,grade_company,grade,purchase_price,purchase_shipping,purchase_costs,purchase_seller,purchase_order,purchase_date,created_at,name,set_name,number,image,kind"),
+      rest.get("v_collection?select=id,product_id,quantity,condition,grade_company,grade,language,variant,purchase_price,purchase_shipping,purchase_costs,purchase_seller,purchase_order,purchase_date,created_at,name,set_name,number,image,kind"),
       loadSales(),
     ]);
   } catch (e) { console.error(e); root.replaceChildren(h("p", { class: "err pad", text: "Couldn't load your purchases. Check your connection." })); return; }
@@ -76,7 +76,7 @@ export async function purchasesView(root) {
           h("button", { type: "button", class: "buyline", onclick: () => go(`#/detail/${encodeURIComponent(r.product_id)}?c=${r.id}`) },
             thumb(r.image, "ph", r.kind === "sealed"),
             h("span", { class: "bl" }, h("b", { text: `${r.quantity > 1 ? r.quantity + "x " : ""}${r.name}` }), gradeTag(r),
-              h("small", { text: [r.set_name, r.number && r.kind === "card" ? `#${r.number}` : "", r.kind === "card" && !r.grade_company ? r.condition : ""].filter(Boolean).join(" · ") })),
+              h("small", { text: [r.set_name, r.number && r.kind === "card" ? `#${r.number}` : "", r.kind === "card" && !r.grade_company ? r.condition : "", ...extras(r)].filter(Boolean).join(" · ") })),
             h("span", { class: "num", text: eur(Number(r.purchase_price) * Number(r.quantity)) })))),
         ...g.sold.map((l) => h("li", {},
           h("div", { class: "buyline" },

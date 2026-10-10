@@ -2,6 +2,8 @@
 import { rest, userId } from "./api.js";
 import { eur, h, icon, parseMoney, segment, thumb, toast, num } from "./ui.js";
 
+const LANGS = ["English", "German", "French", "Italian", "Spanish", "Dutch", "Portuguese", "Japanese", "Korean", "Chinese"];
+const VARIANTS = ["Normal", "Reverse holo", "1st edition", "Stamped"];
 const GRADES = ["10", "9.5", "9", "8.5", "8", "7", "6", "5", "4", "3", "2", "1"];
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -20,6 +22,9 @@ export function addForm(product, { onDone, editing } = {}) {
     graded: Boolean(e.grade_company), company: e.grade_company || "PSA", grade: e.grade || "10",
     condition: e.condition || "NM", qty: e.quantity || 1,
   };
+  const pick = (label, opts, cur) => h("div", { class: "selw" }, h("select", { "aria-label": label }, ...opts.map((o) => h("option", { value: o, text: o, selected: o === cur }))), icon("chev"));
+  const langSel = pick("Language", LANGS, e.language || "English");
+  const varSel = pick("Variant", VARIANTS, e.variant || "Normal");
   const price = h("input", { type: "text", inputmode: "decimal", "aria-label": "Purchase price each", value: (e.purchase_price ?? product.price ?? "") === "" ? "" : String(e.purchase_price ?? product.price) });
   const date = h("input", { type: "date", "aria-label": "Bought on", value: e.purchase_date || today(), max: today() });
   // verzending die je als koper betaalde, eventueel voor meerdere kaarten uit dezelfde bestelling
@@ -80,6 +85,11 @@ export function addForm(product, { onDone, editing } = {}) {
     const row = { product_id: product.product_id, quantity: st.qty, purchase_price: p, purchase_shipping: shipShare(), purchase_costs: parseMoney(costs.value) || 0, purchase_seller: seller.value.trim() || null, purchase_date: date.value || today(),
       condition: st.graded ? null : (product.kind === "card" ? st.condition : null),
       grade_company: st.graded ? st.company : null, grade: st.graded ? st.grade : null };
+    if (product.kind === "card") {
+      const lang = langSel.querySelector("select").value, variant = varSel.querySelector("select").value;
+      row.language = lang === "English" ? null : lang;
+      row.variant = variant === "Normal" ? null : variant;
+    }
     try {
       if (editing) await rest.patch("collection", `id=eq.${editing.id}`, row);
       else {
@@ -107,6 +117,9 @@ export function addForm(product, { onDone, editing } = {}) {
     h("div", { class: "found" }, thumb(product.image, "ph", product.kind === "sealed", product.kind === "sealed" ? "" : [product.name, product.number ? "#" + product.number : ""].filter(Boolean).join(" ")),
       h("div", {}, h("h2", { id: "sheet-title", text: product.name }), h("div", { class: "set", text: [product.set_name, product.number ? `no. ${product.number}` : ""].filter(Boolean).join(", ") }))),
     typeBox, gradeBox, condBox,
+    product.kind === "card" ? h("div", { class: "two eq" },
+      h("div", {}, h("div", { class: "lbl2", text: "Language" }), langSel),
+      h("div", {}, h("div", { class: "lbl2", text: "Variant" }), varSel)) : null,
     h("div", { class: "three" },
       h("div", {}, h("div", { class: "lbl2", text: "Quantity" }), stepper),
       h("div", {}, h("div", { class: "lbl2", text: "Purchase price" }), price),

@@ -1,7 +1,7 @@
 import { isLoggedIn, rest, userId } from "../api.js";
 import { addForm } from "../add.js";
 import { lineChart } from "../chart.js";
-import { adviceBox, arrow, cardmarketHref, chanceBar, go, gradeTag, hasExactCm, kindTag, median, outlookBar, pill } from "../components.js";
+import { adviceBox, arrow, cardmarketHref, chanceBar, extraTags, go, gradeTag, hasExactCm, kindTag, median, outlookBar, pill } from "../components.js";
 import { MAIN_PRICE_N, PACKAGING, PERIODS, SHOW_PREDICTIONS, SIGNAL_TEXT, adviceFacts, adviceFor, adviceTrack, breakEven, change, outlook, costEach, gradeKey, netGain, ownedSignal, shipCost, whyBullets } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { enablePush, pushPermission } from "../push.js";
@@ -92,7 +92,7 @@ export async function detailView(root, pid, cid) {
   // ---- kop ----
   const head = h("div", { class: "dh" }, thumb(p.image, "ph", p.kind === "sealed", p.kind === "sealed" ? "" : [p.name, p.number ? "#" + p.number : ""].filter(Boolean).join(" ")),
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
-      h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null),
+      h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null, c ? extraTags(c) : null),
       h("div", { class: "bigrow" }, h("span", { class: "big num", text: price ? eur(price) : "No price" }), moveSlot),
       offerAvg != null ? h("p", { class: "mini", text: `For sale from ${eur(lowestOffer)}${refVariant && refVariant !== "Normal" ? ` (${refVariant})` : ""} · trend price ${eur(trendPrice)}` }) : null,
       offerAvg != null && refOffers.length < 3 ? h("p", { class: "mini warn", text: `Only ${refOffers.length} ${refOffers.length === 1 ? "listing" : "listings"} of this variant: price is uncertain.` }) : null));
