@@ -11,6 +11,9 @@ export const kindTag = (kind) => h("span", { class: "tag" + (kind === "sealed" ?
 const PILL = { koop: ["koop", "buy"], verkoop: ["verkoop", "sell"], afwachten: ["", "wait"], hold: ["", "hold"], "consider selling": ["verkoop", "consider selling"], "take profit?": ["winst", "take profit?"] };
 export const pill = (label) => { const [cls, text] = PILL[label] || ["", label]; return h("span", { class: "pill " + cls, text }); };
 export const gradeTag = (c) => (gradeLabel(c) ? h("span", { class: "gr", text: gradeLabel(c) }) : null);
+/** Taal en variant als die afwijken van Engels/normaal, bijv. ["German", "Reverse holo"]. */
+export const extras = (c) => [c?.language, c?.variant].filter(Boolean);
+export const extraTags = (c) => extras(c).map((t) => h("span", { class: "gr soft", text: t }));
 
 /** Cardmarket-adres van een kaart: de exacte pagina als we die kennen (cm_url, via PkmnPrices), anders een zoekopdracht
  * op naam en nummer (die kan meerdere kaarten van dezelfde Pokémon tonen). Alleen echte Cardmarket-adressen. */

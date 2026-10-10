@@ -1,6 +1,6 @@
 import { isLoggedIn, rest } from "../api.js";
 import { lineChart, stepPoints } from "../chart.js";
-import { adviceChip, brandmark, detailHash, emptyNote, filterBox, go, gradeTag, matchQuery, moveCell } from "../components.js";
+import { adviceChip, brandmark, detailHash, emptyNote, extras, filterBox, go, gradeTag, matchQuery, moveCell } from "../components.js";
 import { adviceFor, attention, costEach, gradeKey, outlook } from "../model.js";
 import { getSettings } from "../prefs.js";
 import { openPurchaseOrder, openSaleDetails } from "../orders.js";
@@ -57,7 +57,7 @@ export async function collectionView(root) {
   const invested = items.reduce((s, c) => s + costEach(c) * c.quantity, 0);
   const profit = value - invested;
   const attn = attention(items, getSettings());
-  const groupKey = (c) => `${c.product_id}|${gradeKey(c)}`;
+  const groupKey = (c) => `${c.product_id}|${gradeKey(c)}|${c.language || ""}|${c.variant || ""}`;
   const groups = () => {
     const m = new Map();
     for (const c of items) { const k = groupKey(c); if (!m.has(k)) m.set(k, []); m.get(k).push(c); }
@@ -106,7 +106,7 @@ export async function collectionView(root) {
     sortBtn.replaceChildren(icon("sort"), h("span", { text: "Sort" }));
     sortBtn.setAttribute("aria-label", "Sort, now: " + SORTS.find((s) => s[0] === ui.sort)[1]);
     const ofKind = groups().filter((c) => ui.kind === "alles" || c.kind === ui.kind);
-    const vis = ofKind.filter((c) => matchQuery(query, [c.name, c.cm_name, c.set_name, c.number, c.condition, c.grade_company ? `${c.grade_company} ${c.grade}` : ""], c.set_name)).sort(selecting ? cmp.az : cmp[ui.sort]);   // bij het selecteren altijd A–Z
+    const vis = ofKind.filter((c) => matchQuery(query, [c.name, c.cm_name, c.set_name, c.number, c.condition, c.language, c.variant, c.grade_company ? `${c.grade_company} ${c.grade}` : ""], c.set_name)).sort(selecting ? cmp.az : cmp[ui.sort]);   // bij het selecteren altijd A–Z
     countNote.hidden = !query.trim();
     countNote.textContent = `${vis.length} of ${ofKind.length} found`;
     const groupRow = (g) => {
@@ -123,7 +123,8 @@ export async function collectionView(root) {
         h("div", { class: "body" },
           h("span", { class: "nm" }, h("span", { class: "name", text: g.name }), gradeTag(g)),
           h("span", { class: "set", text: (g.set_name || "") + (g.number && g.kind === "card" ? ` #${g.number}` : "") }),
-          multi || g.quantity > 1 || adviceChip(adviceOf(g)) ? h("span", { class: "meta" }, adviceChip(adviceOf(g)),
+          multi || g.quantity > 1 || adviceChip(adviceOf(g)) || extras(g).length ? h("span", { class: "meta" }, adviceChip(adviceOf(g)),
+            extras(g).length ? h("span", { class: "set", text: extras(g).join(" · ") }) : null,
             multi ? h("span", { class: "set", text: `${g.copies.length} purchases` }) : g.quantity > 1 ? h("span", { class: "set", text: `${g.quantity}x` }) : null,
             multi ? icon("chev", ui.expanded[g.key] ? "flip" : "") : null) : null),
         moveCell({ value: eur(g._value), change: ggain, outlook: outlookOf(g) }));

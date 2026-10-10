@@ -171,7 +171,7 @@ class Mock:
                 old = [p for p in d["prices"] if p["product_id"] == c["product_id"] and p["grade_key"] == gk and p["date"] <= (TODAY - timedelta(days=30)).isoformat()]
                 f = fc.get(c["product_id"], {})
                 p = prod[c["product_id"]]
-                out.append({**{k: c.get(k) for k in ("id", "product_id", "quantity", "condition", "grade_company", "grade", "purchase_price", "purchase_date",
+                out.append({**{k: c.get(k) for k in ("id", "product_id", "quantity", "condition", "grade_company", "grade", "language", "variant", "purchase_price", "purchase_date",
                                                   "purchase_shipping", "purchase_costs", "purchase_seller", "purchase_order", "created_at")},
                             **{k: p[k] for k in ("kind", "name", "set_name", "number", "rarity", "image")},
                             "value_each": lp["price"] if lp else None, "value_date": lp["date"] if lp else None,

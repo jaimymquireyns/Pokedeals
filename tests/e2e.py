@@ -280,10 +280,13 @@ def main():
             page.get_by_role("button", name="Graded", exact=True).click()
             page.wait_for_selector("select")
             page.locator(".addform input[aria-label='Purchase price each']").fill("120")
+            page.locator(".addform select[aria-label='Language']").select_option("German")
+            page.locator(".addform select[aria-label='Variant']").select_option("Reverse holo")
             page.locator(".cta").click()
             page.wait_for_selector(".addform", state="hidden")
             page.wait_for_function("document.querySelectorAll('.addb.done').length >= 1")
             check(len(mock.db["collection"]) == 2 and mock.db["collection"][1]["grade_company"] == "PSA" and mock.db["collection"][1]["grade"] == "10", "PSA 10 opgeslagen")
+            check(mock.db["collection"][1].get("language") == "German" and mock.db["collection"][1].get("variant") == "Reverse holo" and mock.db["collection"][0].get("language") is None, "taal en variant opgeslagen (Engels/normaal = leeg)")
 
             print("Scan-flow")
             page.locator(".camb").click()
@@ -335,6 +338,7 @@ def main():
             # 2 van de 3 aankopen zijn dezelfde kaart in dezelfde (ongegradeerde) staat, en horen dus gegroepeerd te worden
             check(page.locator(".rowc").count() == 2, "2 regels (2 aankopen van dezelfde ongegradeerde kaart gegroepeerd, PSA 10 apart)")
             check("PSA 10" in page.inner_text(".list"), "PSA 10-label zichtbaar")
+            check("German · Reverse holo" in page.inner_text(".list"), "taal en variant zichtbaar in de lijst")
             check("2 purchases" in page.inner_text(".list"), "gegroepeerde regel toont het aantal aankopen")
             check("Value now" in page.inner_text(".sum"), "samenvatting")
             page.wait_for_selector(".chartbox svg")

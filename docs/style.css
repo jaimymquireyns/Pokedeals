@@ -82,6 +82,7 @@ input::placeholder{color:var(--muted);font-weight:400}
 .l2 .tags{display:flex;gap:6px;flex:none}
 .tag.s{color:var(--ink);border-color:var(--ink);background:transparent}
 .gr{font-size:11px;font-weight:800;padding:1px 7px;border-radius:6px;border:1.5px solid var(--ink);flex:none}
+.gr.soft{font-weight:700;border-color:var(--muted);color:var(--muted)}
 .l3{display:flex;align-items:center;gap:6px;font-size:13px}
 .l3 b{color:var(--up);font-size:14px}.l3 .lbl{color:var(--muted);font-size:12px}
 .nt{min-width:82px;text-align:right;white-space:nowrap}
