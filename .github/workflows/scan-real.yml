@@ -1,0 +1,44 @@
+name: Herkenning op echte foto's
+on:
+  push:
+    branches: [scan-real]
+    paths: [scan/start]
+permissions:
+  contents: write
+jobs:
+  real:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright pillow requests && python -m playwright install --with-deps chromium
+      - name: Sleutel maken en publieke helft delen
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/priv.pem 2>/dev/null
+          openssl pkey -in /tmp/priv.pem -pubout -out scan/runner_pub.pem
+          rm -f scan/photos.enc scan/photos.key.enc
+          git add -A scan && git commit -m "Foto's: sleutel van deze run" && git pull --rebase -q && git push
+      - name: Wachten op versleutelde foto's
+        run: |
+          for i in $(seq 1 100); do
+            git pull -q --rebase || true
+            if [ -f scan/photos.enc ] && [ -f scan/photos.key.enc ]; then echo gevonden; exit 0; fi
+            sleep 10
+          done
+          exit 1
+      - name: Ontsleutelen
+        run: |
+          openssl pkeyutl -decrypt -inkey /tmp/priv.pem -pkeyopt rsa_padding_mode:oaep -in scan/photos.key.enc -out /tmp/k.bin
+          openssl enc -d -aes-256-cbc -pbkdf2 -in scan/photos.enc -out /tmp/photos.tgz -pass file:/tmp/k.bin
+          mkdir -p /tmp/real && tar xzf /tmp/photos.tgz -C /tmp/real
+      - name: Herkenning
+        run: python tests/scan_bench.py --real /tmp/real --out reports/scan_real.md
+      - name: Verslag bewaren, foto's weg
+        if: always()
+        run: |
+          git rm -q --cached scan/photos.enc scan/photos.key.enc 2>/dev/null; rm -f scan/photos.enc scan/photos.key.enc
+          git add -A reports scan && git commit -m "Herkenning echte foto's: verslag" && git pull --rebase -q && git push

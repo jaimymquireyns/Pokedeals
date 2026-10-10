@@ -113,11 +113,17 @@ def main():
     ap.add_argument("--n", type=int, default=80)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--out", default="reports/scan_bench.md")
+    ap.add_argument("--real", help="map met echte foto's en labels.json [{file, name, set_name, number}]")
     args = ap.parse_args()
-    cards = pick_cards(args.n, args.seed)
+    cases = []
+    if args.real:   # echte gsm-foto's van de gebruiker
+        for lab in json.loads((Path(args.real) / "labels.json").read_text()):
+            cases.append((lab, "real", Path(args.real) / lab["file"]))
+        cards = []
+    else:
+        cards = pick_cards(args.n, args.seed)
     print(f"{len(cards)} kaarten gekozen")
     rnd = random.Random(args.seed)
-    cases = []
     for c in cards:
         img = download(c)
         if img is None:
@@ -163,7 +169,7 @@ def main():
     finally:
         srv.terminate()
     lines = ["# Testbank kaartherkenning", ""]
-    for level in ("easy", "hard"):
+    for level in ("easy", "hard", "real"):
         rs = [r for r in results if r["level"] == level]
         if rs:
             lines.append(f"- {level}: {sum(r['ok'] for r in rs)}/{len(rs)} juist ({sum(r['ok'] for r in rs) / len(rs):.0%}), naam juist {sum(r['name_ok'] for r in rs)}/{len(rs)}, gemiddeld {sum(r['secs'] for r in rs) / len(rs):.1f} s")
