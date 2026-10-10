@@ -11,13 +11,15 @@ export async function loadSales() {
     rest.get("sales?select=*&order=sale_date.desc,created_at.desc"),
     rest.get("sale_items?select=*"),
   ]);
-  const ids = [...new Set(items.map((i) => i.product_id))];
+  const ids = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
   const products = ids.length ? await rest.get(`products?select=product_id,name,set_name,number,kind,image&product_id=in.(${ids.map(encodeURIComponent).join(",")})`) : [];
   const prod = new Map(products.map((p) => [p.product_id, p]));
   const bySale = new Map();
   for (const it of items) {
     if (!bySale.has(it.sale_id)) bySale.set(it.sale_id, []);
-    bySale.get(it.sale_id).push({ ...it, ...(prod.get(it.product_id) || { name: it.product_id }), price_share: Number(it.price_share), cost_total: Number(it.cost_total) });
+    // kaart die niet in de database staat (bijv. Japans): naam en taal staan op de regel zelf
+    const base = it.product_id ? (prod.get(it.product_id) || { name: it.product_id }) : { name: it.item_name || "Card", set_name: it.item_language || "", kind: "card" };
+    bySale.get(it.sale_id).push({ ...it, ...base, price_share: Number(it.price_share), cost_total: Number(it.cost_total) });
   }
   return sales.map((s) => {
     const lines = bySale.get(s.id) || [];
@@ -58,7 +60,8 @@ function downloadCsv(sales) {
 async function undoSale(s, onChange) {
   if (!confirm(`Undo sale to ${s.buyer || "unknown buyer"} on ${fmtDateLong(s.sale_date)}? The cards go back to your collection.`)) return;
   try {
-    await rest.insert("collection", s.lines.map((l) => ({ user_id: userId(), product_id: l.product_id, quantity: l.quantity,
+    const back = s.lines.filter((l) => l.product_id);   // niet-Engelse kaarten komen niet in de collectie
+    if (back.length) await rest.insert("collection", back.map((l) => ({ user_id: userId(), product_id: l.product_id, quantity: l.quantity,
       condition: l.condition || null, grade_company: l.grade_company || null, grade: l.grade || null,
       purchase_price: Math.round((l.cost_total / l.quantity) * 100) / 100, purchase_date: l.purchase_date || s.sale_date,
       purchase_seller: l.purchase_seller || null, purchase_order: l.purchase_order || null })));
@@ -213,8 +216,9 @@ export async function renderSales(box, { onChange } = {}) {
         h("div", {}, h("b", { text: s.buyer || "Unknown buyer" }), h("div", { class: "mini", text: fmtDateLong(s.sale_date) })),
         h("b", { class: "num " + (s.profit.total < 0 ? "neg" : "pos"), text: signedEur(s.profit.total) })),
       h("ul", { class: "salelines" }, ...s.lines.map((l, i) => h("li", {},
-        h("span", { text: `${l.quantity > 1 ? l.quantity + "x " : ""}${l.name}` }),
+        h("span", { text: `${l.quantity > 1 ? l.quantity + "x " : ""}${l.name}${l.product_id ? "" : ` (${l.item_language || "other"})`}` }),
         h("span", { class: "num", text: `${eur(l.price_share)} (${signedEur(s.profit.per[i])})` })))),
+      s.note && s.note !== "Cardmarket" ? h("div", { class: "mini", text: s.note }) : null,
       h("div", { class: "mini", text: `Received ${eur(Number(s.total_price) + Number(s.shipping_received))} · commission ${eur(Number(s.commission))} · shipping ${eur(Number(s.shipping_paid))} · other ${eur(Number(s.other_costs))}` }),
       h("div", { class: "saleacts" },
         h("button", { type: "button", class: "btn act", onclick: () => openSaleEdit(s, onChange) }, "Edit"),

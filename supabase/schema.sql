@@ -270,6 +270,9 @@ alter table collection add column if not exists purchase_seller text;           
 alter table collection add column if not exists purchase_order text;                         -- zelfde waarde = zelfde bestelling
 alter table sale_items add column if not exists purchase_seller text;   -- van wie je deze kaart ooit kocht (voor 'Gekocht', ook na verkoop)
 alter table sale_items add column if not exists purchase_order text;    -- bij welke aankoop hij hoorde
+alter table sale_items alter column product_id drop not null;   -- niet-Engelse kaarten staan niet in products: dan item_name/item_language
+alter table sale_items add column if not exists item_name text;
+alter table sale_items add column if not exists item_language text;
 alter table collection add column if not exists language text;   -- taal van de kaart als die niet Engels is (bijv. German)
 alter table collection add column if not exists variant text;    -- bijv. 'Reverse holo'
 

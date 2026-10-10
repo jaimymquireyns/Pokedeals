@@ -151,7 +151,10 @@ export function openSaleDetails(chosen, onDone) {
   const s = getSettings();
   const buyer = h("input", { type: "text", "aria-label": "Buyer", placeholder: "Name or Cardmarket user" });
   const date = h("input", { type: "date", "aria-label": "Date", value: today(), max: today() });
-  const marketTotal = () => chosen.reduce((t, x) => t + (x.c.value_each || costEach(x.c)) * x.qty, 0);
+  // kaarten die niet in de app staan (bijv. Japans): naam, taal, prijs en kostprijs zelf invullen; ze komen alleen bij Sold
+  const extras = [];
+  const extraSum = () => extras.reduce((t, e) => t + (parseMoney(e.price.value) || 0), 0);
+  const marketTotal = () => chosen.reduce((t, x) => t + (x.c.value_each || costEach(x.c)) * x.qty, 0) + extraSum();
   const total = money("Total price", fmtIn(marketTotal()));
   let totalTouched = false;
   const shipIn = money("Shipping received");
@@ -166,29 +169,52 @@ export function openSaleDetails(chosen, onDone) {
 
   const costOf = (x) => Math.round(costEach(x.c) * x.qty * 100) / 100;
   const fillShares = () => {
-    const shares = allocate(parseMoney(total.value) || 0, chosen.map((x) => (x.c.value_each || costEach(x.c)) * x.qty));
+    const shares = allocate(Math.max((parseMoney(total.value) || 0) - extraSum(), 0), chosen.map((x) => (x.c.value_each || costEach(x.c)) * x.qty));
     shareInputs.forEach((inp, i) => { inp.value = fmtIn(shares[i]); });
   };
   const sale = () => ({ shipping_received: parseMoney(shipIn.value) || 0, shipping_paid: parseMoney(shipOut.value) || 0,
     commission: parseMoney(commission.value) || 0, other_costs: parseMoney(other.value) || 0 });
+  const sumAll = () => Math.round((shareInputs.reduce((t, x) => t + (parseMoney(x.value) || 0), 0) + extraSum()) * 100) / 100;
   // De kaartregels worden alleen opnieuw opgebouwd als het aantal verandert; bij typen passen we enkel de getallen aan,
   // anders verdwijnt op een gsm bij elke toets het toetsenbord (het invulveld wordt dan vervangen).
   const profitEls = chosen.map(() => h("span", { class: "num" }));
+  const addExtra = () => {
+    const e = { name: h("input", { type: "text", "aria-label": "Card name", placeholder: "Card name" }),
+      lang: h("select", { "aria-label": "Card language" }, ...["Japanese", "Chinese", "Korean", "German", "French", "Italian", "Spanish", "Other"].map((o) => h("option", { value: o, text: o }))),
+      price: money("Sold for"), cost: money("Cost you"), profit: h("span", { class: "num" }), costTouched: false };
+    e.price.oninput = () => {
+      if (!e.costTouched) e.cost.value = fmtIn(Math.round((parseMoney(e.price.value) || 0) * 75) / 100);   // gepulled: 75% van de verkoopprijs
+      if (sharesTouched || !chosen.length) total.value = fmtIn(sumAll());
+      else if (!totalTouched) total.value = fmtIn(marketTotal());
+      recalc();
+    };
+    e.cost.oninput = () => { e.costTouched = true; recalc(); };
+    extras.push(e); renderLines(); recalc(); e.name.focus();
+  };
   const renderLines = () => linesBox.replaceChildren(...chosen.map((x, i) => h("div", { class: "oline" },
     thumb(x.c.image, "ph", x.c.kind === "sealed", x.c.kind === "sealed" ? "" : [x.c.name, x.c.number ? "#" + x.c.number : ""].filter(Boolean).join(" ")),
     h("div", { class: "body" },
       h("div", { class: "name", text: `${x.qty > 1 ? x.qty + "x " : ""}${x.c.name}` }),
       h("div", { class: "set", text: `cost you ${eur(costOf(x))}` }),
       x.c.quantity > 1 ? h("div", { class: "orow" }, stepper(() => x.qty, (v) => { x.qty = v; }, x.c.quantity, qtyChanged), h("span", { class: "mini", text: `of ${x.c.quantity}` })) : null,
-      h("div", { class: "orow" }, shareInputs[i], profitEls[i])))));
+      h("div", { class: "orow" }, shareInputs[i], profitEls[i])))),
+    ...extras.map((e, i) => h("div", { class: "oline xline" },
+      h("div", { class: "body" },
+        h("div", { class: "orow" }, e.name, h("div", { class: "selw" }, e.lang, icon("chev"))),
+        h("div", { class: "orow" }, h("span", { class: "mini", text: "Sold for" }), e.price, h("span", { class: "mini", text: "Cost" }), e.cost),
+        h("div", { class: "orow" }, e.profit,
+          h("button", { type: "button", class: "linkbtn", text: "Remove", onclick: () => { extras.splice(i, 1); total.value = fmtIn(totalTouched ? sumAll() : marketTotal()); renderLines(); recalc(); } }))))),
+    h("button", { type: "button", class: "linkbtn addx", text: "+ Card that isn't in the app (e.g. Japanese)", onclick: addExtra }));
   const recalc = () => {
     if (!commissionTouched) commission.value = fmtIn(Math.round((parseMoney(total.value) || 0) * s.fee_pct) / 100);
     if (!sharesTouched) fillShares();
-    const lines = chosen.map((x, i) => ({ price_share: parseMoney(shareInputs[i].value) || 0, cost_total: costOf(x) }));
+    const lines = [...chosen.map((x, i) => ({ price_share: parseMoney(shareInputs[i].value) || 0, cost_total: costOf(x) })),
+      ...extras.map((e) => ({ price_share: parseMoney(e.price.value) || 0, cost_total: parseMoney(e.cost.value) || 0 }))];
     const pr = saleProfit(sale(), lines);
     const sumShares = Math.round(lines.reduce((t, l) => t + l.price_share, 0) * 100) / 100;
     const off = Math.round(((parseMoney(total.value) || 0) - sumShares) * 100) / 100;
     profitEls.forEach((el, i) => { el.className = "num " + (pr.per[i] < 0 ? "neg" : "pos"); el.textContent = signedEur(pr.per[i]); });
+    extras.forEach((e, j) => { const v = pr.per[chosen.length + j] ?? 0; e.profit.className = "num " + (v < 0 ? "neg" : "pos"); e.profit.textContent = signedEur(v); });
     result.replaceChildren(
       h("div", { class: "bigline" }, h("span", { text: "Profit on this sale" }), h("b", { class: "num " + (pr.total < 0 ? "neg" : "pos"), text: signedEur(pr.total) })),
       off ? h("p", { class: "err", text: `The shares add up to ${eur(sumShares)}, ${eur(Math.abs(off))} ${off > 0 ? "less" : "more"} than the total price.` }) : null);
@@ -201,12 +227,14 @@ export function openSaleDetails(chosen, onDone) {
   // prijs per kaart aangepast: het totaal volgt (de som van de kaarten), en daarmee ook de commissie
   shareInputs.forEach((inp) => { inp.oninput = () => {
     sharesTouched = true; totalTouched = true;
-    total.value = fmtIn(Math.round(shareInputs.reduce((t, x) => t + (parseMoney(x.value) || 0), 0) * 100) / 100);
+    total.value = fmtIn(sumAll());
     recalc();
   }; });
 
   const save = h("button", { class: "cta", type: "button", text: "Save sale", onclick: async () => {
     err.textContent = "";
+    if (!chosen.length && !extras.length) { err.textContent = "Add at least one card."; return; }
+    if (extras.some((e) => !e.name.value.trim())) { err.textContent = "Enter a name for every card that isn't in the app."; return; }
     const tp = parseMoney(total.value);
     if (!(tp > 0)) { err.textContent = "Enter the total price."; return; }
     const { lines, off } = recalc();
@@ -219,7 +247,11 @@ export function openSaleDetails(chosen, onDone) {
         sale_id: id, user_id: userId(), product_id: x.c.product_id, quantity: x.qty, condition: x.c.condition || null,
         grade_company: x.c.grade_company || null, grade: x.c.grade || null, price_share: lines[i].price_share, cost_total: lines[i].cost_total,
         purchase_date: x.c.purchase_date || null, purchase_seller: x.c.purchase_seller || null, purchase_order: x.c.purchase_order || null }));
-      await insertSaleItems(items);
+      const extraItems = extras.map((e, j) => ({ sale_id: id, user_id: userId(), product_id: null, item_name: e.name.value.trim(), item_language: e.lang.value,
+        quantity: 1, price_share: lines[chosen.length + j].price_share, cost_total: lines[chosen.length + j].cost_total,
+        purchase_date: date.value || today(), purchase_seller: "Pulled", purchase_order: null }));
+      if (items.length) await insertSaleItems(items);
+      if (extraItems.length) await rest.insert("sale_items", extraItems);
       for (const x of chosen) {   // de verkochte stuks uit 'In bezit' halen; bij een deel blijven de kosten naar verhouding staan
         if (x.qty >= x.c.quantity) await rest.del("collection", `id=eq.${x.c.id}`);
         else {
