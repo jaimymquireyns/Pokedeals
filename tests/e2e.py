@@ -409,10 +409,10 @@ def main():
             page.goto(base + f"#/detail/sv03-125?cid={col_id}")
             page.wait_for_selector(".stats")
             offs = [o for o in mock.db["offers"] if o["product_id"] == "sv03-125"]
-            avg_expected = sum(o["price"] for o in offs) / len(offs)
+            avg_expected = 45.50   # maar 2 aanbiedingen: te weinig voor een betrouwbare waarde, dus de trendprijs
             big_txt = page.inner_text(".big.num")
             big_val = float(big_txt.replace("€", "").replace("\xa0", "").replace(",", "").strip())
-            check(abs(big_val - avg_expected) < 0.01, f"kop toont het gemiddelde van de {len(offs)} laagste aanbiedingen (verwacht {avg_expected:.2f}, gezien {big_val})")
+            check(abs(big_val - avg_expected) < 0.01, f"kop: bij maar {len(offs)} aanbiedingen de trendprijs (verwacht {avg_expected:.2f}, gezien {big_val})")
             check("Trend price" in page.inner_text(".stats") and "45.50" in page.inner_text(".stats"), "trendprijs blijft apart zichtbaar, ter vergelijking")
             check("For sale from" in page.inner_text(".dh"), "korte uitleg bij het getoonde bedrag")
 

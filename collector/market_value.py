@@ -2,12 +2,13 @@
 Zelfde regel als v_market in de database en marketValue in docs/js/model.js:
   alleen Engels; aanbiedingen van de app-gebruikers zelf (user_settings.cm_name) tellen niet mee; alleen de uitvoering van de
   goedkoopste (Normal en Reverse Holofoil kunnen ver uit elkaar liggen); elke verkoper één keer (zijn goedkoopste); de 10
-  goedkoopste; prijzen boven 2x de mediaan daarvan vallen weg (absurde vraagprijzen); dan het gemiddelde.
+  goedkoopste; prijzen boven 2x of onder de helft van de mediaan vallen weg; minstens 3; dan het gemiddelde.
 Zo bouwen we een geschiedenis op van wat een kaart echt opbrengt, voor de pijl over 30 dagen en de grafiek."""
 from statistics import median
 
 TOP_N = 10
-MAX_AGE_DAYS = 4   # aanbiedingen worden om de paar dagen ververst; oudere tellen niet meer als 'vandaag'
+MAX_AGE_DAYS = 4
+MIN_N = 3          # minder aanbiedingen: te onzeker, dan blijft de trendprijs gelden   # aanbiedingen worden om de paar dagen ververst; oudere tellen niet meer als 'vandaag'
 
 
 def value(offers, own_names=()):
@@ -25,7 +26,9 @@ def value(offers, own_names=()):
         ref.append(float(o["price"]))
     top = ref[:TOP_N]
     mid = median(top)
-    top = [p for p in top if p <= 2 * mid]
+    top = [p for p in top if mid / 2 <= p <= 2 * mid]   # absurd duur of eenzaam spotgoedkoop telt niet mee
+    if len(top) < MIN_N:
+        return None, len(top)
     return round(sum(top) / len(top), 2), len(top)
 
 

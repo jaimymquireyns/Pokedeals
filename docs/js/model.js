@@ -44,10 +44,12 @@ export function marketValue(offers, ownName) {
     if (seen.has(key)) continue;
     seen.add(key); ref.push(o);
   }
-  // een absurde vraagprijs (bijv. EUR 9.001 bij maar een paar aanbiedingen) telt niet mee: alles boven 2x de mediaan valt weg
+  // uitschieters tellen niet mee: een absurde vraagprijs (meer dan 2x de mediaan, bijv. EUR 9.001) of een eenzaam
+  // spotgoedkoop exemplaar (minder dan de helft van de mediaan, bijv. EUR 2 tussen kaarten van EUR 6). Minstens 3 nodig.
   const top10 = ref.slice(0, MAIN_PRICE_N), mid = median(top10.map((o) => o.price));
-  const top = top10.filter((o) => o.price <= 2 * mid);
-  return { value: Math.round((top.reduce((t, o) => t + o.price, 0) / top.length) * 100) / 100, n: top.length, ref: top, variant };
+  const top = top10.filter((o) => o.price <= 2 * mid && o.price >= mid / 2);
+  if (top.length < 3) return null;
+  return { value: Math.round((top.reduce((t, o) => t + o.price, 0) / top.length) * 100) / 100, n: top.length, ref: top, all: ref, variant };
 }
 export const PACKAGING = 0.5;   // hoesje, toploader en envelop per verkoop
 

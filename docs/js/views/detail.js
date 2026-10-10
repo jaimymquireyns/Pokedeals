@@ -49,7 +49,8 @@ export async function detailView(root, pid, cid) {
   const refVariant = mv ? mv.variant : null;
   const refOffers = mv ? mv.ref : [];
   const offerAvg = mv ? mv.value : null;
-  const lowestOffer = refOffers.length ? Number(refOffers[0].price) : null;
+  const enOffers = offerRows.filter((o) => (o.language || "EN") === "EN").sort((a, b) => Number(a.price) - Number(b.price));
+  const lowestOffer = enOffers.length ? Number(enOffers[0].price) : null;
   const price = offerAvg ?? trendPrice;
   const graded = gk !== "raw";
   const fcByKey = new Map(fcRows.map((r) => [`${r.horizon_days}-${r.threshold_pct}`, r]));
@@ -95,8 +96,8 @@ export async function detailView(root, pid, cid) {
     h("div", {}, h("h2", { text: p.name }), h("div", { class: "sub", text: [p.set_name, p.number && p.kind === "card" ? `#${p.number}` : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "tags" }, kindTag(p.kind), c ? gradeTag(c) : null, c ? extraTags(c) : null),
       h("div", { class: "bigrow" }, h("span", { class: "big num", text: price ? eur(price) : "No price" }), moveSlot),
-      offerAvg != null ? h("p", { class: "mini", text: `For sale from ${eur(lowestOffer)}${refVariant && refVariant !== "Normal" ? ` (${refVariant})` : ""} · trend price ${eur(trendPrice)}` }) : null,
-      offerAvg != null && refOffers.length < 3 ? h("p", { class: "mini warn", text: `Only ${refOffers.length} ${refOffers.length === 1 ? "listing" : "listings"} of this variant: price is uncertain.` }) : null));
+      lowestOffer != null ? h("p", { class: "mini", text: `For sale from ${eur(lowestOffer)}${refVariant && refVariant !== "Normal" ? ` (${refVariant})` : ""} · trend price ${eur(trendPrice)}` }) : null,
+      lowestOffer != null && offerAvg == null ? h("p", { class: "mini warn", text: `Only ${enOffers.length} ${enOffers.length === 1 ? "listing" : "listings"}: too few for a reliable value, so this is the trend price.` }) : null));
 
   // ---- identificatie: zeldzaamheid, uitgiftedatum, taal ----
   const idBits = [p.kind === "card" && p.rarity ? ["Rarity", p.rarity] : null,
