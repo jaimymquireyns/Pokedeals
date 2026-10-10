@@ -2502,7 +2502,7 @@ for p0_ in (10.0, 30.0, 100.0, 200.0):
     be_ = p0_ * math.exp(edge.breakeven_log(p0_))
     assert abs(edge.net_profit(p0_, be_)) < 1e-6 and edge.net_profit(p0_, be_ * 1.01) > 0 and edge.net_profit(p0_, be_ * 0.99) < 0, p0_
 assert edge.breakeven_log(10.0) > edge.breakeven_log(200.0) > 0, "bij een goedkope kaart moet de prijs veel meer stijgen om de kosten te dekken"
-assert abs(math.exp(edge.breakeven_log(10.0)) - 1 - 0.436) < 0.005, "een kaart van 10 euro moet ruim 40% stijgen"
+assert abs(math.exp(edge.breakeven_log(10.0)) - 1 - 0.392) < 0.005, "een kaart van 10 euro moet bijna 40% stijgen"
 
 # marktbeweging: zes kaarten die elke dag 1% stijgen -> over 30 dagen log(1,01^30)
 d57 = date(2026, 1, 1)

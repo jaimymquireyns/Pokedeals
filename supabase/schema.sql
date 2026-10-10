@@ -224,7 +224,7 @@ create table if not exists watch_folder_items (   -- een kaart mag in meerdere m
 
 create table if not exists user_settings (
     user_id uuid primary key default auth.uid(),
-    fee_pct numeric not null default 5,
+    fee_pct numeric not null default 3,
     ship_eur numeric not null default 1.5,
     net_only boolean not null default true,
     net_min_pct numeric not null default 3,
