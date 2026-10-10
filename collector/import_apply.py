@@ -11,7 +11,8 @@ log = []
 def say(*a):
     print(*a); log.append(" ".join(str(x) for x in a))
 q = {"user_id": f"eq.{UID}", "select": "*"}
-backup = {"collection": st.select("collection", q), "sales": st.select("sales", q), "sale_items": st.select("sale_items", q)}
+backup = {"collection": st.select("collection", q), "sales": st.select("sales", q), "sale_items": st.select("sale_items", q),
+          "user_settings": st.select("user_settings", q)}
 json.dump(backup, open(backup_path, "w"), default=str)
 say("backup:", {k: len(v) for k, v in backup.items()})
 ids = {c["id"] for c in backup["collection"]}
@@ -37,6 +38,12 @@ try:
     for pw in plan.get("patch_where", []):
         st.patch("collection", dict(pw["params"], user_id=f"eq.{UID}"), pw["data"])
     say("extra aanpassingen:", len(plan.get("patch_where", [])))
+    for pt in plan.get("patch_tables", []):   # {table, params, data}, altijd beperkt tot de eigen rijen
+        st.patch(pt["table"], dict(pt["params"], user_id=f"eq.{UID}"), pt["data"])
+    say("aanpassingen in andere tabellen:", len(plan.get("patch_tables", [])))
+    if plan.get("settings"):
+        st.upsert("user_settings", [dict(plan["settings"], user_id=UID)], "user_id")
+        say("instellingen:", plan["settings"])
     cols = ("product_id", "quantity", "condition", "purchase_price", "purchase_shipping", "purchase_costs", "purchase_date", "purchase_seller", "purchase_order")
     rows = [dict({k: r[k] for k in cols}, user_id=UID) for r in plan["insert_collection"]]
     if rows: st.insert("collection", rows)
