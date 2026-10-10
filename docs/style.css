@@ -506,3 +506,7 @@ body{background:linear-gradient(rgba(0,0,0,.74),rgba(0,0,0,.74)),url(img/bg.jpg)
 .dh{grid-template-columns:120px 1fr;gap:16px}
 .dh .ph{width:120px;height:168px}
 .dh .ph.img{border-radius:10px;box-shadow:0 0 30px 4px rgba(255,203,5,.5)}
+/* dagelijkse controle (Track record) */
+.dcheck .dchead,.dcheck .dcrow3{display:grid;grid-template-columns:minmax(0,1fr) 64px 84px;gap:8px;align-items:baseline;padding:6px 0}
+.dcheck .dcrow3{border-top:1px solid var(--line)}.dcheck .dcrow3 b{text-align:right;font-variant-numeric:tabular-nums}.dcheck .dchead small{text-align:right;color:var(--muted)}
+.dcheck .ok2{color:var(--up)}.dcheck .no2{color:var(--amber)}

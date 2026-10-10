@@ -3088,6 +3088,26 @@ assert _mv.value([]) == (None, 0)
 # Furret-geval: maar 1 aanbieding -> geen waarde; Toedscruel-geval: eenzaam spotgoedkoop exemplaar telt niet mee
 assert _mv.value([_O(1, 2.0, "a")])[0] is None
 assert _mv.value([_O(1, 1.95, "a"), _O(2, 5.47, "b"), _O(3, 5.48, "c"), _O(4, 5.49, "d")]) == (5.48, 3)
+
+# -- dagelijkse controle van het model: het model ziet alleen de prijzen tot 30 dagen geleden --
+import daily_check as _dc
+from datetime import date as _date, timedelta as _td
+_today = "2026-10-10"
+def _nm(prices):   # prices: dagen-geleden -> prijs
+    return [{"product_id": "x", "date": (_date.fromisoformat(_today) - _td(days=d)).isoformat(), "source": "pkmnprices", "grade_key": "nm",
+             "price": p, "avg1": None, "avg7": None, "avg30": None, "low": None} for d, p in sorted(prices.items(), reverse=True)]
+_flat = _nm({d: 20.0 for d in range(0, 80)})
+_r = _dc.check_card("x", {}, _flat, _today)
+assert _r and _r["dir_pred"] == "flat" and _r["dir_actual"] == "flat" and _r["dir_ok"] and _r["price_ok"] and _r["naive_ok"], _r
+# toen vlak op 20, de laatste 30 dagen naar 30 gestegen: het model (dat dat niet zag) zegt 'gelijk', fout in richting en prijs
+_jump = _nm({**{d: 20.0 for d in range(30, 80)}, **{d: 30.0 for d in range(0, 30)}})
+_r = _dc.check_card("x", {}, _jump, _today)
+assert _r["price_then"] == 20.0 and _r["actual"] == 30.0 and _r["dir_actual"] == "up" and not _r["dir_ok"] and not _r["price_ok"] and not _r["naive_ok"], _r
+# te weinig geschiedenis van vóór 30 dagen geleden: overslaan
+assert _dc.check_card("x", {}, _nm({d: 20.0 for d in range(0, 35)}), _today) is None
+# geen recente prijs (laatste 10 dagen geleden): overslaan
+assert _dc.check_card("x", {}, _nm({d: 20.0 for d in range(10, 80)}), _today) is None
+assert _dc.direction(0.02) == "flat" and _dc.direction(0.05) == "up" and _dc.direction(-0.05) == "down"
 print("alle tests geslaagd")
 
 # -- VAPID-sleutel: ook zonder BEGIN/END-regels (zo stond hij in de GitHub-secret) --

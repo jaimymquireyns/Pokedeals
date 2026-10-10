@@ -78,7 +78,7 @@ def build_db():
         {"set_id": "dp2", "name": "Mysterious Treasures"}, {"set_id": "swsh6", "name": "Chilling Reign"}, {"set_id": "ex1", "name": "Ruby & Sapphire"},
     ]
     return {"products": products, "forecasts": forecasts, "prices": prices, "trackrecord_stats": stats, "trackrecord_signals": signals,
-            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "offers": offers, "sets": sets, "sales": [], "sale_items": [], "advice": [], "advice_stats": [], "app_status": [{"key": "daily", "updated_at": "2026-10-08T06:14:00+00:00"}],
+            "collection": [], "alerts": [], "user_settings": [], "push_subscriptions": [], "offers": offers, "sets": sets, "sales": [], "sale_items": [], "advice": [], "advice_stats": [], "app_status": [{"key": "daily", "updated_at": "2026-10-08T06:14:00+00:00"}], "v_model_checks_daily": [{"check_date": "2026-10-08", "n": 200, "dir_ok": 120, "price_ok": 110, "naive_ok": 100, "flat_ok": 40, "flat_actual": 80}, {"check_date": "2026-10-07", "n": 200, "dir_ok": 100, "price_ok": 90, "naive_ok": 100, "flat_ok": 40, "flat_actual": 80}],
             "watch_items": [], "watch_folders": [], "watch_folder_items": [], "_log": []}
 
 
