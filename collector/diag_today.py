@@ -14,6 +14,7 @@ out = {
     "collection": store.select("collection", {"select": "*"}),
     "sales": store.select("sales", {"select": "*"}),
     "sale_items": store.select("sale_items", {"select": "*"}),
+    "prices": store.select("v_search", {"select": "product_id,price", "price": "not.is.null"}),
 }
 print({k: len(v) for k, v in out.items()})
 with gzip.open(sys.argv[1], "wt") as f:
