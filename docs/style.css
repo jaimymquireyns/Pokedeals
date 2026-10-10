@@ -463,3 +463,5 @@ a.nmbox{color:inherit;text-decoration:none}
 .pickbtns .ic{width:20px;height:20px}
 .legend .lg.area::before{height:10px;border-top:0;background:var(--up);opacity:.35;border-radius:2px}
 .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+.xline .orow{gap:8px;flex-wrap:wrap}.xline input[aria-label='Card name']{flex:1;min-width:140px}.linkbtn.addx{margin:6px 0 10px}

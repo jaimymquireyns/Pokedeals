@@ -88,7 +88,7 @@ export async function collectionView(root) {
     selBar.replaceChildren(
       h("button", { type: "button", class: "selx", "aria-label": "Cancel", onclick: () => { selecting = false; picked.clear(); drawSel(); drawList(); } }, icon("x")),
       h("span", { class: "selinfo" }, h("b", { text: gs.length ? `${n} selected` : "Tap the cards you sold" }), gs.length ? h("small", { class: "num", text: `value ${eur(worth)}` }) : null),
-      h("button", { type: "button", class: "cta", disabled: !gs.length, onclick: () => {
+      h("button", { type: "button", class: "cta", onclick: () => {
         const chosen = gs.flatMap((g) => g.copies.map((c) => ({ c, qty: Number(c.quantity) })));
         openSaleDetails(chosen, () => { selecting = false; picked.clear(); go("#/verkocht"); });
       } }, gs.length ? `Sell (${gs.length})` : "Sell"));
