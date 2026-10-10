@@ -11,18 +11,32 @@ out = []; p = lambda *a: (print(*a), out.append(" ".join(str(x) for x in a)))
 cards = store.select("v_search", {"select": "product_id,price", "kind": "eq.card", "price": "gte.5"})
 ids = [c["product_id"] for c in cards]
 p(f"# Backtest gestage stijgers\n\nKaarten met prijs >= 5 euro: {len(ids)}")
+# dekking per (grade_key, bron) op een steekproef
+from collections import Counter
+smp = ids[::max(1, len(ids)//300)][:300]
+cov = defaultdict(list)
+for i in range(0, len(smp), 60):
+    rows = store.select("prices", {"select": "product_id,date,source,grade_key", "product_id": "in.(" + ",".join(f'"{x}"' for x in smp[i:i+60]) + ")"})
+    g = defaultdict(list)
+    for r in rows: g[(r["grade_key"], r["source"], r["product_id"])].append(r["date"])
+    for (gk, src, pid), ds in g.items(): cov[(gk, src)].append((len(ds), min(ds)))
+for k, v in sorted(cov.items(), key=lambda kv: -len(kv[1])):
+    v.sort(); p(f"- dekking {k}: {len(v)} kaarten, dagen mediaan {v[len(v)//2][0]}, max {v[-1][0]}, vroegste {min(x[1] for x in v)}")
+GK = os.environ.get("GK", "nm")
 series = {}
 for i in range(0, len(ids), 80):
     chunk = ids[i:i + 80]
-    rows = store.select("prices", {"select": "product_id,date,source,price", "grade_key": "eq.raw",
+    rows = store.select("prices", {"select": "product_id,date,source,price", "grade_key": f"eq.{GK}",
                                    "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")", "order": "product_id.asc,date.asc"})
     by = defaultdict(lambda: defaultdict(dict))
     for r in rows:
         if r["price"] and float(r["price"]) > 0:
             by[r["product_id"]][r["source"]][r["date"]] = float(r["price"])
     for pid, srcs in by.items():
-        src = max(srcs, key=lambda s: len(srcs[s]))
-        series[pid] = srcs[src]
+        merged = {}
+        for src in sorted(srcs, key=lambda s: len(srcs[s])):   # langste reeks wint, kortere vullen gaten
+            merged.update({d: v for d, v in srcs[src].items()})
+        series[pid] = merged
 lens = sorted(len(s) for s in series.values())
 alld = [d for s in series.values() for d in s]
 p(f"Reeksen: {len(series)}; dagen per kaart mediaan {lens[len(lens)//2] if lens else 0}, max {lens[-1] if lens else 0}; vroegste datum {min(alld) if alld else '-'}, laatste {max(alld) if alld else '-'}")
