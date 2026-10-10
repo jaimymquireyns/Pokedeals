@@ -506,7 +506,7 @@ def main():
             page.wait_for_selector(".tr-big")
             check("27 of 46" in page.inner_text(".tr-big"), "27 of 46: " + page.inner_text(".tr-big"))
             dc = page.inner_text(".dcheck")
-            check("Daily check" in dc and "60%" in dc and "Last 2 days" in dc and "does not beat" in dc, "dagelijkse controle getoond: " + dc[:200])
+            check("Daily check" in dc and "60%" in dc and "Last 2 days" in dc and "as good as guessing" in dc and "Rise of 10%+" in dc and "21%" in dc and "20%" in dc, "dagelijkse controle getoond: " + dc[:200])
             page.screenshot(path=str(SHOTS / "track.png"), full_page=True)
 
             print("Aankoop als bestelling (2 kaarten, verzending verdeeld naar prijs)")

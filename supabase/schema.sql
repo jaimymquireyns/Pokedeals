@@ -519,3 +519,22 @@ create or replace view v_model_checks_daily with (security_invoker = on) as
            count(*) filter (where dir_actual = 'flat')::int as flat_actual
     from model_checks group by check_date;
 grant select on v_model_checks_daily to anon, authenticated;
+
+-- Dagelijkse controle: ook de kansen nakijken
+alter table model_checks add column if not exists p_up numeric;
+alter table model_checks add column if not exists p_down numeric;
+alter table model_checks add column if not exists up10 boolean;
+alter table model_checks add column if not exists down10 boolean;
+drop view if exists v_model_checks_daily;
+create view v_model_checks_daily with (security_invoker = on) as
+    select check_date, count(*)::int as n,
+           count(*) filter (where dir_ok)::int as dir_ok,
+           count(*) filter (where price_ok)::int as price_ok,
+           count(*) filter (where naive_ok)::int as naive_ok,
+           count(*) filter (where dir_pred = 'flat' and dir_actual = 'flat')::int as flat_ok,
+           count(*) filter (where dir_actual = 'flat')::int as flat_actual,
+           count(p_up)::int as n_p,
+           coalesce(sum(p_up), 0) as sum_p_up, count(*) filter (where p_up is not null and up10)::int as up10,
+           coalesce(sum(p_down), 0) as sum_p_down, count(*) filter (where p_down is not null and down10)::int as down10
+    from model_checks group by check_date;
+grant select on v_model_checks_daily to anon, authenticated;
