@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import alerts
 import analysis
 import config
+config.EMPIRICAL = False   # de meeste tests hieronder testen het trendmodel zelf; het kansenmodel uit de praktijk (standaard aan) staat onderaan
 config.NM_REFRESH_PRICE = True   # de meeste tests hieronder testen het ververs-mechanisme zelf; zie de aparte test voor de uit-stand (config.NM_REFRESH_PRICE = False, de huidige standaard)
 import features
 import ppt
@@ -3088,6 +3089,21 @@ assert _mv.value([]) == (None, 0)
 # Furret-geval: maar 1 aanbieding -> geen waarde; Toedscruel-geval: eenzaam spotgoedkoop exemplaar telt niet mee
 assert _mv.value([_O(1, 2.0, "a")])[0] is None
 assert _mv.value([_O(1, 1.95, "a"), _O(2, 5.47, "b"), _O(3, 5.48, "c"), _O(4, 5.49, "d")]) == (5.48, 3)
+
+# -- kansen uit de praktijk (config.EMPIRICAL): geen trend doortrekken, kansen uit de tabel --
+config.EMPIRICAL = True
+def _rows_e(prices):   # prices: lijst van (dagen geleden, prijs)
+    return [{"date": (_date.fromisoformat("2026-10-10") - _td(days=d)).isoformat(), "trend": p, "price": p, "avg1": None, "avg7": None, "avg30": None}
+            for d, p in sorted(prices, reverse=True)]
+from datetime import date as _date, timedelta as _td
+_up = analysis.forecast(_rows_e([(d, 10 + (60 - d) * 0.2) for d in range(0, 61)]), 30, 0.10)   # gestaag gestegen: geen doorgetrokken trend
+assert _up["exp_change"] == 0 and analysis.empirical_cell(_rows_e([(d, 10 + (60 - d) * 0.2) for d in range(0, 61)]), _up["sigma"])[0] == 3   # 22 / 17 = +29%
+assert (_up["p_up"], _up["p_down"]) == config.EMP_TABLE[analysis.empirical_cell(_rows_e([(d, 10 + (60 - d) * 0.2) for d in range(0, 61)]), _up["sigma"])]
+_dip = analysis.forecast(_rows_e([(d, 20.0) for d in range(11, 61)] + [(d, 12.0) for d in range(0, 11)]), 30, 0.10)   # flinke daling: meer kans op herstel
+assert _dip["p_up"] > _dip["p_down"] and _dip["exp_change"] == 0, _dip
+_other = analysis.forecast(_rows_e([(d, 20.0) for d in range(11, 61)] + [(d, 12.0) for d in range(0, 11)]), 14, 0.20)   # andere periode: dezelfde scheefheid
+assert _other["p_up"] > _other["p_down"]
+config.EMPIRICAL = False
 
 # -- dagelijkse controle van het model: het model ziet alleen de prijzen tot 30 dagen geleden --
 import daily_check as _dc

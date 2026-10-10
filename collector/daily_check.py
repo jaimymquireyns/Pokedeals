@@ -2,6 +2,7 @@
 en voorspelt de prijs van vandaag. Daarna vergelijken met de echte prijs van vandaag:
   - richting juist: voorspeld 'stijgt' / 'daalt' / 'blijft gelijk' (binnen 3%) en zo gebeurde het ook
   - prijs juist:    de echte prijs ligt binnen 10% van de voorspelde prijs
+Daarnaast de kansen: p_up/p_down (kans op +10% / -10%) en of dat echt gebeurde (up10/down10).
 Ter vergelijking ook de domme gok 'de prijs blijft gelijk' (naive_ok: binnen 10% van de prijs van toen). Het model is pas
 nuttig als het vaker juist is dan die gok. Resultaten in tabel model_checks (één rij per kaart per dag)."""
 import random
@@ -62,7 +63,10 @@ def check_card(pid, by_source, nm_rows, today):
     return {"check_date": today, "product_id": pid, "basis": "nm" if use_nm else "trend",
             "price_then": round(then, 2), "predicted": round(predicted, 2), "actual": round(actual, 2),
             "dir_pred": dp, "dir_actual": da, "dir_ok": dp == da,
-            "price_ok": abs(actual / predicted - 1) <= PRICE_TOL, "naive_ok": abs(actual / then - 1) <= PRICE_TOL}
+            "price_ok": abs(actual / predicted - 1) <= PRICE_TOL, "naive_ok": abs(actual / then - 1) <= PRICE_TOL,
+            # kansen nakijken: zei het model '30% kans op +10%', dan moet dat ongeveer 30% van de keren gebeuren
+            "p_up": round(f["p_up"], 4), "p_down": round(f["p_down"], 4),
+            "up10": actual / then - 1 >= PRICE_TOL, "down10": actual / then - 1 <= -PRICE_TOL}
 
 
 def run(store, today, log=print, n=N):
@@ -84,7 +88,10 @@ def run(store, today, log=print, n=N):
             if len(out) >= n:
                 break
     if out:
-        store.upsert("model_checks", out, "check_date,product_id")
+        try:
+            store.upsert("model_checks", out, "check_date,product_id")
+        except Exception:   # kolommen voor de kansen bestaan nog niet (SQL nog niet gedraaid): zonder die kolommen bewaren
+            store.upsert("model_checks", [{k: v for k, v in r.items() if k not in ("p_up", "p_down", "up10", "down10")} for r in out], "check_date,product_id")
     k = len(out) or 1
     log(f"Dagelijkse controle: {len(out)} kaarten (van {tried} geprobeerd). Richting juist {sum(r['dir_ok'] for r in out)}/{len(out)} "
         f"({sum(r['dir_ok'] for r in out) / k:.0%}), prijs binnen 10% {sum(r['price_ok'] for r in out) / k:.0%} "

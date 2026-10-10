@@ -126,13 +126,25 @@ def forecast(rows, horizon=None, threshold=None):
 
     mu = max(-config.MAX_DAILY_DRIFT, min(config.MAX_DAILY_DRIFT, mu))
     sd_h = min(sigma * math.sqrt(horizon), config.MAX_SD_H)
-    # De dagelijkse drift is bedoeld voor korte periodes; zonder plafond op de totale periode zou een gewone trend
-    # bij 24 maanden tot absurde duizenden procenten worden doorgetrokken. Dit begrenst alleen lange periodes.
-    m = max(math.log(0.01), min(mu * horizon, math.log(1 + config.MAX_HORIZON_RETURN)))
+    if config.EMPIRICAL:
+        m = 0.0   # geen trend doortrekken: dat voorspelde slechter dan 'blijft gelijk' (zie config.EMP_TABLE)
+    else:
+        # De dagelijkse drift is bedoeld voor korte periodes; zonder plafond op de totale periode zou een gewone trend
+        # bij 24 maanden tot absurde duizenden procenten worden doorgetrokken. Dit begrenst alleen lange periodes.
+        m = max(math.log(0.01), min(mu * horizon, math.log(1 + config.MAX_HORIZON_RETURN)))
     ln_up = math.log(1 + threshold)
     ln_down = math.log(1 - min(threshold, 0.99))   # bij een drempel van 100% ('verdubbeling') is 'min 100% dalen' onzinnig (prijs kan niet onder 0); we begrenzen op 99%
     p_up = 1.0 - norm_cdf((ln_up - m) / sd_h)
     p_down = norm_cdf((ln_down - m) / sd_h)
+    cell = None
+    if config.EMPIRICAL:
+        cell = empirical_cell(rows, sigma)
+        eu, ed = config.EMP_TABLE[cell]
+        if horizon == config.HORIZON_DAYS and abs(threshold - config.MOVE_THRESHOLD) < 1e-9:
+            p_up, p_down = eu, ed           # precies waarvoor de tabel gemeten is
+        else:                               # andere periode of drempel: dezelfde scheefheid toepassen op de basiskans
+            p_up *= eu / config.EMP_BASE[0]
+            p_down *= ed / config.EMP_BASE[1]
     # Het model is een schatting: nooit 0% of 100% zeker tonen.
     p_up = min(max(p_up, 0.02), 0.98)
     p_down = min(max(p_down, 0.02), 0.98)
@@ -166,6 +178,17 @@ def forecast(rows, horizon=None, threshold=None):
         "signal": _signal(p_up, p_down),
         "updated": last["date"],
     }
+
+
+def empirical_cell(rows, sigma):
+    """(trendvak, beweeglijkheidsvak) voor config.EMP_TABLE: prijs nu tegen de laatste prijs van minstens 25 dagen geleden."""
+    last = rows[-1]
+    d_last = date.fromisoformat(last["date"])
+    old = [r for r in rows if r["trend"] and (d_last - date.fromisoformat(r["date"])).days >= 25]
+    ratio = last["trend"] / old[-1]["trend"] if old and last["trend"] else 1.0
+    tb = sum(ratio > b for b in config.EMP_TREND_BOUNDS)
+    vb = sum(sigma > b for b in config.EMP_SIGMA_BOUNDS)
+    return (tb, vb)
 
 
 def _signal(p_up, p_down):

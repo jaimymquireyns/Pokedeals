@@ -16,14 +16,20 @@ export function dailyCheck(days) {
   const sum = (rows, k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const today = days[0], all = days.slice(0, 30);
   const n = sum(all, "n");
-  const better = sum(all, "price_ok") > sum(all, "naive_ok");
+  const po = sum(all, "price_ok"), no = sum(all, "naive_ok");
+  const verdict = po > no ? ["ok2", "The model beats guessing 'no change'."] : po === no ? ["ok2", "The model is as good as guessing 'no change'. That is the honest best guess for one card; the chances below are where the edge is."] : ["no2", "The model does not beat guessing 'no change' yet."];
+  const np = sum(all, "n_p");
+  const chance = (label, said, happened) => h("div", { class: "dcrow3" }, h("span", { text: label }), h("b", { text: np ? pp(sum(all, said) / np) : "–" }), h("b", { text: np ? pp(sum(all, happened) / np) : "–" }));
   return h("div", { class: "grp dcheck" }, h("h3", { text: "Daily check" }),
     h("p", { class: "mini", text: `Every day the model sees random cards' prices from 30 days ago and guesses today's price. Today: ${fmtDate(today.check_date)}, ${today.n} cards.` }),
     h("div", { class: "dchead" }, h("span", {}), h("small", { text: "Today" }), h("small", { text: `Last ${all.length} day${all.length > 1 ? "s" : ""}` })),
     ...[["Direction right (up / down / same)", "dir_ok"], ["Price within 10%", "price_ok"], ["Just guessing 'no change'", "naive_ok"]].map(([label, k]) =>
       h("div", { class: "dcrow3" }, h("span", { text: label }),
         h("b", { text: today.n ? pp(today[k] / today.n) : "–" }), h("b", { text: n ? pp(sum(all, k) / n) : "–" }))),
-    h("p", { class: "p14 " + (better ? "ok2" : "no2"), text: better ? "The model beats guessing 'no change'." : "The model does not beat guessing 'no change' yet." }));
+    h("p", { class: "p14 " + verdict[0], text: verdict[1] }),
+    np ? h("div", {}, h("div", { class: "dchead" }, h("span", { text: "Chances (last 30 days)" }), h("small", { text: "Said" }), h("small", { text: "Happened" })),
+      chance("Rise of 10%+", "sum_p_up", "up10"), chance("Drop of 10%+", "sum_p_down", "down10"),
+      h("p", { class: "mini", text: "Good chances are close together: if the model says 25%, it should happen about 25% of the time." })) : null);
 }
 
 export async function trackView(root) {

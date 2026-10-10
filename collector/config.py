@@ -185,3 +185,22 @@ NOTIFY_DEAL_GAIN = 0.25         # melding over een nieuwe deal pas vanaf zoveel 
 ADVICE_MIN_NM_POINTS = 20       # scheve trendprijs: minstens zoveel Near Mint-punten in die 90 dagen om op Near Mint te beoordelen
 ADVICE_ASK_MAX_AGE = 7          # die aanbiedingen tellen alleen als ze hooguit zoveel dagen oud zijn
 ADVICE_SNAPSHOT_BUDGET = 30000  # credits per dag voor het aantal aanbiedingen van de kaarten met een advies (max 20 per kaart)
+
+# ---- Kansen uit de praktijk (okt 2026) ----
+# Onderzoek op ~14.000 testmomenten (Near Mint-reeksen juni-okt 2026): voor één kaart is 'de prijs blijft gelijk' de beste
+# voorspelling; een trend doortrekken maakte het slechter. Wel scheef: na een flinke daling vaker herstel, na een flinke stijging
+# vaker terugval, en grillige kaarten bewegen meer. Daarom: geen trend meer doortrekken (verwachte verandering 0), en de kans op
+# +10% / -10% in 30 dagen rechtstreeks uit deze tabel. Cel = (trendvak, beweeglijkheidsvak).
+# trendvak 0: < -26% in de laatste ~30 dagen, 1: -26..-10%, 2: -10..+11%, 3: +11..+35%, 4: > +35%
+# beweeglijkheidsvak 0: rustig (sigma < 0.069), 1: gemiddeld, 2: grillig (sigma > 0.164)
+EMPIRICAL = True
+EMP_TREND_BOUNDS = (0.74, 0.90, 1.11, 1.35)     # verhouding prijs nu / prijs ~30 dagen geleden
+EMP_SIGMA_BOUNDS = (0.0688, 0.1638)
+EMP_BASE = (0.209, 0.204)                       # gemiddeld: kans op +10% en op -10% in 30 dagen
+EMP_TABLE = {   # (trendvak, beweeglijkheidsvak): (kans +10%, kans -10%), 30 dagen
+    (0, 0): (0.280, 0.102), (0, 1): (0.247, 0.127), (0, 2): (0.473, 0.114),
+    (1, 0): (0.164, 0.126), (1, 1): (0.220, 0.164), (1, 2): (0.374, 0.163),
+    (2, 0): (0.127, 0.172), (2, 1): (0.181, 0.190), (2, 2): (0.234, 0.251),
+    (3, 0): (0.148, 0.225), (3, 1): (0.192, 0.231), (3, 2): (0.335, 0.235),
+    (4, 0): (0.125, 0.239), (4, 1): (0.176, 0.249), (4, 2): (0.236, 0.292),
+}
