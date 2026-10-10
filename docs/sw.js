@@ -1,6 +1,6 @@
 // Service worker: de app werkt offline (laatst geziene schermen) en toont meldingen.
-const CACHE = "pokedeals-v3-12";
-const CORE = ["./", "index.html", "style.css", "config.js", "manifest.webmanifest", "icons/icon-192.png",
+const CACHE = "pokedeals-v3-13";
+const CORE = ["./", "index.html", "style.css", "config.js", "manifest.webmanifest", "icons/icon-192.png", "img/bg.jpg",
   "js/main.js", "js/api.js", "js/ui.js", "js/model.js", "js/prefs.js", "js/push.js", "js/chart.js", "js/components.js",
   "js/ocr.js", "js/add.js", "js/scan.js", "js/views/home.js", "js/views/search.js", "js/views/collection.js", "js/orders.js", "js/views/sales.js", "js/views/purchases.js", "js/cardsearch.js",
   "js/views/detail.js", "js/views/settings.js", "js/views/track.js", "js/views/login.js"];
@@ -26,7 +26,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || "Pokédeals", {
-    body: d.body || "", tag: d.tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: d.url || "./" } }));
+    body: d.body || "", tag: d.tag, icon: "icons/icon-192.png", "img/bg.jpg", badge: "icons/icon-192.png", data: { url: d.url || "./" } }));
 });
 
 self.addEventListener("notificationclick", (e) => {
