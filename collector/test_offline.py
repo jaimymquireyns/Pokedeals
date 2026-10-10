@@ -3085,6 +3085,9 @@ assert _mv.value([_O(1, 50, "Mollynator"), _O(2, 59, "a"), _O(3, 59.96, "b"), _O
 # absurde vraagprijs valt weg, andere uitvoering telt niet mee
 assert _mv.value([_O(1, 29.09, "a", "Normal"), _O(2, 30.30, "b", "Normal"), _O(3, 50, "c", "Normal"), _O(4, 9001, "z", "Normal"), _O(5, 60, "r", "Reverse Holofoil")]) == (36.46, 3)
 assert _mv.value([]) == (None, 0)
+# Furret-geval: maar 1 aanbieding -> geen waarde; Toedscruel-geval: eenzaam spotgoedkoop exemplaar telt niet mee
+assert _mv.value([_O(1, 2.0, "a")])[0] is None
+assert _mv.value([_O(1, 1.95, "a"), _O(2, 5.47, "b"), _O(3, 5.48, "c"), _O(4, 5.49, "d")]) == (5.48, 3)
 print("alle tests geslaagd")
 
 # -- VAPID-sleutel: ook zonder BEGIN/END-regels (zo stond hij in de GitHub-secret) --

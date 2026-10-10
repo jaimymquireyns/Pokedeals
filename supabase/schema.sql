@@ -300,14 +300,15 @@ grant select on v_deals to anon, authenticated;
 
 
 -- Beweging over 30 dagen, telkens binnen één soort prijs (appels met appels): eerst de dagelijkse waarde uit de aanbiedingen
--- (grade_key 'mv', market_value.py), dan de Near Mint-prijs van PkmnPrices ('nm'), anders de trendprijs ('raw' of de graad).
+-- (grade_key 'mv', market_value.py), anders de trendprijs ('raw' of de graad). De Near Mint-reeks van PkmnPrices volgt de allergoedkoopste
+-- aanbieding en springt mee met één spotgoedkoop exemplaar (Furret: EUR 7 -> 2), daarom niet gebruikt.
 drop function if exists move30(text, text);
 create or replace function move30(p_id text, p_gk text default 'raw', p_english boolean default true)
 returns table (now_price numeric, then_price numeric)
 language plpgsql stable security invoker as $$
 declare g text; n numeric; t numeric;
 begin
-    foreach g in array (case when p_gk = 'raw' and p_english then array['mv', 'nm', 'raw'] else array[p_gk] end) loop
+    foreach g in array (case when p_gk = 'raw' and p_english then array['mv', 'raw'] else array[p_gk] end) loop
         select price into n from prices where product_id = p_id and grade_key = g and (g = p_gk or date >= current_date - 4) order by date desc limit 1;
         select price into t from prices where product_id = p_id and grade_key = g and date <= current_date - 30 and date >= current_date - 45 order by date desc limit 1;
         if n is not null and t is not null then now_price := n; then_price := t; return next; return; end if;
@@ -331,8 +332,9 @@ create view v_market with (security_invoker = on) as
           order by o.product_id, lower(coalesce(o.seller, o.rank::text)), o.price),
     n as (select product_id, price, row_number() over (partition by product_id order by price) as rn from u),
     t as (select * from n where rn <= 10),
-    m as (select product_id, percentile_cont(0.5) within group (order by price) as mid from t group by product_id)   -- absurde vraagprijzen (> 2x mediaan) tellen niet mee
-    select t.product_id, round(avg(t.price), 2) as value, count(*)::int as n from t join m using (product_id) where t.price <= 2 * m.mid group by t.product_id;
+    m as (select product_id, percentile_cont(0.5) within group (order by price) as mid from t group by product_id)   -- uitschieters (> 2x of < helft van de mediaan) tellen niet mee; minstens 3
+    select t.product_id, round(avg(t.price), 2) as value, count(*)::int as n from t join m using (product_id)
+    where t.price <= 2 * m.mid and t.price >= m.mid / 2 group by t.product_id having count(*) >= 3;
 grant select on v_market to authenticated;
 
 create view v_collection with (security_invoker = on) as
@@ -369,11 +371,11 @@ language sql stable security invoker as $$
            coalesce(sum(c.quantity * coalesce(bp.price, lp.price, c.purchase_price)) filter (where c.purchase_date <= d::date), 0)
     from generate_series(current_date - p_days, current_date, interval '1 day') d
     cross join collection c
-    left join lateral (   -- Engelse, ongegradeerde kaarten: wat ze echt opbrengen (aanbiedingen, anders Near Mint), max. 4 dagen oud
+    left join lateral (   -- Engelse, ongegradeerde kaarten: wat ze echt opbrengen (waarde uit aanbiedingen), max. 4 dagen oud
         select price from prices pr
         where c.grade_company is null and c.language is null
-          and pr.product_id = c.product_id and pr.grade_key in ('mv', 'nm') and pr.date <= d::date and pr.date > d::date - 5
-        order by (pr.grade_key = 'mv') desc, pr.date desc limit 1) bp on true
+          and pr.product_id = c.product_id and pr.grade_key = 'mv' and pr.date <= d::date and pr.date > d::date - 5
+        order by pr.date desc limit 1) bp on true
     left join lateral (
         select price from prices pr
         where pr.product_id = c.product_id

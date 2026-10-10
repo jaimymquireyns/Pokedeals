@@ -176,7 +176,8 @@ class Mock:
                     seen.add(k); ref.append(o["price"])
                 ref = ref[:10]
                 srt = sorted(ref); mid = srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2
-                ref = [x for x in ref if x <= 2 * mid]
+                ref = [x for x in ref if mid / 2 <= x <= 2 * mid]
+                if len(ref) < 3: return None, None
                 return round(sum(ref) / len(ref), 2), len(ref)
             out = []
             for c in d["collection"]:
