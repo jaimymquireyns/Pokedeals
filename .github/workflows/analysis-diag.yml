@@ -16,15 +16,22 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r collector/requirements.txt
-      - name: Controleren
+      - name: Exporteren
         working-directory: collector
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: mkdir -p ../reports && python diag_today.py ../reports/diag_today.md
-      - name: Verslag bewaren
+        run: python diag_today.py /tmp/export.json.gz
+      - name: Versleutelen
+        run: |
+          mkdir -p reports
+          openssl rand -out /tmp/k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -in /tmp/export.json.gz -out reports/export.enc -pass file:/tmp/k.bin
+          openssl pkeyutl -encrypt -pubin -inkey collector/export_pub.pem -pkeyopt rsa_padding_mode:oaep -in /tmp/k.bin -out reports/export.key.enc
+          rm -f /tmp/k.bin /tmp/export.json.gz
+      - name: Bewaren
         run: |
           git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
-          git add reports/diag_today.md
-          git commit -m "Verslag controle dagelijkse update" || exit 0
+          git add reports/export.enc reports/export.key.enc
+          git commit -m "Versleutelde export" || exit 0
           git pull --rebase -q && git push
