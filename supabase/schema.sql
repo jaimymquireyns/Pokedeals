@@ -270,6 +270,7 @@ alter table collection add column if not exists purchase_seller text;           
 alter table collection add column if not exists purchase_order text;                         -- zelfde waarde = zelfde bestelling
 alter table sale_items add column if not exists purchase_seller text;   -- van wie je deze kaart ooit kocht (voor 'Gekocht', ook na verkoop)
 alter table sale_items add column if not exists purchase_order text;    -- bij welke aankoop hij hoorde
+alter table user_settings add column if not exists cm_name text;   -- je eigen Cardmarket-naam: je eigen aanbiedingen tellen niet mee in de waarde
 alter table sale_items alter column product_id drop not null;   -- niet-Engelse kaarten staan niet in products: dan item_name/item_language
 alter table sale_items add column if not exists item_name text;
 alter table sale_items add column if not exists item_language text;
@@ -294,15 +295,34 @@ create view v_deals with (security_invoker = on) as   -- goedkope aanbiedingen (
 grant select on v_deals to anon, authenticated;
 
 drop view if exists v_collection;
+drop view if exists v_market;
+-- Waarde van een kaart uit de aanbiedingen: alleen Engels, zonder je eigen aanbiedingen (user_settings.cm_name), alleen de
+-- uitvoering van de goedkoopste, elke verkoper één keer, gemiddelde van de 10 goedkoopste. Zelfde regel als marketValue in model.js.
+create view v_market with (security_invoker = on) as
+    with o as (
+        select o.* from offers o
+        where coalesce(o.language, 'EN') = 'EN'
+          and lower(coalesce(o.seller, '')) is distinct from (select lower(cm_name) from user_settings where user_id = auth.uid())),
+    ref as (select distinct on (product_id) product_id, variant from o order by product_id, price, rank),
+    u as (select distinct on (o.product_id, lower(coalesce(o.seller, o.rank::text))) o.product_id, o.price
+          from o join ref r on r.product_id = o.product_id and r.variant is not distinct from o.variant
+          order by o.product_id, lower(coalesce(o.seller, o.rank::text)), o.price),
+    n as (select product_id, price, row_number() over (partition by product_id order by price) as rn from u),
+    t as (select * from n where rn <= 10),
+    m as (select product_id, percentile_cont(0.5) within group (order by price) as mid from t group by product_id)   -- absurde vraagprijzen (> 2x mediaan) tellen niet mee
+    select t.product_id, round(avg(t.price), 2) as value, count(*)::int as n from t join m using (product_id) where t.price <= 2 * m.mid group by t.product_id;
+grant select on v_market to authenticated;
+
 create view v_collection with (security_invoker = on) as
     select c.id, c.product_id, c.quantity, c.condition, c.grade_company, c.grade, c.language, c.variant,
            c.purchase_price, c.purchase_shipping, c.purchase_costs, c.purchase_seller, c.purchase_order, c.purchase_date, c.created_at,
            p.kind, p.name, p.set_name, p.number, p.rarity, p.image, p.cm_name,
-           lp.price as value_each, lp.date as value_date, p30.price as value_30d_ago,
+           coalesce(mv.value, lp.price) as value_each, lp.price as value_trend, mv.n as value_n, lp.date as value_date, p30.price as value_30d_ago,
            f.p_up, f.p_down, f.exp_change, f.signal, f.confidence, f.mode, f.n, f.sigma,
            f.avg7, f.avg30, f.mom30
     from collection c
     join products p using (product_id)
+    left join v_market mv on mv.product_id = c.product_id and c.grade_company is null and c.language is null and p.kind = 'card'
     left join lateral (
         select price, date from prices pr
         where pr.product_id = c.product_id

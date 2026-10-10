@@ -1,7 +1,7 @@
 // Berekeningen aan de kant van de app: netto winst, uitleg bij de kans en 'aandacht nodig'.
 import { days, eur, pp, signed, signedEur } from "./ui.js";
 
-export const DEFAULT_SETTINGS = { fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10, attn_pct: 15 };
+export const DEFAULT_SETTINGS = { cm_name: "", fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10, attn_pct: 15 };
 
 // De kansberekening klopt nog niet goed genoeg (zie de backtest): verborgen in de app tot ze beter is. Op de achtergrond
 // blijft ze gewoon draaien. Op true zetten om alles weer te tonen.
@@ -25,7 +25,30 @@ export const PERIODS = [
 // Onder EUR25 gewone post (rond EUR3), vanaf EUR25 als pakket (duurder). Een schatting; pas aan als de tarieven veranderen.
 export const SHIP_TIERS = [[24.99, 3], [50, 7], [150, 10], [Infinity, 15]];
 export const shipCost = (price) => SHIP_TIERS.find(([limit]) => price <= limit)[1];
-export const MAIN_PRICE_N = 10;   // de hoofdprijs van een kaart: de mediaan van de zoveel goedkoopste aanbiedingen van dezelfde uitvoering
+export const MAIN_PRICE_N = 10;   // de waarde van een kaart: het gemiddelde van de zoveel goedkoopste aanbiedingen van dezelfde uitvoering
+
+/** Waarde van een kaart uit de aanbiedingen (zelfde regel als v_market in de database): alleen Engels, je eigen aanbiedingen
+ * tellen niet mee, alleen de uitvoering van de goedkoopste (Normal en Reverse Holofoil kunnen ver uit elkaar liggen), elke
+ * verkoper maar één keer (zijn goedkoopste), en dan het gemiddelde van de MAIN_PRICE_N goedkoopste. Geeft {value, n, ref} of null. */
+const median = (xs) => { const a = [...xs].sort((x, y) => x - y), m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+export function marketValue(offers, ownName) {
+  const own = (ownName || "").trim().toLowerCase();
+  const xs = (offers || []).filter((o) => (o.language || "EN") === "EN" && !(own && (o.seller || "").toLowerCase() === own))
+    .map((o) => ({ ...o, price: Number(o.price) })).sort((a, b) => a.price - b.price);
+  if (!xs.length) return null;
+  const variant = xs[0].variant ?? null;
+  const seen = new Set(), ref = [];
+  for (const o of xs) {
+    if ((o.variant ?? null) !== variant) continue;
+    const key = (o.seller || "").toLowerCase() || `#${o.rank}`;
+    if (seen.has(key)) continue;
+    seen.add(key); ref.push(o);
+  }
+  // een absurde vraagprijs (bijv. EUR 9.001 bij maar een paar aanbiedingen) telt niet mee: alles boven 2x de mediaan valt weg
+  const top10 = ref.slice(0, MAIN_PRICE_N), mid = median(top10.map((o) => o.price));
+  const top = top10.filter((o) => o.price <= 2 * mid);
+  return { value: Math.round((top.reduce((t, o) => t + o.price, 0) / top.length) * 100) / 100, n: top.length, ref: top, variant };
+}
 export const PACKAGING = 0.5;   // hoesje, toploader en envelop per verkoop
 
 /** Echte kostprijs per stuk: aankoopprijs plus jouw deel van de verzending en overige kosten bij het kopen. */
@@ -80,13 +103,14 @@ export function attention(items, s = DEFAULT_SETTINGS) {
   const limit = (Number(s.attn_pct) || DEFAULT_SETTINGS.attn_pct) / 100;
   const out = [];
   for (const it of items) {
-    const now = it.value_each ?? null, before = it.value_30d_ago ?? null;
+    const now = it.value_trend ?? it.value_each ?? null, before = it.value_30d_ago ?? null;   // beweging over 30 dagen: trend tegen trend
     if (!now || !before) continue;
     const ch = now / before - 1;
     if (ch >= limit) out.push({ it, kind: "winst", chip: `▲ ${signed(ch, 0)} in 30 days` });
     else if (ch <= -limit) out.push({ it, kind: "daling", chip: `▼ ${signed(ch, 0)} in 30 days` });
   }
-  return out.sort((a, b) => Math.abs(b.it.value_each / b.it.value_30d_ago - 1) - Math.abs(a.it.value_each / a.it.value_30d_ago - 1));
+  const now = (x) => x.value_trend ?? x.value_each;
+  return out.sort((a, b) => Math.abs(now(b.it) / b.it.value_30d_ago - 1) - Math.abs(now(a.it) / a.it.value_30d_ago - 1));
 }
 
 const LABELS = { g: "Positive", r: "Negative", n: "Moderate" };

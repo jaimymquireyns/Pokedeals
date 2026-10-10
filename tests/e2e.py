@@ -412,7 +412,7 @@ def main():
             avg_expected = sum(o["price"] for o in offs) / len(offs)
             big_txt = page.inner_text(".big.num")
             big_val = float(big_txt.replace("€", "").replace("\xa0", "").replace(",", "").strip())
-            check(abs(big_val - avg_expected) < 0.01, f"kop toont de mediaan van de {len(offs)} laagste aanbiedingen (verwacht {avg_expected:.2f}, gezien {big_val})")
+            check(abs(big_val - avg_expected) < 0.01, f"kop toont het gemiddelde van de {len(offs)} laagste aanbiedingen (verwacht {avg_expected:.2f}, gezien {big_val})")
             check("Trend price" in page.inner_text(".stats") and "45.50" in page.inner_text(".stats"), "trendprijs blijft apart zichtbaar, ter vergelijking")
             check("For sale from" in page.inner_text(".dh"), "korte uitleg bij het getoonde bedrag")
 
@@ -420,7 +420,7 @@ def main():
             page.goto(base + "#/detail/dp2-5")
             page.wait_for_selector(".offrow")
             big_txt = page.inner_text(".big.num").replace("\xa0", " ")
-            check("40.15" in big_txt, f"hoofdprijs = mediaan van de Normal-aanbiedingen (29.09 / 30.30 / 50 / 9,001) = 40.15, niet het gemiddelde van alles (~1.800): {big_txt}")
+            check("36.46" in big_txt, f"waarde = gemiddelde van de Normal-aanbiedingen zonder de absurde (29.09 / 30.30 / 50; 9,001 > 2x mediaan valt weg) = 36.46: {big_txt}")
             check("from €29.09" in page.inner_text(".dh").replace("\xa0", " "), "de goedkoopste prijs staat er ook bij: " + page.inner_text(".dh").replace("\n", " ")[:200])
             check("Reverse Holofoil" in page.inner_text(".offrow >> nth=3") or "Reverse Holofoil" in page.inner_text(".page"), "uitvoering getoond bij de aanbieding")
 

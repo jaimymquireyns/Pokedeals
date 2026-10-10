@@ -164,6 +164,20 @@ class Mock:
                             **{k: fc.get(w["product_id"], {}).get(k) for k in ("p_up", "p_down", "exp_change", "exp_up", "exp_down", "signal", "confidence", "mode", "n")}})
             return out
         if name == "v_collection":
+            own = ((d["user_settings"][0].get("cm_name") if d["user_settings"] else None) or "").lower()
+            def market(pid):   # zelfde regel als v_market / model.marketValue
+                xs = sorted((o for o in d["offers"] if o["product_id"] == pid and (o.get("language") or "EN") == "EN" and (o.get("seller") or "").lower() != own),
+                            key=lambda o: (o["price"], o["rank"]))
+                if not xs: return None, None
+                var, seen, ref = xs[0].get("variant"), set(), []
+                for o in xs:
+                    k = (o.get("seller") or "").lower() or f"#{o['rank']}"
+                    if o.get("variant") != var or k in seen: continue
+                    seen.add(k); ref.append(o["price"])
+                ref = ref[:10]
+                srt = sorted(ref); mid = srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2
+                ref = [x for x in ref if x <= 2 * mid]
+                return round(sum(ref) / len(ref), 2), len(ref)
             out = []
             for c in d["collection"]:
                 gk = "raw" if not c.get("grade_company") else f"{c['grade_company']}-{c['grade']}"
@@ -174,7 +188,9 @@ class Mock:
                 out.append({**{k: c.get(k) for k in ("id", "product_id", "quantity", "condition", "grade_company", "grade", "language", "variant", "purchase_price", "purchase_date",
                                                   "purchase_shipping", "purchase_costs", "purchase_seller", "purchase_order", "created_at")},
                             **{k: p[k] for k in ("kind", "name", "set_name", "number", "rarity", "image")},
-                            "value_each": lp["price"] if lp else None, "value_date": lp["date"] if lp else None,
+                            **(lambda mv: {"value_each": mv[0] if mv[0] is not None else (lp["price"] if lp else None), "value_trend": lp["price"] if lp else None, "value_n": mv[1]})(
+                                market(c["product_id"]) if not c.get("grade_company") and not c.get("language") and p["kind"] == "card" else (None, None)),
+                            "value_date": lp["date"] if lp else None,
                             "value_30d_ago": sorted(old, key=lambda r: r["date"])[-1]["price"] if old else None,
                             **{k: f.get(k) for k in ("p_up", "p_down", "exp_change", "signal", "confidence", "mode", "n", "sigma", "avg7", "avg30", "mom30")}})
             return out
