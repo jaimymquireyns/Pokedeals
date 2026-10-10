@@ -60,10 +60,10 @@ def reg(xs, ys):
     b = sxy / sxx; ssr = sum((y - my - b * (x - mx)) ** 2 for x, y in zip(xs, ys)); sst = sum((y - my) ** 2 for y in ys)
     return b, (1 - ssr / sst) if sst > 0 else 0
 
-LOOK, HS = 180, (30, 90, 180)
+LOOK, HS = int(os.environ.get("LOOK", 45)), tuple(int(x) for x in os.environ.get("HS", "14,30").split(","))
 obs = []
 for pid, s in series.items():
-    if len(s) < 120: continue
+    if len(s) < LOOK // 2 + 20: continue
     dd = daily(s); days = sorted(dd)
     if len(days) < LOOK + 30: continue
     first, last = days[0], days[-1]
@@ -71,7 +71,7 @@ for pid, s in series.items():
     while t <= last - timedelta(days=30):
         if t in dd:
             win = [(k, dd[k]) for k in (t - timedelta(days=j) for j in range(LOOK, -1, -3)) if k in dd]
-            if len(win) >= 40:
+            if len(win) >= LOOK // 6:
                 xs = [(k - t).days / 30 for k, _ in win]; ys = [math.log(v) for _, v in win]
                 slope, r2 = reg(xs, ys)
                 pt = dd[t]
@@ -85,7 +85,7 @@ for pid, s in series.items():
                 maxjump = max(jumps) if jumps else 1
                 fut = {h: dd.get(t + timedelta(days=h)) for h in HS}
                 obs.append({"pid": pid, "t": t, "p": pt, "slope": slope, "r2": r2, "r30": (pt / p30 - 1) if p30 else None, "jump": maxjump, "fut": fut})
-        t += timedelta(days=14)
+        t += timedelta(days=7)
 p(f"Meetmomenten: {len(obs)} (elke 14 dagen per kaart, met {LOOK} dagen verleden)\n")
 
 def stats(name, group):
@@ -111,5 +111,25 @@ stats("Gestage dalers (<= -2%/maand, R2 >= 0.6)", falling)
 for lo, hi in ((5, 20), (20, 75), (75, 10**9)):
     g = [o for o in steady if lo <= o["p"] < hi]
     stats(f"Gestage stijgers, prijs {lo}-{hi if hi < 10**9 else '...'} euro", g)
+# lijst van nu: gestage stijgers over de laatste LOOK dagen
+names = {r["product_id"]: r for r in store.select("v_search", {"select": "product_id,name,set_name,number,price", "kind": "eq.card", "price": "gte.10"})}
+now = []
+for pid, s_ in series.items():
+    if pid not in names: continue
+    dd = daily(s_); days = sorted(dd)
+    if not days: continue
+    t = days[-1]
+    win = [(k, dd[k]) for k in (t - timedelta(days=j) for j in range(LOOK, -1, -3)) if k in dd]
+    if len(win) < LOOK // 6 or (t - win[0][0]).days < LOOK - 10: continue
+    xs = [(k - t).days / 30 for k, _ in win]; ys = [math.log(v) for _, v in win]
+    b, r2 = reg(xs, ys)
+    jumps = [dd[k] / dd[k - timedelta(days=14)] for k in (t - timedelta(days=j) for j in range(0, LOOK - 14, 3)) if k in dd and (k - timedelta(days=14)) in dd]
+    if b >= 0.02 and r2 >= 0.6 and (max(jumps) if jumps else 1) < 1.25:
+        n = names[pid]; now.append((b * r2, b, r2, n))
+now.sort(key=lambda x: -x[0])
+p(f"\n## Gestage stijgers nu (laatste {LOOK} dagen, prijs >= 10 euro): {len(now)}\n")
+p("| kaart | set | nr | prijs | stijging/maand | rechtlijnigheid |\n|---|---|---|---|---|---|")
+for sc, b, r2, n in now[:60]:
+    p(f"| {n['name']} | {n['set_name']} | {n['number']} | {float(n['price']):.2f} | {math.exp(b) - 1:+.1%} | {r2:.2f} |")
 os.makedirs("../reports", exist_ok=True)
 open("../reports/riser_backtest.md", "w").write("\n".join(out) + "\n")
