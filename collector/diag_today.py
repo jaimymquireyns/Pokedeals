@@ -15,10 +15,12 @@ out = {
     "sales": store.select("sales", {"select": "*"}),
     "sale_items": store.select("sale_items", {"select": "*"}),
     "advice": store.select("advice", {"select": "*", "date": "gte." + __import__("datetime").date.fromordinal(__import__("datetime").date.today().toordinal() - 2).isoformat()}),
-    "mew": store.select("prices", {"select": "*", "product_id": "eq.swsh12.5gg-GG10", "order": "date.desc", "limit": 40}),
-    "mew_offers": store.select("offers", {"select": "*", "product_id": "eq.swsh12.5gg-GG10"}),
     "prices": store.select("v_search", {"select": "product_id,price", "price": "not.is.null"}),
 }
+ids = sorted({c["product_id"] for c in out["collection"]} | {"swsh12.5gg-GG10", "pl3-20", "swshp-SWSH184", "svp-085", "sv04.5-232", "swsh12.5gg-GG44"})
+out["offers"] = []
+for i in range(0, len(ids), 40):
+    out["offers"] += store.select("offers", {"select": "*", "product_id": "in.(" + ",".join(ids[i:i + 40]) + ")"})
 print({k: len(v) for k, v in out.items()})
 with gzip.open(sys.argv[1], "wt") as f:
     json.dump(out, f, default=str)
