@@ -18,8 +18,11 @@ for t, rx in TYPES.items():
 pk = PkmnPrices(os.environ["PKMN_API_KEY"], budget=400)
 picks = []
 for t, rx in TYPES.items():
-    m = sorted([x for x in prods if rx.search(x.get("name") or "") and x.get("pk_id")], key=lambda x: x.get("name"))
-    picks += [(t, x) for x in m[-2:]]
+    def cmid(x):   # nieuwste Cardmarket-producten eerst (hoogste id): die hebben zeker aanbiedingen
+        try: return int(str(x["product_id"]).split(":")[1])
+        except Exception: return 0
+    m = sorted([x for x in prods if rx.search(x.get("name") or "") and x.get("pk_id") and "display" not in (x.get("name") or "").lower()], key=cmid)
+    picks += [(t, x) for x in m[-8:-6]]
 for t, x in picks:
     p(f"\n## {t}: {x['name']} ({x['product_id']}, pk {x['pk_id']})")
     for path, params in [(f"/sealed/{x['pk_id']}/listings/cardmarket", {}), (f"/sealed/{x['pk_id']}/listings/cardmarket", {"language": "English"})]:
