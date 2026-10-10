@@ -19,3 +19,4 @@ out = {
 print({k: len(v) for k, v in out.items()})
 with gzip.open(sys.argv[1], "wt") as f:
     json.dump(out, f, default=str)
+# export 2026-10-10T12:24:33
