@@ -18,6 +18,8 @@ out = {
     "prices": store.select("v_search", {"select": "product_id,price", "price": "not.is.null"}),
 }
 ids = sorted({c["product_id"] for c in out["collection"]} | {"swsh12.5gg-GG10", "pl3-20", "swshp-SWSH184", "svp-085", "sv04.5-232", "swsh12.5gg-GG44"})
+ATT = ["sv09-168", "sm115-32", "sv04-185", "sv04-244", "swshp-SWSH198", "swshp-SWSH285", "sv08-192", "ex2-14", "swsh12.5gg-GG10"]
+out["att"] = store.select("prices", {"select": "product_id,date,source,grade_key,price", "product_id": "in.(" + ",".join(ATT) + ")", "date": "gte.2026-08-20", "grade_key": "in.(raw,nm,mv)", "order": "product_id.asc,date.asc"})
 out["offers"] = []
 for i in range(0, len(ids), 40):
     out["offers"] += store.select("offers", {"select": "*", "product_id": "in.(" + ",".join(ids[i:i + 40]) + ")"})
