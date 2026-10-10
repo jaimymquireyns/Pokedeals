@@ -1,0 +1,31 @@
+name: Proef PPT historie
+on:
+  push:
+    branches: [analysis/sets]
+    paths: [collector/ppt_probe.py, .github/workflows/ppt-probe.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Proef
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+        run: python ppt_probe.py
+      - name: Bewaren
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          git add reports/ppt_probe.md
+          git commit -m "PPT proef" || exit 0
+          git pull --rebase -q && git push
