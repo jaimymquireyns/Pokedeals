@@ -16,7 +16,8 @@ json.dump(backup, open(backup_path, "w"), default=str)
 say("backup:", {k: len(v) for k, v in backup.items()})
 ids = {c["id"] for c in backup["collection"]}
 need = set(plan["delete_collection"]) | set(plan["delete_collection_extra"]) | {u["id"] for u in plan["update_collection"]}
-if len(backup["collection"]) != 78 or len(backup["sales"]) != 3 or not need <= ids:
+exp = plan.get("expect", {"collection": 78, "sales": 3})
+if len(backup["collection"]) != exp["collection"] or len(backup["sales"]) != exp["sales"] or not need <= ids:
     say("STOP: database veranderd sinds het plan", len(backup["collection"]), len(backup["sales"]), len(need - ids))
     json.dump(log, open(log_path, "w")); sys.exit(1)
 try:
@@ -30,6 +31,7 @@ try:
     for u in plan["update_collection"]:
         data = {"purchase_price": u["purchase_price"]}
         if u.get("purchase_seller"): data["purchase_seller"] = u["purchase_seller"]
+        if u.get("product_id"): data["product_id"] = u["product_id"]
         st.patch("collection", {"id": f"eq.{u['id']}"}, data)
     say("collectie-rijen aangepast:", len(plan["update_collection"]))
     cols = ("product_id", "quantity", "condition", "purchase_price", "purchase_shipping", "purchase_costs", "purchase_date", "purchase_seller", "purchase_order")
@@ -45,8 +47,10 @@ try:
             items.append({"sale_id": s["id"], "user_id": UID, "product_id": l["product_id"], "quantity": l["quantity"], "condition": "NM",
                           "price_share": l["price_share"], "cost_total": l["cost_total"], "purchase_date": l["purchase_date"],
                           "purchase_seller": l.get("purchase_seller"), "purchase_order": l.get("purchase_order")})
-    st.insert("sales", sales); say("verkopen erbij:", len(sales))
-    st.insert("sale_items", items); say("verkoopregels erbij:", len(items))
+    if sales: st.insert("sales", sales)
+    say("verkopen erbij:", len(sales))
+    if items: st.insert("sale_items", items)
+    say("verkoopregels erbij:", len(items))
     after = {"collection": len(st.select("collection", q)), "sales": len(st.select("sales", q)), "sale_items": len(st.select("sale_items", q))}
     say("na import:", after)
 except Exception as e:
