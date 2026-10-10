@@ -466,3 +466,43 @@ a.nmbox{color:inherit;text-decoration:none}
 .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 
 .xline .orow{gap:8px;flex-wrap:wrap}.xline input[aria-label='Card name']{flex:1;min-width:140px}.linkbtn.addx{margin:6px 0 10px}
+
+/* ===== DESIGN "POKÉMON" (okt 2026): zwart met geel-goud, gele achtergrond met vaag logo, donkere blokken, zachte gele gloed rond de kaartfoto's ===== */
+:root,:root:not([data-theme=light]){--bg:#07070A;--surface:#121116;--surface2:#1A1820;--ink:#F7F5EF;--muted:#9C978A;--line:rgba(255,214,90,.12);--chip:#16151B;--amber:#FFCB05;--gold:#FFCB05;--focus:#FFD84A}
+body{background:linear-gradient(rgba(0,0,0,.74),rgba(0,0,0,.74)),url(img/bg.jpg) center top/100% auto repeat-y fixed,#050505}
+.brandmark .wordmark b{color:#fff}.brandmark .wordmark i{color:#FFCB05}
+.brandmark .mark{box-shadow:0 6px 18px -4px rgba(255,203,5,.55)}
+.head .muted,.sum .lbl2{color:#CFC8B4}
+.sum .big{color:#fff}
+/* filterchips en segmenten: geel als actief */
+.fchip{background:#15141A;border:1px solid rgba(255,255,255,.08);color:var(--ink)}
+.fchip.on,.seg button[aria-pressed=true],.collnav .on{background:#FFCB05;color:#151208;border-color:#FFCB05;font-weight:800}
+.seg,.collnav{background:#15141A;border:1px solid rgba(255,255,255,.06)}
+/* donkere blokken */
+.sec,.chartcard,.attn{background:rgba(14,13,16,.86);backdrop-filter:blur(6px);border:1px solid rgba(255,203,5,.14);border-radius:20px;box-shadow:0 18px 40px -24px rgba(255,203,5,.25)}
+.sec::before{display:none}
+.sec h3 .cnt{background:rgba(255,203,5,.14);color:#FFD84A;border:0}
+.list{background:rgba(14,13,16,.86);backdrop-filter:blur(6px);border:1px solid rgba(255,203,5,.14);border-radius:20px;margin-inline:12px}
+.sec .list,.attn .list,.chartcard .list{background:transparent;backdrop-filter:none;border:0;border-radius:0}
+.attn .list,.chartcard .list{margin-inline:0}.sec .list{margin-inline:-18px}.homechance .list{margin:14px -18px 0}
+.rowc{border-bottom-color:rgba(255,255,255,.05)}
+.sbox{background:#15141A;border:1px solid rgba(255,255,255,.07)}
+.cta{background:#FFCB05;color:#151208}
+/* advieslabels */
+.advchip.sell{background:rgba(232,40,63,.14);color:#FF7A8A!important;border-color:#E8283F}
+.advchip.buy{background:rgba(61,220,132,.12)}
+.advchip.warn{background:rgba(255,203,5,.12);color:#FFD84A!important;border-color:#FFCB05}
+/* onderbalk en +knop */
+#tabs{background:rgba(10,10,13,.92);backdrop-filter:blur(14px);border-top:1px solid rgba(255,203,5,.12)}
+.tab.on{color:#FFCB05}.tab.on .pi{background:#FFCB05;color:#151208}
+.fab{background:#FFCB05;color:#151208;box-shadow:0 0 0 4px rgba(255,203,5,.15),0 10px 26px rgba(255,203,5,.35)}
+/* kaartfoto's: groter, zachte gele gloed zonder rand */
+.rowc{grid-template-columns:58px minmax(0,1fr) auto}
+.row:not(.rowc),.dealrow:not(.rowc){grid-template-columns:58px minmax(0,1fr)}
+.rowc .ph,.row .ph,.dealrow .ph,.gthumb{width:58px;height:81px}
+.gthumb{overflow:visible;background:none}.gthumb img{max-width:58px;max-height:81px}
+.copies{margin-left:86px}
+.gthumb img,.rowc .ph.img,.row .ph.img,.dealrow .ph.img,.oline .ph.img,.buyline .ph.img,.advrow .ph.img{border-radius:6px;box-shadow:0 0 14px 2px rgba(255,203,5,.5)}
+.dh{grid-template-columns:120px 1fr;gap:16px}
+.dh .ph{width:120px;height:168px}
+.dh .ph.img{border-radius:10px;box-shadow:0 0 30px 4px rgba(255,203,5,.5)}
