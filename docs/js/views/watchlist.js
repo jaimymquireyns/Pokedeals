@@ -79,7 +79,7 @@ export async function watchlistView(root) {
           h("span", { class: "nm" }, h("span", { class: "name", text: r.name })),
           h("span", { class: "set", text: (r.set_name || "") + (r.number && r.kind === "card" ? ` #${r.number}` : "") }),
           fchips.length ? h("span", { class: "set fmini", text: fchips.map((f) => f.name).join(", ") }) : null),
-        moveCell({ value: r.value_each ? eur(r.value_each) : "–", change: change(r.value_each, before.get(r.product_id)), outlook: outlook(adv.get(r.product_id), stats) })),
+        moveCell({ value: r.value_each ? eur(r.value_each) : "–", change: r.value_30d_ago != null ? change(Number(r.value_trend ?? r.value_each), Number(r.value_30d_ago)) : change(r.value_each, before.get(r.product_id)), outlook: outlook(adv.get(r.product_id), stats) })),
       h("button", { class: "morebtn", type: "button", "aria-label": "Folders and remove", onclick: () => manage(r, fchips) }, icon("folder"))));
   }
 

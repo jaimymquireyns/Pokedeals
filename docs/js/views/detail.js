@@ -81,6 +81,7 @@ export async function detailView(root, pid, cid) {
     return { rows: bySrc[src] || [], nm: false, src };
   };
   const ch30 = (() => {
+    if (c && c.value_30d_ago != null && c.value_trend != null) return change(Number(c.value_trend), Number(c.value_30d_ago));   // zelfde pijl als in je collectie
     const { rows } = mainSeries();
     if (rows.length < 2) return null;
     const last = rows[rows.length - 1], cut = new Date(new Date(last.date + "T00:00:00Z").getTime() - 30 * 864e5).toISOString().slice(0, 10);

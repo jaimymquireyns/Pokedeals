@@ -290,6 +290,11 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         except Exception as e:
             log(f"! goedkope aanbiedingen overgeslagen: {e}")
     try:
+        import market_value
+        market_value.run(store, today, log=log)   # na alle aanbiedingen: de waarde van vandaag bewaren (geschiedenis voor pijl en grafiek)
+    except Exception as e:
+        log(f"! waarde uit aanbiedingen overgeslagen: {e}")
+    try:
         import nm
         import card_history
         famous_products = [p for p in store.products("card") if p.get("dex_id") in config.FAMOUS_DEX_IDS and not config.is_digital_set(p.get("set_id"))]

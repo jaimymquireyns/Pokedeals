@@ -3078,6 +3078,13 @@ for pid, st, pr in (("l1", "laag", 20), ("l2", "laag", 80), ("h1", "hoog", 50), 
 fakeD.t["collection"][("c",)] = {"id": "c", "product_id": "own", "quantity": 1}
 assert advice_data.targets(storeD, _T, log=quiet) == ["own", "l2", "l1", "h1", "v1"]
 
+import market_value as _mv
+_O = lambda r, p, s, v="Holofoil", lang="EN": {"rank": r, "price": p, "seller": s, "variant": v, "language": lang}
+# Mew GG10-achtig: eigen aanbieding telt niet mee, Tonia maar 1x, Japans telt niet mee
+assert _mv.value([_O(1, 50, "Mollynator"), _O(2, 59, "a"), _O(3, 59.96, "b"), _O(4, 63, "Tonia"), _O(5, 63, "Tonia"), _O(6, 1, "jp", lang="JA")], ["Mollynator"]) == (60.65, 3)
+# absurde vraagprijs valt weg, andere uitvoering telt niet mee
+assert _mv.value([_O(1, 29.09, "a", "Normal"), _O(2, 30.30, "b", "Normal"), _O(3, 50, "c", "Normal"), _O(4, 9001, "z", "Normal"), _O(5, 60, "r", "Reverse Holofoil")]) == (36.46, 3)
+assert _mv.value([]) == (None, 0)
 print("alle tests geslaagd")
 
 # -- VAPID-sleutel: ook zonder BEGIN/END-regels (zo stond hij in de GitHub-secret) --
