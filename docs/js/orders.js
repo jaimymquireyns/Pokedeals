@@ -171,6 +171,16 @@ export function openSaleDetails(chosen, onDone) {
   };
   const sale = () => ({ shipping_received: parseMoney(shipIn.value) || 0, shipping_paid: parseMoney(shipOut.value) || 0,
     commission: parseMoney(commission.value) || 0, other_costs: parseMoney(other.value) || 0 });
+  // De kaartregels worden alleen opnieuw opgebouwd als het aantal verandert; bij typen passen we enkel de getallen aan,
+  // anders verdwijnt op een gsm bij elke toets het toetsenbord (het invulveld wordt dan vervangen).
+  const profitEls = chosen.map(() => h("span", { class: "num" }));
+  const renderLines = () => linesBox.replaceChildren(...chosen.map((x, i) => h("div", { class: "oline" },
+    thumb(x.c.image, "ph", x.c.kind === "sealed", x.c.kind === "sealed" ? "" : [x.c.name, x.c.number ? "#" + x.c.number : ""].filter(Boolean).join(" ")),
+    h("div", { class: "body" },
+      h("div", { class: "name", text: `${x.qty > 1 ? x.qty + "x " : ""}${x.c.name}` }),
+      h("div", { class: "set", text: `cost you ${eur(costOf(x))}` }),
+      x.c.quantity > 1 ? h("div", { class: "orow" }, stepper(() => x.qty, (v) => { x.qty = v; }, x.c.quantity, qtyChanged), h("span", { class: "mini", text: `of ${x.c.quantity}` })) : null,
+      h("div", { class: "orow" }, shareInputs[i], profitEls[i])))));
   const recalc = () => {
     if (!commissionTouched) commission.value = fmtIn(Math.round((parseMoney(total.value) || 0) * s.fee_pct) / 100);
     if (!sharesTouched) fillShares();
@@ -178,23 +188,22 @@ export function openSaleDetails(chosen, onDone) {
     const pr = saleProfit(sale(), lines);
     const sumShares = Math.round(lines.reduce((t, l) => t + l.price_share, 0) * 100) / 100;
     const off = Math.round(((parseMoney(total.value) || 0) - sumShares) * 100) / 100;
-    linesBox.replaceChildren(...chosen.map((x, i) => h("div", { class: "oline" },
-      thumb(x.c.image, "ph", x.c.kind === "sealed", x.c.kind === "sealed" ? "" : [x.c.name, x.c.number ? "#" + x.c.number : ""].filter(Boolean).join(" ")),
-      h("div", { class: "body" },
-        h("div", { class: "name", text: `${x.qty > 1 ? x.qty + "x " : ""}${x.c.name}` }),
-        h("div", { class: "set", text: `cost you ${eur(costOf(x))}` }),
-        x.c.quantity > 1 ? h("div", { class: "orow" }, stepper(() => x.qty, (v) => { x.qty = v; }, x.c.quantity, qtyChanged), h("span", { class: "mini", text: `of ${x.c.quantity}` })) : null,
-        h("div", { class: "orow" }, shareInputs[i], h("span", { class: "num " + (pr.per[i] < 0 ? "neg" : "pos"), text: signedEur(pr.per[i]) }))))));
+    profitEls.forEach((el, i) => { el.className = "num " + (pr.per[i] < 0 ? "neg" : "pos"); el.textContent = signedEur(pr.per[i]); });
     result.replaceChildren(
       h("div", { class: "bigline" }, h("span", { text: "Profit on this sale" }), h("b", { class: "num " + (pr.total < 0 ? "neg" : "pos"), text: signedEur(pr.total) })),
       off ? h("p", { class: "err", text: `The shares add up to ${eur(sumShares)}, ${eur(Math.abs(off))} ${off > 0 ? "less" : "more"} than the total price.` }) : null);
     return { lines, off };
   };
   total.oninput = () => { totalTouched = true; sharesTouched = false; recalc(); };
-  const qtyChanged = () => { if (!totalTouched) total.value = fmtIn(marketTotal()); sharesTouched = false; recalc(); };
+  const qtyChanged = () => { if (!totalTouched) total.value = fmtIn(marketTotal()); sharesTouched = false; renderLines(); recalc(); };
   commission.oninput = () => { commissionTouched = true; recalc(); };
   [shipIn, shipOut, other].forEach((el) => { el.oninput = recalc; });
-  shareInputs.forEach((inp) => { inp.oninput = () => { sharesTouched = true; recalc(); }; });
+  // prijs per kaart aangepast: het totaal volgt (de som van de kaarten), en daarmee ook de commissie
+  shareInputs.forEach((inp) => { inp.oninput = () => {
+    sharesTouched = true; totalTouched = true;
+    total.value = fmtIn(Math.round(shareInputs.reduce((t, x) => t + (parseMoney(x.value) || 0), 0) * 100) / 100);
+    recalc();
+  }; });
 
   const save = h("button", { class: "cta", type: "button", text: "Save sale", onclick: async () => {
     err.textContent = "";
@@ -233,6 +242,7 @@ export function openSaleDetails(chosen, onDone) {
     field("Other costs (packaging)", other),
     h("p", { class: "mini", text: `Commission is set to ${s.fee_pct}% of the total price; feel free to enter the exact amount from Cardmarket. The price is split by the cards' current value; you can adjust it per card.` }),
     linesBox, result, err, save));
+  renderLines();
   recalc();
 }
 
