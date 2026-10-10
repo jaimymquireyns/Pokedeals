@@ -45,7 +45,7 @@ try:
     for s in plan["insert_sales"]:
         sales.append({"id": s["id"], "user_id": UID, "sale_date": s["sale_date"], "buyer": s["buyer"], "total_price": s["total_price"],
                       "shipping_received": s["shipping_received"], "shipping_paid": s["shipping_paid"], "commission": s["commission"],
-                      "other_costs": s["other_costs"], "note": "Cardmarket" + (" (onderweg bij import)" if s["transit"] else "")})
+                      "other_costs": s["other_costs"], "note": s.get("note_text") or ("Cardmarket" + (" (onderweg bij import)" if s["transit"] else ""))})
         for l in s["lines"]:
             items.append({"sale_id": s["id"], "user_id": UID, "product_id": l["product_id"], "quantity": l["quantity"], "condition": "NM",
                           "price_share": l["price_share"], "cost_total": l["cost_total"], "purchase_date": l["purchase_date"],
