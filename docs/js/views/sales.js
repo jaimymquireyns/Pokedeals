@@ -73,14 +73,15 @@ const DAY = 86400000;
 const ymdMs = (d) => Date.parse(`${d}T00:00:00Z`);
 const costOf = (s) => s.lines.reduce((t, l) => t + Number(l.cost_total || 0), 0);
 
-/** Twee lijnen: wat de verkochte kaarten je kostten, en je echte winst. 'cum' = opbouwend (de som tot en met die dag), 'month' = per maand.
- * range: '3M' | '1J' | 'MAX'. Geeft { cost, profit } als lijsten [ms, bedrag], of { note } als er te weinig is voor een lijn. */
+/** Twee lijnen: wat je voor de verkochte kaarten betaalde (paid) en wat je ervoor terugkreeg na alle kosten (received = betaald + winst).
+ * Het vlak ertussen is je winst. 'cum' = opgeteld tot en met die dag, als trapje (de lijn springt pas op een verkoopdag);
+ * 'month' = per maand. range: '3M' | '1J' | 'MAX'. Geeft { paid, received, sales: [[ms, received]] } of { note }. */
 export function salesPoints(sales, mode, range, now = Date.now()) {
   const days = { "3M": 90, "1J": 365, MAX: Infinity }[range] ?? Infinity;
   const cutoff = now - days * DAY;
   const sorted = [...sales].sort((a, b) => a.sale_date.localeCompare(b.sale_date));
   if (!sorted.length) return { note: "No sales yet." };
-  let cost = [], profit = [];
+  const r2 = (x) => Math.round(x * 100) / 100;
   if (mode === "month") {
     const by = new Map();
     for (const s of sorted) {
@@ -88,12 +89,13 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
       const m = by.get(k) || { c: 0, p: 0 };
       m.c += costOf(s); m.p += s.profit.total; by.set(k, m);
     }
+    const paid = [], received = [];
     for (const [k, m] of by) {
       const x = ymdMs(`${k}-15`);
-      if (x + 16 * DAY >= cutoff) { cost.push([x, Math.round(m.c * 100) / 100]); profit.push([x, Math.round(m.p * 100) / 100]); }
+      if (x + 16 * DAY >= cutoff) { paid.push([x, r2(m.c)]); received.push([x, r2(m.c + m.p)]); }
     }
-    if (cost.length < 2) return { note: "Only one month with sales in this period: pick Cumulative or a longer period." };
-    return { cost, profit };
+    if (paid.length < 2) return { note: "Only one month with sales in this period: pick Cumulative or a longer period." };
+    return { paid, received, sales: received };
   }
   const byDay = new Map();
   for (const s of sorted) {
@@ -101,15 +103,16 @@ export function salesPoints(sales, mode, range, now = Date.now()) {
     d.c += costOf(s); d.p += s.profit.total; byDay.set(s.sale_date, d);
   }
   let c = 0, p = 0;
-  const all = [[ymdMs(sorted[0].sale_date) - DAY, 0, 0]];   // vanaf nul de dag voor de eerste verkoop, zodat ook één verkoop een lijn geeft
-  for (const [d, v] of byDay) { c += v.c; p += v.p; all.push([ymdMs(d), Math.round(c * 100) / 100, Math.round(p * 100) / 100]); }
+  const all = [[ymdMs(sorted[0].sale_date) - DAY, 0, 0]];   // vanaf nul de dag voor de eerste verkoop
+  for (const [d, v] of byDay) { c += v.c; p += v.p; all.push([ymdMs(d), r2(c), r2(c + p)]); }
+  all.push([Math.max(now, all[all.length - 1][0]), r2(c), r2(c + p)]);   // vlak doorlopen tot vandaag
   let shown = all.filter((x) => x[0] >= cutoff);
-  if (shown.length < all.length) {   // een deel valt buiten de periode: de lijn begint op de grens, met de stand van toen
-    const prev = all[all.length - shown.length - 1];
-    shown = [[cutoff, prev[1], prev[2]], ...shown];
-  }
+  if (shown.length < all.length) { const prev = all[all.length - shown.length - 1]; shown = [[cutoff, prev[1], prev[2]], ...shown]; }
   if (shown.length < 2) return { note: "Too few sales in this period for a chart." };
-  return { cost: shown.map((x) => [x[0], x[1]]), profit: shown.map((x) => [x[0], x[2]]) };
+  // trapje: tussen twee verkoopdagen blijft de lijn vlak en springt pas op de dag zelf
+  const step = (i) => shown.flatMap((x, k) => (k ? [[x[0], shown[k - 1][i]], [x[0], x[i]]] : [[x[0], x[i]]]));
+  const saleDays = new Set([...byDay.keys()].map(ymdMs));
+  return { paid: step(1), received: step(2), sales: shown.filter((x) => saleDays.has(x[0])).map((x) => [x[0], x[2]]) };
 }
 
 const SALE_PERIODS = [["1w", "1W"], ["1m", "1M"], ["3m", "3M"], ["1y", "1Y"], ["2y", "2Y"], ["all", "All"]];
@@ -171,10 +174,12 @@ export async function renderSales(box, { onChange } = {}) {
   function drawChart() {
     const r = salesPoints(current, ui.mode, "MAX");   // de periode-knoppen hierboven filteren de verkopen al
     if (r.note) { chartBox.replaceChildren(h("p", { class: "muted small", text: r.note })); return; }
+    const loss = r.received[r.received.length - 1][1] < r.paid[r.paid.length - 1][1];
     chartBox.replaceChildren(
-      lineChart({ series: [{ pts: r.cost, stroke: "var(--ink)", width: 2.4, name: "Cost" }, { pts: r.profit, stroke: "var(--up)", width: 3, name: "Profit" }],
-        scrubSeries: [0, 1], label: "Cost and profit of your sales" }),
-      h("div", { class: "legend" }, h("span", { class: "lg cost", text: "Cost" }), h("span", { class: "lg gain", text: "Profit" })));
+      lineChart({ series: [{ pts: r.paid, stroke: "var(--ink)", width: 2.2, name: "Paid" }, { pts: r.received, stroke: "var(--up)", width: 3, name: "Received" }],
+        area: { upper: r.received, lower: r.paid, fill: loss ? "#C23B2F" : "#0E8A5B" }, marks: r.sales.map(([x, y]) => ({ x, y })),
+        scrubSeries: [0, 1], scrubDiff: { name: "Profit", a: 1, b: 0 }, label: "What you paid for the cards you sold, and what you got back" }),
+      h("div", { class: "legend" }, h("span", { class: "lg cost", text: "Paid" }), h("span", { class: "lg gain", text: "Received" }), h("span", { class: "lg area", text: "Profit" })));
   }
 
   function draw() {

@@ -28,8 +28,9 @@ function niceTicks(lo, hi, n = 3) {
 /**
  * series: [{ pts: [[ms, y], ...], stroke, width, dash }]  hlines: [{ y, label, dash, color, side: "left" | "right" }]
  * area:   { upper: pts, lower: pts, fill }  (vlak tussen twee lijnen)
+ * marks:  [{ x, y, color }]  bolletjes (bijv. bij elke verkoop); scrubDiff: { name, a, b } toont bij het schuiven ook serie a min serie b
  */
-export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Chart", scrubSeries = null }) {
+export function lineChart({ series, area, hlines = [], width = 358, height = 170, label = "Chart", scrubSeries = null, marks = [], scrubDiff = null }) {
   const L = 50, R = 6, T = 10, B = 24;
   const all = [...series.flatMap((s) => s.pts), ...(area ? [...area.upper, ...area.lower] : [])];
   const xs = all.map((p) => p[0]);
@@ -61,6 +62,7 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
     svg.append(el("path", { d: path(s.pts), fill: "none", stroke: s.stroke, "stroke-width": s.width || 3,
       "stroke-linejoin": "round", "stroke-linecap": "round", ...(s.dash ? { "stroke-dasharray": s.dash } : {}) }));
   }
+  for (const m of marks) svg.append(el("circle", { class: "mark", cx: X(m.x), cy: Y(m.y), r: 3.6, style: `fill:${m.color || "var(--up)"};stroke:var(--surface,#fff);stroke-width:1.5` }));
   const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
   svg.append(el("text", { x: L, y: height - 6 }, fmtDate(iso(x0))));
   svg.append(el("text", { x: width - R, y: height - 6, "text-anchor": "end" }, fmtDate(iso(x1))));
@@ -72,9 +74,11 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
     const guide = el("line", { class: "scrubline", x1: 0, x2: 0, y1: T, y2: height - B, style: "display:none" });
     const dots = multi.map((s) => el("circle", { class: "scrubdot", r: 4, style: `display:none;fill:${s.stroke}` }));
     const tagBg = el("rect", { class: "scrubtag", rx: 6, style: "display:none" });
-    const texts = [el("text", { class: "scrubtxt", style: "display:none;font-weight:700" }), ...multi.map(() => el("text", { class: "scrubtxt", style: "display:none;font-weight:800" }))];
+    const texts = [el("text", { class: "scrubtxt", style: "display:none;font-weight:700" }), ...multi.map(() => el("text", { class: "scrubtxt", style: "display:none;font-weight:800" })),
+      ...(scrubDiff ? [el("text", { class: "scrubtxt", style: "display:none;font-weight:800" })] : [])];
     svg.append(guide, ...dots, tagBg, ...texts);
-    const atX = (pts, px) => pts.reduce((b, p) => (Math.abs(p[0] - px) < Math.abs(b[0] - px) ? p : b), pts[0]);
+    // dichtstbijzijnde punt; bij gelijke afstand het laatste (bij een trapje: de stand ná de sprong op die dag)
+    const atX = (pts, px) => pts.reduce((b, p) => (Math.abs(p[0] - px) <= Math.abs(b[0] - px) ? p : b), pts[0]);
     const showM = (evt) => {
       const rect = svg.getBoundingClientRect();
       const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -88,6 +92,7 @@ export function lineChart({ series, area, hlines = [], width = 358, height = 170
         dots[i].setAttribute("cx", X(p[0])); dots[i].setAttribute("cy", Y(p[1])); dots[i].style.display = "";
         lines.push(`${s.name || "Value"} ${eur(p[1])}`);
       });
+      if (scrubDiff) lines.push(`${scrubDiff.name} ${eur(atX(series[scrubDiff.a].pts, px)[1] - atX(series[scrubDiff.b].pts, px)[1])}`);
       const boxW = Math.max(...lines.map((l) => l.length)) * 6.3 + 14, boxH = 14 + lines.length * 14;
       const bx = Math.min(Math.max(gx - boxW / 2, L), width - R - boxW);
       tagBg.setAttribute("x", bx); tagBg.setAttribute("y", T); tagBg.setAttribute("width", boxW); tagBg.setAttribute("height", boxH); tagBg.style.display = "";
