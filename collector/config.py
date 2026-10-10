@@ -52,7 +52,7 @@ DIGEST_MIN_P_UP = 0.60
 
 # ---- Laagste Near Mint-prijs per kaart (PkmnPrices Pro) ----
 # Cardmarket-commissie (5%) + Trustee Service (1%, het voorzichtige uiteinde van 0,5-1%): samen als vaste veilige aanname.
-DEFAULT_FEE_PCT = 6.0
+DEFAULT_FEE_PCT = 3.0
 # Geschatte verzending die je als KOPER betaalt bij een Cardmarket-aankoop, op basis van de kaartprijs. De verzending
 # bij het verkopen betaalt de koper (jij koopt er de postzegel van), dus die telt niet als kost; wel verpakking.
 # Onder EUR25 gewone post (rond EUR3), vanaf EUR25 als pakket (duurder). Een schatting naar de ervaring van de gebruiker; pas aan als de tarieven veranderen.

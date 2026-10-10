@@ -59,7 +59,7 @@ def main():
             page.wait_for_selector(".dealsec .dealrow")
             check("Cheap listings" in page.inner_text(".dealsec"), "vak met goedkope aanbiedingen")
             check("−43%" in page.inner_text(".dealsec") and "Charizard" in page.inner_text(".dealsec") and "200.00" in page.inner_text(".dealsec"), "de uitschieter (base1-4): 200 tegen de tweede goedkoopste (350) = -43%")
-            check("113.50" in page.inner_text(".dealsec").replace("\xa0", " ") or "113.5" in page.inner_text(".dealsec").replace("\xa0", " "), "winst na verzending (15), commissie en verpakking getoond: 350 x 0,94 - 0,50 - (200 + 15) = 113,50")
+            check("124.00" in page.inner_text(".dealsec").replace("\xa0", " "), "winst na verzending (15), commissie (standaard 3%) en verpakking getoond: 350 x 0,97 - 0,50 - (200 + 15) = 124,00")
             check("Umbreon VMAX" not in page.inner_text(".dealsec"), "610 tegen 640 is 30 euro goedkoper, maar na pakketverzending (15) en commissie verlies: geen koopje")
             check("Blissey V" not in page.inner_text(".dealsec"), "10 tegen 13 haalt de 20%, maar de verzending (3) en kosten eten de winst op: geen koopje")
             check("next cheapest" not in page.inner_text(".dealsec"), "geen lange uitleg in de lijst")

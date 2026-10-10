@@ -1,7 +1,7 @@
 // Berekeningen aan de kant van de app: netto winst, uitleg bij de kans en 'aandacht nodig'.
 import { days, eur, pp, signed, signedEur } from "./ui.js";
 
-export const DEFAULT_SETTINGS = { cm_name: "", fee_pct: 6, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10, attn_pct: 15 };
+export const DEFAULT_SETTINGS = { cm_name: "", fee_pct: 3, net_only: true, net_min_pct: 3, digest: true, price_alerts: true, horizon: 30, pct: 10, attn_pct: 15 };
 
 // De kansberekening klopt nog niet goed genoeg (zie de backtest): verborgen in de app tot ze beter is. Op de achtergrond
 // blijft ze gewoon draaien. Op true zetten om alles weer te tonen.
