@@ -1,0 +1,30 @@
+name: Backtest gestage stijgers
+on:
+  push:
+    branches: [analysis/sets]
+    paths: [collector/riser_backtest.py, .github/workflows/riser-backtest.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Proef
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python riser_backtest.py
+      - name: Bewaren
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          git add reports/riser_backtest.md
+          git commit -m "Backtest stijgers" || exit 0
+          git pull --rebase -q && git push
