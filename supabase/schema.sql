@@ -252,13 +252,17 @@ create view v_forecasts with (security_invoker = on) as
 drop view if exists v_search;
 create view v_search with (security_invoker = on) as
     select p.product_id, p.kind, p.name, p.set_name, p.number, p.set_total, p.rarity, p.image, st.release_date,
-           lp.price, f.p_up, f.signal, p.cm_url, p.cm_name
+           coalesce(mvp.price, lp.price) as price, lp.price as trend, f.p_up, f.signal, p.cm_url, p.cm_name
     from products p
     left join sets st on st.set_id = p.set_id
     left join lateral (
         select price from prices pr
         where pr.product_id = p.product_id and pr.grade_key = 'raw'
         order by date desc limit 1) lp on true
+    left join lateral (
+        select price from prices pr
+        where pr.product_id = p.product_id and pr.grade_key = 'mv' and pr.date >= current_date - 4
+        order by date desc limit 1) mvp on true
     left join forecasts f on f.product_id = p.product_id and f.horizon_days = 30 and f.threshold_pct = 10
     where p.set_id is null or p.set_id !~ '^([AB][0-9]+[a-z]?|P-[A-Z])$';   -- Pokémon TCG Pocket (mobiele game, digitale kaarten) staat niet in de app
 
@@ -294,6 +298,24 @@ create view v_deals with (security_invoker = on) as   -- goedkope aanbiedingen (
     where pr.cheapest <= pr.market * 0.8 or pr.market - pr.cheapest >= 25;
 grant select on v_deals to anon, authenticated;
 
+
+-- Beweging over 30 dagen, telkens binnen één soort prijs (appels met appels): eerst de dagelijkse waarde uit de aanbiedingen
+-- (grade_key 'mv', market_value.py), dan de Near Mint-prijs van PkmnPrices ('nm'), anders de trendprijs ('raw' of de graad).
+drop function if exists move30(text, text);
+create or replace function move30(p_id text, p_gk text default 'raw', p_english boolean default true)
+returns table (now_price numeric, then_price numeric)
+language plpgsql stable security invoker as $$
+declare g text; n numeric; t numeric;
+begin
+    foreach g in array (case when p_gk = 'raw' and p_english then array['mv', 'nm', 'raw'] else array[p_gk] end) loop
+        select price into n from prices where product_id = p_id and grade_key = g and (g = p_gk or date >= current_date - 4) order by date desc limit 1;
+        select price into t from prices where product_id = p_id and grade_key = g and date <= current_date - 30 and date >= current_date - 45 order by date desc limit 1;
+        if n is not null and t is not null then now_price := n; then_price := t; return next; return; end if;
+    end loop;
+    select price into n from prices where product_id = p_id and grade_key = p_gk order by date desc limit 1;
+    now_price := n; then_price := null; return next;
+end $$;
+
 drop view if exists v_collection;
 drop view if exists v_market;
 -- Waarde van een kaart uit de aanbiedingen: alleen Engels, zonder je eigen aanbiedingen (user_settings.cm_name), alleen de
@@ -317,7 +339,7 @@ create view v_collection with (security_invoker = on) as
     select c.id, c.product_id, c.quantity, c.condition, c.grade_company, c.grade, c.language, c.variant,
            c.purchase_price, c.purchase_shipping, c.purchase_costs, c.purchase_seller, c.purchase_order, c.purchase_date, c.created_at,
            p.kind, p.name, p.set_name, p.number, p.rarity, p.image, p.cm_name,
-           coalesce(mv.value, lp.price) as value_each, lp.price as value_trend, mv.n as value_n, lp.date as value_date, p30.price as value_30d_ago,
+           coalesce(mv.value, lp.price) as value_each, m30.now_price as value_trend, mv.n as value_n, lp.date as value_date, m30.then_price as value_30d_ago,
            f.p_up, f.p_down, f.exp_change, f.signal, f.confidence, f.mode, f.n, f.sigma,
            f.avg7, f.avg30, f.mom30
     from collection c
@@ -328,12 +350,8 @@ create view v_collection with (security_invoker = on) as
         where pr.product_id = c.product_id
           and pr.grade_key = case when c.grade_company is null then 'raw' else c.grade_company || '-' || c.grade end
         order by date desc limit 1) lp on true
-    left join lateral (
-        select price from prices pr
-        where pr.product_id = c.product_id
-          and pr.grade_key = case when c.grade_company is null then 'raw' else c.grade_company || '-' || c.grade end
-          and pr.date <= current_date - 30
-        order by date desc limit 1) p30 on true
+    left join lateral move30(c.product_id, case when c.grade_company is null then 'raw' else c.grade_company || '-' || c.grade end,
+                             c.language is null) m30 on true
     left join forecasts f on f.product_id = c.product_id and f.horizon_days = 30 and f.threshold_pct = 10;
 
 drop view if exists latest_prices;
@@ -348,9 +366,14 @@ returns table (day date, invested numeric, value numeric)
 language sql stable security invoker as $$
     select d::date,
            coalesce(sum(c.quantity * c.purchase_price + c.purchase_shipping + c.purchase_costs) filter (where c.purchase_date <= d::date), 0),
-           coalesce(sum(c.quantity * coalesce(lp.price, c.purchase_price)) filter (where c.purchase_date <= d::date), 0)
+           coalesce(sum(c.quantity * coalesce(bp.price, lp.price, c.purchase_price)) filter (where c.purchase_date <= d::date), 0)
     from generate_series(current_date - p_days, current_date, interval '1 day') d
     cross join collection c
+    left join lateral (   -- Engelse, ongegradeerde kaarten: wat ze echt opbrengen (aanbiedingen, anders Near Mint), max. 4 dagen oud
+        select price from prices pr
+        where c.grade_company is null and c.language is null
+          and pr.product_id = c.product_id and pr.grade_key in ('mv', 'nm') and pr.date <= d::date and pr.date > d::date - 5
+        order by (pr.grade_key = 'mv') desc, pr.date desc limit 1) bp on true
     left join lateral (
         select price from prices pr
         where pr.product_id = c.product_id
@@ -364,7 +387,7 @@ drop view if exists v_watchlist;
 create view v_watchlist with (security_invoker = on) as
     select w.id, w.product_id, w.created_at,
            p.kind, p.name, p.set_name, p.number, p.rarity, p.image,
-           lp.price as value_each, lp.date as value_date,
+           coalesce(mvp.price, lp.price) as value_each, lp.date as value_date, m30.now_price as value_trend, m30.then_price as value_30d_ago,
            f.p_up, f.p_down, f.exp_change, f.exp_up, f.exp_down, f.signal, f.confidence, f.mode, f.n
     from watch_items w
     join products p using (product_id)
@@ -372,6 +395,11 @@ create view v_watchlist with (security_invoker = on) as
         select price, date from prices pr
         where pr.product_id = w.product_id and pr.grade_key = 'raw'
         order by date desc limit 1) lp on true
+    left join lateral (
+        select price from prices pr
+        where pr.product_id = w.product_id and pr.grade_key = 'mv' and pr.date >= current_date - 4
+        order by date desc limit 1) mvp on true
+    left join lateral move30(w.product_id) m30 on true
     left join forecasts f on f.product_id = w.product_id and f.horizon_days = 30 and f.threshold_pct = 10;
 
 
@@ -450,6 +478,7 @@ grant select on v_collection to authenticated;
 grant select on v_watchlist to authenticated;
 grant select on latest_prices to service_role;
 grant execute on function portfolio_series(int) to authenticated;
+grant execute on function move30(text, text, boolean) to authenticated;
 grant select, insert, update, delete on collection, alerts, user_settings, push_subscriptions, watch_folders, watch_items, watch_folder_items, sales, sale_items to authenticated;
 
 drop policy if exists "own rows" on watch_folder_items;
