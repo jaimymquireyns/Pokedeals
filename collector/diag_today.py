@@ -14,6 +14,8 @@ out = {
     "collection": store.select("collection", {"select": "*"}),
     "sales": store.select("sales", {"select": "*"}),
     "sale_items": store.select("sale_items", {"select": "*"}),
+    "advice": store.select("advice", {"select": "*", "date": "gte." + __import__("datetime").date.fromordinal(__import__("datetime").date.today().toordinal() - 2).isoformat()}),
+    "trend": store.select("v_search", {"select": "product_id,price,avg7,avg30,mom30", "price": "not.is.null"}),
     "prices": store.select("v_search", {"select": "product_id,price", "price": "not.is.null"}),
 }
 print({k: len(v) for k, v in out.items()})
