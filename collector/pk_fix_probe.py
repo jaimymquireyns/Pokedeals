@@ -1,26 +1,19 @@
-"""Waarom geven sommige gekoppelde collectiekaarten 0 aanbiedingen? Kaartdetail + aanbiedingen zonder filter. Geen verkopersnamen."""
-import os, json
+"""Kandidaat-koppelingen voor collectiekaarten zonder pk_id: aanbiedingen nagaan, en de verjaardags-Pikachu zoeken."""
+import os
 from collections import Counter
 from pkmnprices import PkmnPrices
 pk = PkmnPrices(os.environ["PKMN_API_KEY"], budget=300)
 out = []; p = lambda *a: (print(*a), out.append(" ".join(str(x) for x in a)))
-for pid, kid in (("base1-52", 12845), ("pl3-20", 18803)):
-    p(f"\n## {pid} (pk {kid})")
+for pid, kid in (("swshp-SWSH138", 26541), ("swshp-SWSH144", 26604), ("cel25cc-CC015", 16901)):
+    d = pk.detail(f"/cards/{kid}")
+    rows = pk.list_all(f"/cards/{kid}/listings/cardmarket", {"condition": "Near Mint"}, per_page=20, max_pages=1)
+    p(f"- {pid} -> {kid}: {d.get('name')} | {(d.get('set') or {}).get('name')} | cm {d.get('cardmarket_url')} | NM-aanbiedingen {len(rows)}, talen {dict(Counter(r.get('language') for r in rows))}")
+for q in ({"name": "Birthday Pikachu"}, {"name": "'s Pikachu"}, {"name": "Pikachu", "number": "24"}, {"name": "Lugia", "number": "029"}, {"name": "Arceus VSTAR", "number": "027"}):
     try:
-        d = pk.detail(f"/cards/{kid}")
-        keep = {k: v for k, v in (d or {}).items() if k not in ("image", "images", "prices", "price_history")}
-        p("detail:", json.dumps(keep, default=str)[:900])
-        p("prices-sleutels:", list(((d or {}).get("prices") or {}).keys())[:20] if isinstance((d or {}).get("prices"), dict) else type((d or {}).get("prices")).__name__)
+        rows = pk.list_all("/cards", q, per_page=10, max_pages=1)
+        p(f"- zoek {q}: " + "; ".join(f"{c.get('id')} {c.get('name')} [{(c.get('set') or {}).get('name') if isinstance(c.get('set'), dict) else c.get('set')}] nr {c.get('number')}" for c in rows))
     except Exception as e:
-        p("detail FOUT", str(e)[:200])
-    for params, pp_, mp in (({}, 100, 3), ({"condition": "Near Mint"}, 50, 1), ({"condition": "near_mint"}, 20, 1), ({"condition": "NM"}, 20, 1)):
-        try:
-            rows = pk.list_all(f"/cards/{kid}/listings/cardmarket", params, per_page=pp_, max_pages=mp)
-            prices = sorted(float(r["price"]) for r in rows if r.get("price"))
-            p(f"  prijzen van {prices[0] if prices else '-'} tot {prices[-1] if prices else '-'}; NM-prijzen {sorted(float(r['price']) for r in rows if (r.get('condition') or '').lower()=='near mint')[:5]}")
-            p(f"listings {params}: {len(rows)}; condities {dict(Counter(r.get('condition') for r in rows))}; talen {dict(Counter(r.get('language') for r in rows))}")
-        except Exception as e:
-            p(f"listings {params}: FOUT {str(e)[:200]}")
+        p(f"- zoek {q}: FOUT {str(e)[:100]}")
 p(f"\ncredits {pk.credits}")
 os.makedirs("../reports", exist_ok=True)
 open("../reports/pk_fix_probe.md", "w").write("\n".join(out) + "\n")
