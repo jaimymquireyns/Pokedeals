@@ -23,7 +23,11 @@ out["att"] = store.select("prices", {"select": "product_id,date,source,grade_key
 out["offers"] = []
 for i in range(0, len(ids), 40):
     out["offers"] += store.select("offers", {"select": "*", "product_id": "in.(" + ",".join(ids[i:i + 40]) + ")"})
+out["coll_products"] = []
+for i in range(0, len(ids), 40):
+    out["coll_products"] += store.select("products", {"select": "*", "product_id": "in.(" + ",".join(f'"{x}"' for x in ids[i:i + 40]) + ")"})
+out["mv"] = store.select("prices", {"select": "product_id,date,price", "grade_key": "eq.mv", "date": "gte.2026-10-08"})
 print({k: len(v) for k, v in out.items()})
 with gzip.open(sys.argv[1], "wt") as f:
     json.dump(out, f, default=str)
-# export 2026-10-10T12:24:33
+# export 2026-10-11 (pk-koppeling en marktwaarde)
