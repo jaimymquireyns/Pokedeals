@@ -1,26 +1,10 @@
+- swshp-SWSH138 -> 26541: Hydreigon C lv.61 - SWSH138 | SWSH: Sword & Shield Promo Cards | cm https://www.cardmarket.com/en/Pokemon/Products/Singles/SWSH-Black-Star-Promos/Hydreigon-C-Lv61-V1-SWSH138 | NM-aanbiedingen 15, talen {'EN': 15}
+- swshp-SWSH144 -> 26604: Greninja Star | SWSH: Sword & Shield Promo Cards | cm https://www.cardmarket.com/en/Pokemon/Products/Singles/SWSH-Black-Star-Promos/Greninja-Gold-Star-SWSH144 | NM-aanbiedingen 3, talen {'EN': 3}
+- cel25cc-CC015 -> 16901: Umbreon Star | Celebrations: Classic Collection | cm https://www.cardmarket.com/en/Pokemon/Products/Singles/POP-Series-5/Umbreon-Gold-Star-POP517 | NM-aanbiedingen 2, talen {'EN': 2}
+- zoek {'name': 'Birthday Pikachu'}: 
+- zoek {'name': "'s Pikachu"}: 11123 ______'s Pikachu [Pikachu World Collection Promos] nr 24; 16674 Lt. Surge's Pikachu [Gym Challenge] nr 084; 16886 ______'s Pikachu [Celebrations: Classic Collection] nr 24; 20626 Ash's Pikachu - SM108 [SM Promos] nr SM108; 20724 Ash's Pikachu - SM109 [SM Promos] nr SM109; 20733 Ash's Pikachu - SM112 [SM Promos] nr SM112; 20769 Ash's Pikachu - SM114 [SM Promos] nr SM114; 20770 Ash's Pikachu - SM113 [SM Promos] nr SM113; 20772 Ash's Pikachu - SM110 [SM Promos] nr SM110; 20774 Ash's Pikachu - SM111 [SM Promos] nr SM111
+- zoek {'name': 'Pikachu', 'number': '24'}: 11123 ______'s Pikachu [Pikachu World Collection Promos] nr 24; 16886 ______'s Pikachu [Celebrations: Classic Collection] nr 24; 22901 ______'s Pikachu [WoTC Promo] nr 24; 39949 Pikachu [Intense Fight in the Destroyed Sky] nr 024; 49084 Pikachu - 024/ADV-P [ADV-P Promotional cards] nr 024; 49555 Pikachu - 024/S-P [S-P: Sword & Shield Promos] nr 024; 58024 Flying Pikachu VMAX [S8a: 25th Anniversary Collection] nr 024; 96163 Pikachu [S12: Paradigm Trigger] nr 024; 207006 Pikachu - 024/128 [ME: 30th Celebration] nr 024
+- zoek {'name': 'Lugia', 'number': '029'}: 13165 Lugia [Unseen Forces] nr 29; 32429 Lugia - 29/115 (EX Unseen Forces) [Deck Exclusives] nr 029; 35578 Lugia - 29/115 (Pokemon Rocks America) [Miscellaneous Cards & Products] nr 029; 51455 Lugia Legend - 029/070 [L1: SoulSilver Collection] nr 029; 51489 Lugia Legend - 029/070 (Mirror Holofoil) [L1: SoulSilver Collection] nr 029
+- zoek {'name': 'Arceus VSTAR', 'number': '027'}: 
 
-## base1-52 (pk 12845)
-detail: {"id": 12845, "tcg_player_id": 42396, "name": "Machop", "image_url": "https://images.pkmnprices.com/cards/c0fe3ad033549103.webp", "cardmarket_url": "https://www.cardmarket.com/en/Pokemon/Products/Singles/Base-Set/Machop-V1-BS52", "cardmarket_product_id": 273747, "number": "052", "total_set_number": "102", "rarity": "Common", "artist": "Mitsuhiro Arita", "hp": 50, "stage": "Basic", "card_type": "Pokemon", "weakness": "P", "resistance": null, "retreat_cost": 1, "energy_type": ["Fighting"], "ability": "", "flavor_text": "<em>Superpower Pok\u00e9mon. Length: 2'7\", Weight: 43 lbs.\r\n<br>\r\nLoves to build its muscles. It trains in all styles of martial arts to become even stronger.  LV. 20  #66</em>", "attacks": ["[F] Low Kick (20)"], "set": {"id": 463, "name": "Base Set"}}
-prices-sleutels: list
-  prijzen van 0.02 tot 0.03; NM-prijzen []
-listings {}: 20; condities {'Played': 6, 'Poor': 9, 'Good': 3, 'Light Played': 2}; talen {'EN': 20}
-  prijzen van - tot -; NM-prijzen []
-listings {'condition': 'Near Mint'}: 0; condities {}; talen {}
-  prijzen van - tot -; NM-prijzen []
-listings {'condition': 'near_mint'}: 0; condities {}; talen {}
-  prijzen van - tot -; NM-prijzen []
-listings {'condition': 'NM'}: 0; condities {}; talen {}
-
-## pl3-20 (pk 18803)
-detail: {"id": 18803, "tcg_player_id": 84200, "name": "Charizard G", "image_url": "https://images.pkmnprices.com/cards/c7f1bff53c36f4db.webp", "cardmarket_url": "https://www.cardmarket.com/en/Pokemon/Products/Singles/Supreme-Victors/Charizard-G-Lv65-SV20", "cardmarket_product_id": 278711, "number": "20", "total_set_number": null, "rarity": "Rare", "artist": null, "hp": 100, "stage": "Basic", "card_type": "Pokemon", "weakness": "Wx2", "resistance": "F-20", "retreat_cost": 3, "energy_type": ["Fire"], "ability": "", "flavor_text": "", "attacks": ["[1R] Flame Jet - Flip a coin.  If heads, this attack does 40 damage to 1 of your opponent's Pokemon.  (Don't apply Weakness and Resistance for Benched Pokemon.)", "[2R] Heat Blast (50)"], "set": {"id": 523, "name": "Supreme Victors"}}
-prices-sleutels: list
-  prijzen van 5.0 tot 27.0; NM-prijzen []
-listings {}: 19; condities {'Poor': 6, 'Played': 6, 'Light Played': 2, 'Good': 3, 'Excellent': 2}; talen {'EN': 19}
-  prijzen van - tot -; NM-prijzen []
-listings {'condition': 'Near Mint'}: 0; condities {}; talen {}
-  prijzen van - tot -; NM-prijzen []
-listings {'condition': 'near_mint'}: 0; condities {}; talen {}
-  prijzen van - tot -; NM-prijzen []
-listings {'condition': 'NM'}: 0; condities {}; talen {}
-
-credits 41
+credits 47
