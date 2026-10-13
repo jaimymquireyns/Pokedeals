@@ -10,11 +10,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   backtest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r collector/requirements.txt
@@ -28,8 +28,9 @@ jobs:
         run: |
           git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
           cp reports/advice_backtest.md /tmp/bt.md
+          rm -rf reports   # eerst opzij: anders weigert git over te schakelen naar de branch waar dit bestand al staat
           git fetch -q origin reports || true
-          git checkout -q -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
           git rm -rq --cached . >/dev/null 2>&1 || true
           mkdir -p reports && cp /tmp/bt.md reports/advice_backtest.md
           git add reports/advice_backtest.md

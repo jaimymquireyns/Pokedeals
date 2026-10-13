@@ -19,7 +19,7 @@ def _add(stats, bucket, p, hit):
 
 
 RESOLVE_LAG_DAYS = 35      # zo ver na het verstrijken van de periode proberen we een voorspelling nog na te kijken (vangt gemiste dagen op)
-RESOLVE_WINDOW_DAYS = 7    # per verzoek zoveel dagen tegelijk: kleine, snelle verzoeken in plaats van één gigantische tabel doorbladeren
+RESOLVE_WINDOW_DAYS = 1    # per verzoek één dag: met 7 dagen tegelijk moest Supabase te veel regels sorteren en gaf het een 500-fout
 
 
 def fetch_due(store, today, combos=None, log=print):
@@ -39,7 +39,7 @@ def fetch_due(store, today, combos=None, log=print):
             end = min(start + timedelta(days=RESOLVE_WINDOW_DAYS - 1), cutoff)
             out += store.select("forecast_history", {
                 "select": "*", "resolved": "eq.false", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}",
-                "and": f"(date.gte.{start.isoformat()},date.lte.{end.isoformat()})", "order": "product_id.asc,date.asc"})
+                "and": f"(date.gte.{start.isoformat()},date.lte.{end.isoformat()})", "order": "date.asc,product_id.asc"})
             start = end + timedelta(days=1)
         try:
             store.delete("forecast_history", {"resolved": "eq.false", "horizon_days": f"eq.{horizon}", "threshold_pct": f"eq.{pct}",

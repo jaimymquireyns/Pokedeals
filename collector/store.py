@@ -17,11 +17,15 @@ class SupabaseStore:
 
     # ---- basis ----
     def _get(self, url, params, timeout):
-        """Eén verzoek, met één keer opnieuw proberen (langere wachttijd) als de verbinding traag is of wegvalt."""
+        """Eén verzoek, met één keer opnieuw proberen (langere wachttijd) als de verbinding traag is of wegvalt,
+        of als Supabase een tijdelijke serverfout geeft (500/502/503/504, bijv. een query die net te lang duurde)."""
         try:
             r = self.s.get(url, params=params, timeout=timeout)
+            retry = r.status_code in (500, 502, 503, 504)
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            time.sleep(3)
+            retry = True
+        if retry:
+            time.sleep(5)
             r = self.s.get(url, params=params, timeout=timeout * 2)
         r.raise_for_status()
         return r
