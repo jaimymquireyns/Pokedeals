@@ -1,11 +1,12 @@
-"""Eenmalig: Pikachu (CRZ GG30) uit de collectie halen, is voor de persoonlijke collectie."""
-import os, requests
+"""Controle: waar staan de aankopen van Rusk1turbo en Barbunelce?"""
+import os, json, requests
 URL = os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1"
 KEY = os.environ["SUPABASE_SECRET_KEY"]
-H = {"apikey": KEY, "Content-Type": "application/json", "Prefer": "return=representation"}
+H = {"apikey": KEY}
 if KEY.startswith("eyJ"):
     H["Authorization"] = f"Bearer {KEY}"
-r = requests.delete(f"{URL}/collection", headers=H, params={"id": "eq.2eb60ca8-08ee-4ac5-b975-0eab01501435", "product_id": "eq.swsh12.5gg-GG30"}, timeout=60)
-print(r.status_code, r.text)
-r.raise_for_status()
-print("left in order:", requests.get(f"{URL}/collection", headers=H, params={"select": "product_id,purchase_price,purchase_shipping,purchase_costs", "purchase_order": "eq.cm-1306567466"}, timeout=60).json())
+g = lambda t, p: requests.get(f"{URL}/{t}", headers=H, params=p, timeout=60).json()
+print("collection:", json.dumps(g("collection", {"select": "*", "or": "(purchase_seller.ilike.*rusk*,purchase_seller.ilike.*barbun*,product_id.in.(30th-c-001,xy12-51,swsh11-137,swsh12.5gg-GG30))"}), indent=1))
+print("sales recent:", json.dumps(g("sales", {"select": "*", "order": "created_at.desc", "limit": "5"}), indent=1))
+print("sale_items match:", json.dumps(g("sale_items", {"select": "*", "or": "(purchase_seller.ilike.*rusk*,purchase_seller.ilike.*barbun*,product_id.in.(30th-c-001,xy12-51,swsh11-137,swsh12.5gg-GG30))"}), indent=1))
+print("sale_items recent:", json.dumps(g("sale_items", {"select": "*", "order": "id.desc", "limit": "3"}), indent=1))
