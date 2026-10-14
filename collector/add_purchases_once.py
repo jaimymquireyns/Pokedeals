@@ -55,7 +55,7 @@ for o in ORDERS:
         print(f"{o['order']} already exists, skipping"); continue
     prods = [find(l) for l in o["lines"]]
     if any(len(p) != 1 for p in prods):
-        sys.exit(f"Ambiguous or missing product in {o['order']}; nothing inserted")
+        print(f"Ambiguous or missing product in {o['order']}; order skipped"); continue
     w = [l["price"] for l in o["lines"]]
     sh, co = allocate(o["ship"], w), allocate(o["costs"], w)
     for i, l in enumerate(o["lines"]):
@@ -70,3 +70,9 @@ if plan:
     print(r.status_code, r.text)
     r.raise_for_status()
 print("done")
+print("30C in db:", get("products", {"select": "product_id,name,set_name,number,cm_name", "or": "(cm_name.ilike.*30C*,set_name.ilike.*30th*,set_name.ilike.*Classic Coll*)", "limit": "20"}))
+try:
+    sets = requests.get("https://api.tcgdex.net/v2/en/sets", timeout=30).json()
+    print("tcgdex:", [(x["id"], x["name"]) for x in sets if "30" in x["name"] or "elebrat" in x["name"] or x["id"].startswith("me")])
+except Exception as e:
+    print("tcgdex err", e)
