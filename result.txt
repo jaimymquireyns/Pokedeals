@@ -1,7 +1,2 @@
-users: {'43f56a30-d159-4c16-b093-f7d95f7d0039'}
-  cm_name gave 0, fallback gave 1: [{'product_id': '30th-c-001', 'name': 'Charizard', 'set_name': '30th Classic Collection', 'number': '001', 'cm_name': 'Charizard V [Incinerate | Heat Blast]', 'kind': 'card'}]
-  Charizard (30C BS4% -> [{'product_id': '30th-c-001', 'name': 'Charizard', 'set_name': '30th Classic Collection', 'number': '001', 'cm_name': 'Charizard V [Incinerate | Heat Blast]', 'kind': 'card'}]
-cm-1306567466 already exists, skipping
-INSERT {'user_id': '43f56a30-d159-4c16-b093-f7d95f7d0039', 'product_id': '30th-c-001', 'quantity': 1, 'condition': 'NM', 'grade_company': None, 'grade': None, 'purchase_price': 190.0, 'purchase_date': '2026-10-03', 'purchase_shipping': 19.2, 'purchase_costs': 0.95, 'purchase_seller': 'Rusk1turbo', 'purchase_order': 'cm-rusk1turbo-2026-10-03'}
-201 [{"id":"b07f1704-2cad-4456-a984-5ee573c5d4fc","user_id":"43f56a30-d159-4c16-b093-f7d95f7d0039","product_id":"30th-c-001","quantity":1,"condition":"NM","grade_company":null,"grade":null,"purchase_price":190.0,"purchase_date":"2026-10-03","created_at":"2026-10-14T07:59:51.51922+00:00","purchase_shipping":19.2,"purchase_costs":0.95,"purchase_seller":"Rusk1turbo","purchase_order":"cm-rusk1turbo-2026-10-03","language":null,"variant":null}]
-done
+200 [{"id":"2eb60ca8-08ee-4ac5-b975-0eab01501435","user_id":"43f56a30-d159-4c16-b093-f7d95f7d0039","product_id":"swsh12.5gg-GG30","quantity":1,"condition":"NM","grade_company":null,"grade":null,"purchase_price":40.0,"purchase_date":"2026-10-08","created_at":"2026-10-14T07:58:26.521086+00:00","purchase_shipping":9.24,"purchase_costs":0.2,"purchase_seller":"Barbunelce","purchase_order":"cm-1306567466","language":null,"variant":null}]
+left in order: [{'product_id': 'xy12-51', 'purchase_price': 1.25, 'purchase_shipping': 0.29, 'purchase_costs': 0.01}, {'product_id': 'swsh11-137', 'purchase_price': 0.5, 'purchase_shipping': 0.12, 'purchase_costs': 0.0}]
