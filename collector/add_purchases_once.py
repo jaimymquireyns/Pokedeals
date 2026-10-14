@@ -9,7 +9,7 @@ if KEY.startswith("eyJ"):
 
 ORDERS = [
     {"order": "cm-rusk1turbo-2026-10-03", "seller": "Rusk1turbo", "date": "2026-10-03", "ship": 19.20, "costs": 0.95,
-     "lines": [{"cm": "Charizard (30C BS4%", "name": "Charizard", "number": "4", "price": 190.00}]},
+     "lines": [{"cm": "Charizard (30C BS4%", "name": "Charizard", "set": "30th Classic", "price": 190.00}]},
     {"order": "cm-1306567466", "seller": "Barbunelce", "date": "2026-10-08", "ship": 9.65, "costs": 0.21,
      "lines": [{"cm": "Mewtwo (EVO 51)%", "name": "Mewtwo", "number": "51", "set": "Evolutions", "price": 1.25},
                {"cm": "Pidgeot V (LOR 137)%", "name": "Pidgeot V", "number": "137", "set": "Lost Origin", "price": 0.50},
@@ -34,7 +34,9 @@ def find(line):
     sel = "product_id,name,set_name,number,cm_name,kind"
     rows = get("products", {"select": sel, "cm_name": f"ilike.{line['cm']}", "kind": "eq.card"})
     if len(rows) != 1:
-        alt = get("products", {"select": sel, "name": f"ilike.{line['name']}", "number": f"ilike.{line['number']}", "kind": "eq.card"})
+        q = {"select": sel, "name": f"ilike.{line['name']}", "kind": "eq.card"}
+        if line.get("number"): q["number"] = f"ilike.{line['number']}"
+        alt = get("products", q)
         if line.get("set"):
             alt = [p for p in alt if line["set"].lower() in (p.get("set_name") or "").lower()]
         print(f"  cm_name gave {len(rows)}, fallback gave {len(alt)}: {alt}")
@@ -70,9 +72,3 @@ if plan:
     print(r.status_code, r.text)
     r.raise_for_status()
 print("done")
-print("30C in db:", get("products", {"select": "product_id,name,set_name,number,cm_name", "or": "(cm_name.ilike.*30C*,set_name.ilike.*30th*,set_name.ilike.*Classic Coll*)", "limit": "20"}))
-try:
-    sets = requests.get("https://api.tcgdex.net/v2/en/sets", timeout=30).json()
-    print("tcgdex:", [(x["id"], x["name"]) for x in sets if "30" in x["name"] or "elebrat" in x["name"] or x["id"].startswith("me")])
-except Exception as e:
-    print("tcgdex err", e)
