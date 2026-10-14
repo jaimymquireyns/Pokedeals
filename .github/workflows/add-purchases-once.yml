@@ -2,6 +2,8 @@ name: Aankopen toevoegen (eenmalig)
 on:
   push:
     branches: [claude/add-purchases]
+permissions:
+  contents: write
 jobs:
   add:
     runs-on: ubuntu-24.04
@@ -16,4 +18,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python add_purchases_once.py
+        run: python add_purchases_once.py > ../result.txt 2>&1 || echo "FAILED" >> ../result.txt
+      - run: |
+          git config user.name bot && git config user.email bot@users.noreply.github.com
+          git add result.txt && git commit -m "result [skip ci]" && git push
