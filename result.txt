@@ -1,0 +1,5 @@
+users: {'43f56a30-d159-4c16-b093-f7d95f7d0039'}
+  cm_name gave 0, fallback gave 2: [{'product_id': 'base1-4', 'name': 'Charizard', 'set_name': 'Base Set', 'number': '4', 'cm_name': 'Charizard [Energy Burn | Fire Spin]', 'kind': 'card'}, {'product_id': 'base4-4', 'name': 'Charizard', 'set_name': 'Base Set 2', 'number': '4', 'cm_name': 'Charizard [Energy Burn | Fire Spin]', 'kind': 'card'}]
+  Charizard (30C BS4% -> []
+Ambiguous or missing product in cm-rusk1turbo-2026-10-03; nothing inserted
+FAILED
