@@ -1,4 +1,4 @@
-# Terugtest advies op Near Mint-geschiedenis (2026-10-16)
+# Terugtest advies op Near Mint-geschiedenis (2026-10-17)
 
 0 kaarten met genoeg geschiedenis, 0 daarvan gaven minstens één signaal. Uitkomst na 30 dagen, verkoop voorzichtig gerekend op 90% van de latere vraagprijs, min commissie, verpakking en verzending bij aankoop.
 
