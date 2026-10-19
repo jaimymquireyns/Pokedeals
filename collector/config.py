@@ -70,8 +70,8 @@ def ship_cost(price):
 
 PK_TARGETS = 1200          # zoveel kaarten volgen we dagelijks: eerst collectie en prijsmeldingen, dan de beste kansen, dan de duurste
 PK_MAP_PER_RUN = 300       # zoveel nieuwe kaarten per run aan PkmnPrices koppelen (elk zoekopdracht kost credits)
-NM_WIDEN_EXTRA = False     # tijdelijk uit: eerst de Near Mint-geschiedenis van de vaste lijst opbouwen, dan pas breder koppelen
-NM_REFRESH_PRICE = False   # tijdelijk uit: de dagelijkse actuele NM-prijs kan wachten; koppelen blijft wel aan, dat voedt de geschiedenis-opbouw
+NM_WIDEN_EXTRA = True      # weer aan (19 okt): elke kaart moet dagelijks een Near Mint-prijs krijgen; de geschiedenis van vóór 11 juni bestaat toch niet
+NM_REFRESH_PRICE = True    # weer aan (19 okt): dagelijkse actuele Near Mint-prijs, nodig voor de kansen van vandaag
 HISTORY_PERIOD = "90d"     # hoever de eenmalige geschiedenis-opbouw terugkijkt: zonder limiet vraagt de API blijkbaar veel meer op dan nodig (en dus duurder/trager)
 PK_BUDGET = 72000          # maximaal aantal credits per dag dat de geplande taken zelf gebruiken (plan: 75.000, ververst om 02:00 Belgische tijd; 3.000 blijft over om zelf mee te testen)
 DEALS_MAX_PRICE = 500      # 'goedkope aanbiedingen' voor kaarten duurder dan dit worden niet apart opgehaald
