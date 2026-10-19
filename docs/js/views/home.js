@@ -9,20 +9,53 @@ import { summarize } from "./track.js";
 const DEAL_MIN_DISCOUNT = 0.20;   // hoeveel de goedkoopste aanbieding minstens onder het gemiddelde van de andere moet liggen...
 const DEAL_MIN_ABS = 25;          // ...óf, als dat percentage niet gehaald wordt, minstens dit bedrag eraf (voor dure kaarten waar 20% een hoge drempel is)
 
-/** Goedkope aanbiedingen: de laagste aanbieding ligt flink onder het gemiddelde van de andere aanbiedingen van
- * dezelfde kaart (min. 20%, of min. EUR25 bij dure kaarten). De database rekent dit zelf uit (view v_deals), zodat
- * de app niet alle aanbiedingen hoeft op te halen. Vergelijkt aanbiedingen onderling, niet met de trendprijs: die
- * kan bij weinig verkopen onbetrouwbaar zijn (zie Electivire). */
+/** Goedkope aanbiedingen: de laagste aanbieding ligt flink onder de tweede goedkoopste van dezelfde uitvoering (view v_deals),
+ * EN onder waarvoor de kaart de laatste 30 dagen echt verkocht werd (Cardmarkets verkoopgemiddelde, avg30; dat kan niemand met
+ * een vraagprijs verschuiven). De winst rekent met de laagste van die twee als verkoopprijs, zodat een te dure tweede aanbieding
+ * de winst niet opblaast. Aanbiedingen ouder dan DEAL_MAX_AGE_DAYS vallen weg: die zijn vaak al verkocht. */
+export const DEAL_MAX_AGE_DAYS = 7;
+export const DEAL_MIN_BELOW_SOLD = 0.10;   // minstens zoveel onder het verkoopgemiddelde van 30 dagen
+
+/** Laatste verkoopgemiddelde per kaart (Cardmarket via TCGdex; sealed via de Cardmarket-prijslijst). */
+async function soldPrices(ids) {
+  const since = new Date(Date.now() - 10 * 864e5).toISOString().slice(0, 10);
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 60) {
+    const list = ids.slice(i, i + 60).map((x) => `"${String(x).replace(/"/g, "")}"`).join(",");
+    const rows = await rest.get(`prices?select=product_id,date,avg7,avg30&grade_key=eq.raw&source=in.(tcgdex,cardmarket)` +
+      `&date=gte.${since}&product_id=in.(${encodeURIComponent(list)})&order=date.desc`).catch(() => null);
+    if (rows === null) return null;   // kon niet lezen: dan geen verkoopcontrole (beter dan een lege lijst)
+    for (const r of rows) {
+      const sold = Number(r.avg30) || Number(r.avg7) || 0;
+      if (sold && !out.has(r.product_id)) out.set(r.product_id, sold);
+    }
+  }
+  return out;
+}
+
+/** Zuivere regel (ook getest): kaart met aanbieding en verkoopgemiddelde -> koopje of niet, met de winst. */
+export function confirmDeal(d, sold, s, today = new Date()) {
+  const age = d.date ? (today - new Date(d.date)) / 864e5 : 0;
+  if (age > DEAL_MAX_AGE_DAYS + 0.99) return null;
+  if (!sold || d.cheapest > sold * (1 - DEAL_MIN_BELOW_SOLD)) return null;
+  const resale = Math.min(d.market, sold);
+  const gain = dealGain(d.cheapest, resale, s);
+  if (gain < DEAL_MIN_GAIN) return null;
+  return { ...d, sold, resale, belowSold: 1 - d.cheapest / sold, gain, gainPct: gain / (d.cheapest + shipCost(d.cheapest)) };
+}
+
 async function fetchDeals(limit = 200) {
   const s = getSettings();
-  const rows = await rest.get(`v_deals?select=*&order=discount.desc&limit=200`).catch(() => []);
-  return rows
-    .map((d) => ({ ...d, cheapest: Number(d.cheapest), market: Number(d.market), discount: Number(d.discount) }))
-    .map((d) => ({ ...d, gain: dealGain(d.cheapest, d.market, s) }))
-    .map((d) => ({ ...d, gainPct: d.gain / (d.cheapest + shipCost(d.cheapest)) }))   // winst als deel van wat je kwijt bent: kaart plus verzending
-    .filter((d) => d.gain >= DEAL_MIN_GAIN)   // na verzending als koper, commissie en verpakking moet er echt winst overblijven
-    .sort((a, b) => b.gain - a.gain)
-    .slice(0, limit);
+  const rows = (await rest.get(`v_deals?select=*&order=discount.desc&limit=300`).catch(() => []))
+    .map((d) => ({ ...d, cheapest: Number(d.cheapest), market: Number(d.market), discount: Number(d.discount) }));
+  const sold = rows.length ? await soldPrices([...new Set(rows.map((d) => d.product_id))]) : new Map();
+  if (sold === null) {   // verkoopgemiddelden niet te lezen: oude regel (tegen de tweede goedkoopste)
+    return rows.map((d) => ({ ...d, gain: dealGain(d.cheapest, d.market, s) }))
+      .map((d) => ({ ...d, gainPct: d.gain / (d.cheapest + shipCost(d.cheapest)) }))
+      .filter((d) => d.gain >= DEAL_MIN_GAIN).sort((a, b) => b.gain - a.gain).slice(0, limit);
+  }
+  return rows.map((d) => confirmDeal(d, sold.get(d.product_id), s)).filter(Boolean)
+    .sort((a, b) => b.gain - a.gain).slice(0, limit);
 }
 
 // ---- filters en sortering op Home: één rij knopjes voor Deals én Goedkope aanbiedingen ----
@@ -91,7 +124,9 @@ function marketRow(d, watchId, onHeart) {
         h("span", { class: "set", text: setLine(d) }),
         d.variant && d.variant !== "Normal" ? h("span", {}, h("span", { class: "tag", text: d.variant })) : null),
       h("span", { class: "mv" }, h("span", { class: "v num", text: eur(d.cheapest) }),
-        h("span", { class: "arw up", "aria-label": `${Math.round(d.discount * 100)}% below the next cheapest` }, `−${Math.round(d.discount * 100)}%`),
+        d.sold
+          ? h("span", { class: "arw up", "aria-label": `${Math.round(d.belowSold * 100)}% below what it sold for (30 days)` }, `−${Math.round(d.belowSold * 100)}%`)
+          : h("span", { class: "arw up", "aria-label": `${Math.round(d.discount * 100)}% below the next cheapest` }, `−${Math.round(d.discount * 100)}%`),
         h("span", { class: "gain num", "aria-label": "profit after costs", text: "+" + eur(d.gain) }))),
     h("button", { class: "heartb" + (watchId ? " on" : ""), type: "button", "aria-label": watchId ? "Remove from watchlist" : "Add to watchlist", onclick: onHeart }, icon("heart", watchId ? "filled" : ""))));
 }
@@ -174,9 +209,9 @@ async function dealsHome(root) {
 
   const dealSec = h("div", { class: "sec dealsec" },
     h("div", { class: "sech" }, title, infoBtn("Cheap listings",
-      "The cheapest Cardmarket listing is well below the next cheapest, within the same variant (Normal, Reverse Holofoil, ...).",
-      "Red is how much cheaper; green is what you keep if you buy and resell at the next cheapest price, after shipping, fees and packaging.",
-      "Near Mint cards only. A very low price may be a mistake: always check Cardmarket yourself.")),
+      "The cheapest Cardmarket listing is well below the next cheapest (same variant) and at least 10% below what the card really sold for on Cardmarket in the last 30 days.",
+      "Red: how far below the 30-day sales price. Green: what you keep if you buy and resell at the next cheapest listing or the sales price, whichever is lower, after shipping, fees and packaging.",
+      "Listings older than a week are left out. Near Mint only. Always check the listing on Cardmarket yourself.")),
     list, moreBtn);
   const fbar = filterBar(f, () => { buyHook.draw(); draw(); });
   root.replaceChildren(h("div", { class: "page" },
