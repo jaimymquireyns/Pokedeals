@@ -1,6 +1,6 @@
 import { getSession, rest } from "../api.js";
 import { brandmark, detailHash, emptyNote, go, moveCell, note, oppRow } from "../components.js";
-import { DEAL_MIN_GAIN, SHOW_PREDICTIONS, adviceFor, adviceTrack, dealGain, isOpportunity, netGain, outlook, recoveryGain, shipCost } from "../model.js";
+import { DEAL_MIN_GAIN, PACKAGING, SHOW_PREDICTIONS, adviceFor, adviceTrack, dealGain, isOpportunity, netGain, outlook, recoveryGain, shipCost } from "../model.js";
 import { addWatch, isWatched, removeWatch } from "./watchlist.js";
 import { getSettings } from "../prefs.js";
 import { closeSheet, eur, fmtDate, fmtDateTime, h, icon, openSheet, segment, store, thumb, toast } from "../ui.js";
@@ -33,16 +33,46 @@ async function soldPrices(ids) {
   return out;
 }
 
-/** Zuivere regel (ook getest): kaart met aanbieding en verkoopgemiddelde -> koopje of niet, met de winst. */
-export function confirmDeal(d, sold, s, today = new Date()) {
+/** Aanbieding die vers is en minstens 10% onder de echte verkoopprijs ligt (nog zonder verzending). unitNet = wat de kaart
+ * oplevert na commissie en verpakking, min de aankoopprijs; de verzending komt er per bestelling af. */
+export function dealCandidate(d, sold, s, today = new Date()) {
   const age = d.date ? (today - new Date(d.date)) / 864e5 : 0;
   if (age > DEAL_MAX_AGE_DAYS + 0.99) return null;
   if (!sold || d.cheapest > sold * (1 - DEAL_MIN_BELOW_SOLD)) return null;
   const resale = Math.min(d.market, sold);
+  return { ...d, sold, resale, belowSold: 1 - d.cheapest / sold, unitNet: resale * (1 - s.fee_pct / 100) - PACKAGING - d.cheapest };
+}
+
+/** Zuivere regel (ook getest): kaart met aanbieding en verkoopgemiddelde -> koopje of niet, met de winst (verzending per kaart). */
+export function confirmDeal(d, sold, s, today = new Date()) {
+  const c = dealCandidate(d, sold, s, today);
+  if (!c) return null;
+  const resale = c.resale;
   const gain = dealGain(d.cheapest, resale, s);
   if (gain < DEAL_MIN_GAIN) return null;
-  return { ...d, sold, resale, belowSold: 1 - d.cheapest / sold, gain, gainPct: gain / (d.cheapest + shipCost(d.cheapest)) };
+  return { ...c, gain, gainPct: gain / (d.cheapest + shipCost(d.cheapest)) };
 }
+
+/** Verkopers met meerdere goedkope aanbiedingen: samen kopen = één keer verzending (naar de totale waarde van de bestelling).
+ * Alleen aanbiedingen die op zich al winst geven (unitNet > 0); de verkoper telt mee als de bestelling samen winst geeft. */
+export function sellerGroups(cands, s) {
+  const by = new Map();
+  for (const c of cands) {
+    if (!c.seller || c.unitNet <= 0) continue;
+    const k = c.seller.toLowerCase();
+    if (!by.has(k)) by.set(k, { seller: c.seller, cards: [] });
+    by.get(k).cards.push(c);
+  }
+  return [...by.values()].map((g) => {
+    const total = g.cards.reduce((a, c) => a + c.cheapest, 0);
+    const ship = shipCost(total);
+    const gain = g.cards.reduce((a, c) => a + c.unitNet, 0) - ship;
+    return { ...g, cards: g.cards.sort((a, b) => b.unitNet - a.unitNet), total, ship, gain, gainPct: gain / (total + ship) };
+  }).filter((g) => g.cards.length >= 2 && g.gain >= DEAL_MIN_GAIN)
+    .sort((a, b) => b.cards.length - a.cards.length || b.gain - a.gain);
+}
+
+let lastCands = [];
 
 async function fetchDeals(limit = 200) {
   const s = getSettings();
@@ -54,6 +84,7 @@ async function fetchDeals(limit = 200) {
       .map((d) => ({ ...d, gainPct: d.gain / (d.cheapest + shipCost(d.cheapest)) }))
       .filter((d) => d.gain >= DEAL_MIN_GAIN).sort((a, b) => b.gain - a.gain).slice(0, limit);
   }
+  lastCands = rows.map((d) => dealCandidate(d, sold.get(d.product_id), s)).filter(Boolean);
   return rows.map((d) => confirmDeal(d, sold.get(d.product_id), s)).filter(Boolean)
     .sort((a, b) => b.gain - a.gain).slice(0, limit);
 }
@@ -132,6 +163,50 @@ function marketRow(d, watchId, onHeart) {
 }
 
 let state = { kind: "alles", shown: 60 };
+
+const sellerUrl = (name) => `https://www.cardmarket.com/en/Pokemon/Users/${encodeURIComponent(name)}`;
+
+/** Bovenaan Home: verkopers met meerdere goedkope aanbiedingen, met de winst als je alles in één bestelling koopt. */
+function sellerSection() {
+  const box = h("div", { class: "sec sellersec" });
+  const list = h("ul", { class: "list sellerlist" });
+  const title = h("h3", { text: "Sellers" });
+  const moreBtn = h("button", { class: "linkbtn", type: "button", hidden: true });
+  const open = new Set();
+  let groups = [], showAll = false;
+  const SHOWN = 5;
+  const cardLine = (c) => h("li", {}, h("button", { type: "button", class: "rowc sellercard", onclick: () => go(detailHash(c.product_id)) },
+    thumb(c.image, "ph", c.kind === "sealed"),
+    h("div", { class: "body" }, h("span", { class: "nm" }, h("span", { class: "name", text: c.name })), h("span", { class: "set", text: setLine(c) })),
+    h("span", { class: "mv" }, h("span", { class: "v num", text: eur(c.cheapest) }),
+      h("span", { class: "arw up", "aria-label": `${Math.round(c.belowSold * 100)}% below what it sold for (30 days)` }, `−${Math.round(c.belowSold * 100)}%`))));
+  function draw(f) {
+    const shown = groups.map((g) => ({ ...g, cards: g.cards.filter((c) => (!f.max || c.cheapest <= f.max) && (f.kind === "alles" || c.kind === f.kind)) }))
+      .filter((g) => g.cards.length >= 2);
+    title.replaceChildren("Sellers ", h("span", { class: "cnt", text: String(shown.length) }));
+    if (!shown.length) { box.hidden = true; return; }
+    box.hidden = false;
+    moreBtn.hidden = showAll || shown.length <= SHOWN;
+    moreBtn.textContent = `Show all ${shown.length}`;
+    moreBtn.onclick = () => { showAll = true; draw(f); };
+    list.replaceChildren(...(showAll ? shown : shown.slice(0, SHOWN)).map((g) => {
+      const k = g.seller.toLowerCase(), isOpen = open.has(k);
+      const head = h("button", { type: "button", class: "sellerhead", "aria-expanded": String(isOpen), onclick: () => { isOpen ? open.delete(k) : open.add(k); draw(f); } },
+        h("span", { class: "body" }, h("span", { class: "name", text: g.seller }),
+          h("span", { class: "set", text: `${g.cards.length} cheap listings · ${eur(g.total)} + ${eur(g.ship)} shipping` })),
+        h("span", { class: "gain num", "aria-label": "profit after costs, one order", text: "+" + eur(g.gain) }));
+      return h("li", { class: "sellergrp" + (isOpen ? " open" : "") }, head,
+        isOpen ? h("div", { class: "sellerbody" }, h("ul", { class: "list" }, ...g.cards.map(cardLine)),
+          h("a", { class: "linkbtn", href: sellerUrl(g.seller), target: "_blank", rel: "noopener", text: "Open seller on Cardmarket" })) : null);
+    }));
+  }
+  box.append(h("div", { class: "sech" }, title, infoBtn("Sellers",
+    "Sellers with two or more cheap listings (each at least 10% below what the card really sold for in the last 30 days).",
+    "Green: what you keep if you buy them all in one order, so you pay shipping once, and resell at the next cheapest listing or the sales price, whichever is lower, after fees and packaging.",
+    "Only the cards the app tracks are counted; the seller may have more. Always check on Cardmarket.")), list, moreBtn);
+  box.hidden = true;
+  return { box, set: (cands, s, f) => { groups = sellerGroups(cands, s); draw(f); }, draw };
+}
 
 async function fetchRows(s) {
   const key = `pd:home:${s.horizon}:${s.pct}`;
@@ -213,11 +288,13 @@ async function dealsHome(root) {
       "Red: how far below the 30-day sales price. Green: what you keep if you buy and resell at the next cheapest listing or the sales price, whichever is lower, after shipping, fees and packaging.",
       "Listings older than a week are left out. Near Mint only. Always check the listing on Cardmarket yourself.")),
     list, moreBtn);
-  const fbar = filterBar(f, () => { buyHook.draw(); draw(); });
+  const sellers = sellerSection();
+  const fbar = filterBar(f, () => { buyHook.draw(); draw(); sellers.draw(f); });
   root.replaceChildren(h("div", { class: "page" },
     brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Home" }), status),
     fbar,
+    sellers.box,
     buySection(f, buyHook, () => fbar.reset()),
     dealSec));
 
@@ -242,6 +319,7 @@ async function dealsHome(root) {
 
   list.replaceChildren(emptyNote("Loading…"));
   deals = await fetchDeals();
+  sellers.set(lastCands, getSettings(), f);
   if (!deals.length) {
     title.textContent = "Cheap listings";
     list.replaceChildren(emptyNote("No cheap listings yet. They update every night."));
