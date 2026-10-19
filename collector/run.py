@@ -282,7 +282,7 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
             targets = offers.deal_targets(store)
             original_budget = pk_client.budget
             pk_client.budget = min(original_budget, pk_client.credits + config.DEALS_BUDGET)   # eigen, gegarandeerd budget
-            log(f"Goedkope aanbiedingen: {len(targets)} kaarten (beroemde Pokémon vanaf EUR{config.DEALS_FAMOUS_MIN_PRICE} + {config.DEALS_TOP_N} duurste onder EUR{config.DEALS_MAX_PRICE}), budget max {config.DEALS_BUDGET}.")
+            log(f"Goedkope aanbiedingen: {len(targets)} kaarten (beroemde Pokémon vanaf EUR{config.DEALS_FAMOUS_MIN_PRICE}, {config.DEALS_TOP_N} duurste onder EUR{config.DEALS_MAX_PRICE}, tot {config.SCOUT_N} met een levendige markt), budget max {config.DEALS_BUDGET}.")
             try:
                 offers.run(store, pk_client, today, log=log, deadline=deadline, only=targets)
             finally:

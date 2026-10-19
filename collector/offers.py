@@ -34,6 +34,34 @@ def top_expensive_ids(store, max_price, limit):
     return ids[:limit]
 
 
+def liquid_ids(store, today=None, min_price=None, max_price=None):
+    """Kaarten met een levendige markt, om te scouten: gisteren nog verkocht (avg1), een verkoopgemiddelde tussen min_price en
+    max_price, en 7- en 30-dagengemiddelde die met elkaar kloppen (geen grillige of gestuurde prijs). Uit Cardmarkets gratis
+    dagelijkse cijfers (TCGdex), dus zonder credits. Goedkoopste levendige kaarten niet eerst: duurste eerst, want daar is
+    per koopje het meest te verdienen."""
+    from datetime import date as _date
+    today = today or _date.today().isoformat()
+    min_price = config.SCOUT_MIN_PRICE if min_price is None else min_price
+    max_price = config.SCOUT_MAX_PRICE if max_price is None else max_price
+    since = (_date.fromisoformat(today) - timedelta(days=3)).isoformat()
+    last = {}
+    for r in store.select("prices", {"select": "product_id,date,avg1,avg7,avg30", "source": "eq.tcgdex", "grade_key": "eq.raw",
+                                     "date": f"gte.{since}", "order": "product_id.asc,date.desc"}):
+        last.setdefault(r["product_id"], r)
+    out = []
+    for pid, r in last.items():
+        try:
+            a1, a7, a30 = (float(r[k]) if r.get(k) is not None else None for k in ("avg1", "avg7", "avg30"))
+        except (TypeError, ValueError):
+            continue
+        if not a1 or not a7 or not a30 or not (min_price <= a30 <= max_price):
+            continue
+        if max(a7, a30) > 1.6 * min(a7, a30):
+            continue
+        out.append((a30, pid))
+    return [pid for _, pid in sorted(out, reverse=True)]
+
+
 def deal_targets(store):
     """Kaarten voor 'Goedkope aanbiedingen' op Home: de beroemde Pokémon vanaf config.DEALS_FAMOUS_MIN_PRICE (goedkoper
     heeft geen zin: na commissie en verzending blijft er niets over), plus de config.DEALS_TOP_N duurste kaarten onder
@@ -48,6 +76,14 @@ def deal_targets(store):
         if pid not in seen:
             seen.add(pid)
             out.append(pid)
+    # breder scouten (20 okt): kaarten met een levendige markt, daar zitten de betrouwbare koopjes en de verkopers met meerdere
+    try:
+        for pid in liquid_ids(store)[:config.SCOUT_N]:
+            if pid not in seen:
+                seen.add(pid)
+                out.append(pid)
+    except Exception:
+        pass
     return out
 
 

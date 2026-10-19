@@ -3257,4 +3257,15 @@ assert _sel.guide_price(_mod, "Normal") == 10.0 and _sel.guide_price(_mod, "Reve
 assert _sel.guide_price({"avg30": 270.0, "trend": 0.02, "avg7": 265.94}, "Normal") == 265.94, "de trend telt niet"
 assert _sel.guide_price({"avg30": 2.0, "avg7": 2.2, "avg30-holo": 9.0, "avg7-holo": 8.5}, "Reverse Holofoil") == 8.5, "modern: reverse veel duurder mag"
 assert _sel.guide_price(None, "Normal") is None
+# scouten: alleen kaarten met een levendige markt (gisteren verkocht, gemiddelden kloppen), duurste eerst
+import offers as _ofs
+_fs, _ss = new_store()
+_fs.t["prices"].update({
+    ("live", "2026-10-19", "tcgdex", "raw"): {"product_id": "live", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 20.0, "avg7": 21.0, "avg30": 20.0},
+    ("rich", "2026-10-19", "tcgdex", "raw"): {"product_id": "rich", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 90.0, "avg7": 95.0, "avg30": 100.0},
+    ("dead", "2026-10-19", "tcgdex", "raw"): {"product_id": "dead", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": None, "avg7": 21.0, "avg30": 20.0},
+    ("jump", "2026-10-19", "tcgdex", "raw"): {"product_id": "jump", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 50.0, "avg7": 60.0, "avg30": 20.0},
+    ("tiny", "2026-10-19", "tcgdex", "raw"): {"product_id": "tiny", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 1.0, "avg7": 1.0, "avg30": 1.0},
+})
+assert _ofs.liquid_ids(_ss, today="2026-10-19") == ["rich", "live"], _ofs.liquid_ids(_ss, today="2026-10-19")
 print("verkopers: ok")

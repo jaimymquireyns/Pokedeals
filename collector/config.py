@@ -77,7 +77,10 @@ PK_BUDGET = 72000          # maximaal aantal credits per dag dat de geplande tak
 DEALS_MAX_PRICE = 500      # 'goedkope aanbiedingen' voor kaarten duurder dan dit worden niet apart opgehaald
 DEALS_TOP_N = 500          # ...voor de zoveel duurste kaarten onder die grens
 DEALS_FAMOUS_MIN_PRICE = 10   # plus alle kaarten van de 65 beroemde Pokémon vanaf deze prijs
-DEALS_BUDGET = 14000       # eigen, gegarandeerd budget hiervoor, los van wat de geschiedenis-opbouw gebruikt
+DEALS_BUDGET = 36000       # eigen, gegarandeerd budget hiervoor (20 okt: 14.000 -> 36.000 om breder te scouten, ~1.800 kaarten per dag)
+SCOUT_N = 6000             # zoveel kaarten met een levendige markt erbij (offers.liquid_ids), elk om de 3 dagen ververst
+SCOUT_MIN_PRICE = 5.0      # verkoopgemiddelde van 30 dagen tussen deze grenzen
+SCOUT_MAX_PRICE = 500.0
 OFFERS_ENABLED = True      # 'Goedkope aanbiedingen' op Home (4 okt weer aangezet): 500 duurste kaarten onder EUR500 + beroemde Pokémon vanaf EUR10, eigen budget DEALS_BUDGET, elke kaart om de 3 dagen ververst
 
 # 65 beroemde Pokémon (dex-nummers), samen met de gebruiker vastgesteld op basis van aantal kaarten x gemiddelde
