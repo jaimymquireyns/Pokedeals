@@ -24,14 +24,20 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python lab.py --out-dir ../reports
+      - name: Testlab op echte verkopen
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python lab_sales.py --out-dir ../reports
       - name: Verslag bewaren (branch reports)
         run: |
           git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
-          cp reports/lab.md /tmp/lab.md; cp reports/lab_top.json /tmp/lab_top.json
+          cp reports/lab.md reports/lab_top.json reports/lab_sales.md reports/lab_sales.json /tmp/
           rm -rf reports
           git fetch -q origin reports || true
           git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
-          mkdir -p reports && cp /tmp/lab.md reports/lab.md && cp /tmp/lab_top.json reports/lab_top.json
-          git add reports/lab.md reports/lab_top.json
+          mkdir -p reports && cp /tmp/lab.md /tmp/lab_top.json /tmp/lab_sales.md /tmp/lab_sales.json reports/
+          git add reports/lab.md reports/lab_top.json reports/lab_sales.md reports/lab_sales.json
           git commit -qm "Testlab kansen $(date -u +%F)" || exit 0
           git push -q origin reports
