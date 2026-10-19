@@ -3069,6 +3069,13 @@ assert any(k[0] == "laag" and ok and "laag_oud" in k for k, ok, _ in _bt), _bt
 _bt2 = advice_backtest.signals([((_s0 + _td(days=d)).isoformat(), 100 if d < 110 else 60) for d in range(200)])
 assert [ok for k, ok, _ in _bt2 if k[0] == "laag"] and not any(ok for k, ok, _ in _bt2 if k[0] == "laag"), _bt2
 assert all("laag_diep" in k for k, ok, _ in _bt2 if k[0] == "laag"), "40% onder normaal telt als diep"
+# verkopen rond EUR 1 boven de 10e goedkoopste levert meer op dan de oude 90%-aanname, en mag de diepte-sleutels niet veranderen
+_bt3 = advice_backtest.signals([((_s0 + _td(days=d)).isoformat(), 100 if d < 110 else (70 if d < 125 else 100)) for d in range(200)], release=_date(2023, 1, 1), sell_ratio=1.2)
+assert [k for k, _, _ in _bt3] == [k for k, _, _ in _bt] and _bt3[0][2] > _bt[0][2], (_bt3, _bt)
+assert advice_backtest.sell_price(10, 1.2) == 13 and abs(advice_backtest.sell_price(10, None) - 9) < 1e-9
+import market_value as _mv
+assert _mv.tenth_ratio([{"price": p, "seller": f"s{i}", "rank": i} for i, p in enumerate([10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21])]) == 2.0, "10e goedkoopste (20) tegen goedkoopste (10)"
+assert _mv.tenth_ratio([{"price": 10, "seller": "a", "rank": 1}, {"price": 12, "seller": "a", "rank": 2}]) is None, "te weinig verkopers"
 
 # -- advies-gegevens: eigen kaarten eerst, dan koopkandidaten (duurste eerst), dan hoog, dan verdacht; goedkope kaarten niet --
 import advice_data

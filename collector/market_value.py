@@ -32,6 +32,29 @@ def value(offers, own_names=()):
     return round(sum(top) / len(top), 2), len(top)
 
 
+def tenth_ratio(offers, own_names=()):
+    """Verhouding van de 10e goedkoopste (of de duurste als er minder zijn) tot de goedkoopste, met dezelfde filters als value().
+    Gebruikt door de terugtest: jij verkoopt rond de 10e goedkoopste, de geschiedenis kent alleen de goedkoopste."""
+    own = {n.strip().lower() for n in own_names if n}
+    xs = sorted((o for o in offers if (o.get("language") or "EN") == "EN" and (o.get("seller") or "").lower() not in own and o.get("price") is not None),
+                key=lambda o: (float(o["price"]), o.get("rank") or 0))
+    if not xs:
+        return None
+    variant, seen, ref = xs[0].get("variant"), set(), []
+    for o in xs:
+        key = (o.get("seller") or "").lower() or f"#{o.get('rank')}"
+        if o.get("variant") != variant or key in seen:
+            continue
+        seen.add(key)
+        ref.append(float(o["price"]))
+    top = ref[:TOP_N]
+    mid = median(top)
+    top = [p for p in top if mid / 2 <= p <= 2 * mid]
+    if len(top) < MIN_N or top[0] <= 0:
+        return None
+    return top[-1] / top[0]
+
+
 def run(store, today, log=print):
     from datetime import date, timedelta
     since = (date.fromisoformat(today) - timedelta(days=MAX_AGE_DAYS)).isoformat()
