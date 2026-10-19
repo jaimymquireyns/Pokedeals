@@ -140,7 +140,7 @@ GUIDE_CONFLICT = 2.5   # liggen de gewone en de holo-cijfers verder dan zoveel k
 
 def _vals(entry, suffix):
     out = []
-    for k in ("avg30", "avg7", "trend"):
+    for k in ("avg30", "avg7"):
         try:
             v = float(entry.get(k + suffix)) if entry.get(k + suffix) is not None else None
         except (TypeError, ValueError):
@@ -152,14 +152,14 @@ def _vals(entry, suffix):
 
 def guide_price(entry, variant):
     """Verkoopprijs uit Cardmarkets prijslijst voor één product en één uitvoering, holo en gewoon apart:
-    Reverse Holofoil -> de '-holo'-cijfers, Normal/Holofoil -> de gewone. Telkens het laagste van avg30, avg7 en trend.
+    Reverse Holofoil -> de '-holo'-cijfers, Normal/Holofoil -> de gewone. Het laagste van avg30 en avg7 (echte verkopen; de trend
+    is een berekend cijfer dat achterloopt). Gewoon en reverse mogen ver uit elkaar liggen (bij moderne kaarten is reverse vaak
+    veel meer waard); een verwisseling zoals bij Skyridge vangt de vergelijking met wat de andere verkopers vragen op.
     Spreken de twee sets elkaar sterk tegen (oude sets als Skyridge: 137 gewoon tegen 40 holo, terwijl de pagina 26,57 toont),
     dan geen prijs: we weten niet welke bij welke uitvoering hoort. Ook geen prijs als de cijfers onderling niet kloppen."""
     if not entry:
         return None
     norm, holo = _vals(entry, ""), _vals(entry, "-holo")
-    if norm and holo and max(min(norm), min(holo)) > GUIDE_CONFLICT * min(min(norm), min(holo)):
-        return None   # gewoon en holo spreken elkaar tegen: we weten niet welke bij welke uitvoering hoort, dus geen koopje tonen
     own = holo if (variant or "").lower().startswith("reverse") else norm
     return consistent(own)
 
