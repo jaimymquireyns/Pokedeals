@@ -776,15 +776,19 @@ config.NM_WIDEN_EXTRA = True   # standaard nu uit (geschiedenis-opbouw krijgt vo
 try:
     n = nm.run(store6, pk6, "2026-09-21", log=quiet, limit=2)
 finally:
-    config.NM_WIDEN_EXTRA = False
+    config.NM_WIDEN_EXTRA = True
 assert n == 5, "met budget over worden ook kaarten buiten de vaste lijst (limit=2) van een NM-prijs voorzien, als NM_WIDEN_EXTRA aanstaat"
 
 fake6b, store6b = new_store()
 store6b.upsert_products(cards6)
 for i, pid in enumerate(f["product_id"] for f in cards6):
     fake6b.t["forecasts"][(pid, 30, 10)] = {"product_id": pid, "horizon_days": 30, "threshold_pct": 10, "price": 100.0 - i, "p_up": 0.5, "p_down": 0.1}
-n_default = nm.run(store6b, pkmnprices.PkmnPrices("pk_x", session=WideSess(), budget=1000), "2026-09-21", log=quiet, limit=2)
-assert n_default == 2, "standaard (NM_WIDEN_EXTRA uit): alleen de vaste lijst, niet breder koppelen"
+config.NM_WIDEN_EXTRA = False
+try:
+    n_default = nm.run(store6b, pkmnprices.PkmnPrices("pk_x", session=WideSess(), budget=1000), "2026-09-21", log=quiet, limit=2)
+finally:
+    config.NM_WIDEN_EXTRA = True
+assert n_default == 2, "met NM_WIDEN_EXTRA uit: alleen de vaste lijst, niet breder koppelen"
 assert all(("e-%d" % i, "2026-09-21", "pkmnprices", "nm") in fake6.t["prices"] for i in range(5))
 
 # gedeeld budget: NM eerst, sealed-geschiedenis krijgt alleen nog over wat NM overliet
@@ -3155,3 +3159,37 @@ assert _cal.skill(_rows, "p_up", "up10")[0] > 0.05, "kansen die kloppen en versc
 assert _cal.skill(_rows, "p_down", "down10")[0] <= 0.01, "overal 15% zeggen weet niets"
 assert "Scheef" not in _cal.verdict(_cal.table(_cal.pairs(_rows, "p_up", "up10")), 0.1)
 print("meetlat kansen: ok")
+
+# -- testlab: kaarten die naar hun normale prijs terugkeren zijn voorspelbaar, pure toevalsbewegingen niet --
+try:
+    import numpy as _np, sklearn as _sk  # noqa: F401
+    _have_sk = True
+except ImportError:
+    _have_sk = False
+import lab as _lab
+import math as _m
+from datetime import date as _dt, timedelta as _tdl
+_rl = _rnd.Random(5)
+def _sim(revert, n=400):
+    ser, inf = {}, {}
+    st, td_ = _dt(2026, 6, 11), _dt(2026, 10, 19)
+    for c in range(n):
+        p, norm, pts = _rl.uniform(5, 80), None, []
+        norm = p
+        for d in range((td_ - st).days + 1):
+            p *= _m.exp(_rl.gauss(0, 0.04) + (0.08 * _m.log(norm / p) if revert else 0))
+            if _rl.random() < 0.8:
+                pts.append(((st + _tdl(days=d)).isoformat(), round(p, 2)))
+        ser[f"c{c}"] = pts
+        inf[f"c{c}"] = {"release": _dt(2024, 1, 1), "printings": 1, "newer": False, "name": f"k{c}", "set_id": f"s{c % 7}", "number": str(c)}
+    return _lab.run(ser, inf, td_)
+_o = _sim(True)
+assert _o["moments"] > 1000 and _o["now_cards"] > 300, _o["moments"]
+_t = _o["targets"]["up10"]
+assert _t["results"]["kaarten"]["afstand"]["skill"] > 0.02, "terugkeer naar normaal: de afstand-tabel moet iets weten"
+if _have_sk:
+    assert _t["winner"] and _t["top"] and _t["sets"], "met een echt patroon: een winnaar, toplijst en sets"
+    assert _t["proof"]["top_hit"] > _t["proof"]["base"], "de toplijst steeg vaker dan gemiddeld"
+_o2 = _sim(False, 300)
+assert _o2["targets"]["up10"]["results"]["kaarten"]["afstand"]["skill"] < 0.03, "puur toeval: niets te voorspellen"
+print("testlab: ok")

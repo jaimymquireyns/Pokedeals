@@ -1,0 +1,38 @@
+name: Testlab kansen
+on:
+  schedule:
+    - cron: "55 23 * * *"   # elke nacht, na de prijzen en de credits-taak: methodes strijden, de beste geeft de toplijst van vandaag
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: pokedeals-lab
+  cancel-in-progress: false
+jobs:
+  lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt numpy scikit-learn
+      - name: Testlab
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python lab.py --out-dir ../reports
+      - name: Verslag bewaren (branch reports)
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          cp reports/lab.md /tmp/lab.md; cp reports/lab_top.json /tmp/lab_top.json
+          rm -rf reports
+          git fetch -q origin reports || true
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          git rm -rq --cached . >/dev/null 2>&1 || true
+          mkdir -p reports && cp /tmp/lab.md reports/lab.md && cp /tmp/lab_top.json reports/lab_top.json
+          git add reports/lab.md reports/lab_top.json
+          git commit -qm "Testlab kansen $(date -u +%F)" || exit 0
+          git push -q origin reports
