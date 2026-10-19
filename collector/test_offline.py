@@ -3141,3 +3141,17 @@ _pem = _ec.generate_private_key(_ec.SECP256R1()).private_bytes(_ser.Encoding.PEM
 for _v in (_pem, "\n".join(_pem.strip().splitlines()[1:-1]), _pem.replace("\n", "\\n")):
     _ser.load_pem_private_key(normalize_pem(_v).encode(), None)
 print("alle tests geslaagd (ook de VAPID-sleutel)")
+
+# -- meetlat voor de kansen: een model dat de echte kansen kent, scoort beter dan de gok; eenzelfde kans voor alles niet --
+import calibration as _cal
+import random as _rnd
+_r = _rnd.Random(7)
+_rows = []
+for _d in range(10):
+    for _i in range(300):
+        _p = _r.choice([0.05, 0.1, 0.2, 0.4])
+        _rows.append({"check_date": f"2026-10-{10 + _d:02d}", "p_up": _p, "up10": _r.random() < _p, "p_down": 0.15, "down10": _r.random() < _p})
+assert _cal.skill(_rows, "p_up", "up10")[0] > 0.05, "kansen die kloppen en verschillen: vaardigheid boven 0"
+assert _cal.skill(_rows, "p_down", "down10")[0] <= 0.01, "overal 15% zeggen weet niets"
+assert "Scheef" not in _cal.verdict(_cal.table(_cal.pairs(_rows, "p_up", "up10")), 0.1)
+print("meetlat kansen: ok")
