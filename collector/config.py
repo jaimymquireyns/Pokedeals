@@ -155,7 +155,7 @@ IMAGES_TIME_BUDGET = 600      # seconden per nacht voor het controleren en aanvu
 
 # Advies (advice.py): kopen / verkopen / houden / verdacht. Eenvoudige regels, na 30 dagen gecontroleerd (zie advice.evaluate).
 ADVICE_MIN_TRACK = 2.0          # alleen producten vanaf deze prijs beoordelen (plus alles in iemands collectie of watchlist)
-ADVICE_NORMAL_DAYS = 90         # 'normaal' = de mediaan van Cardmarkets trendprijs over zoveel dagen (zonder de laatste week)
+ADVICE_NORMAL_DAYS = 60         # 'normaal' = de mediaan van Cardmarkets trendprijs over zoveel dagen (zonder de laatste week)
 ADVICE_MIN_CM_POINTS = 20       # minstens zoveel punten, anders Cardmarkets oudste 30-daagse verkoopgemiddelde als 'normaal'
 ADVICE_CONFIRM_DAYS = 7         # een hoge of lage prijs moet al zoveel dagen aanhouden (een piek van een dag telt niet)
 ADVICE_MIN_RECENT = 3           # minstens zoveel prijspunten binnen die week
