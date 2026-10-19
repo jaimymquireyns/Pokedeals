@@ -28,6 +28,7 @@ MIN_GAIN = 1.0
 MAX_SELLERS = 150
 SELL_RANK = 10      # de gebruiker verkoopt rond de 10e goedkoopste aanbieding...
 SELL_ABOVE = 1.0    # ...plus EUR 1
+MAX_BELOW = 0.50    # meer dan de helft goedkoper: bijna altijd een andere uitvoering (holo/niet-holo, Skyridge, e-card) of conditie, geen koopje
 MIN_LISTINGS = 3    # minder Engelse aanbiedingen in die uitvoering: te weinig om een verkoopprijs op te baseren
 
 
@@ -69,7 +70,7 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
         if not s or not ref:
             continue
         s = min(s, ref)   # verkoopprijs: nooit hoger dan de 10e goedkoopste aanbieding + EUR 1
-        if price > s * (1 - MIN_BELOW_SOLD):
+        if price > s * (1 - MIN_BELOW_SOLD) or price < s * (1 - MAX_BELOW):
             continue
         net = s * (1 - fee / 100) - config.PACKAGING - price
         if net <= 0:
