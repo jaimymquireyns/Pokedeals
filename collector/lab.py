@@ -204,6 +204,30 @@ def evaluate(moments, target, split, seed=0):
     return res
 
 
+def profile(moments, target, method, seed=0):
+    """Controle op de winnaar (toets op kaarten): wat voor kaarten staan er in de toplijst, en stijgen ze ook in een dunne
+    markt (weinig prijspunten, sprongen) of alleen daar? Een stijging van de goedkoopste aanbieding in een dunne markt is vaak
+    gewoon de goedkoopste verkoper die uitverkocht raakt, niet een kaart die meer waard wordt."""
+    key = f"up{int(target * 100)}"
+    ids = sorted({m["pid"] for m in moments})
+    random.Random(seed).shuffle(ids)
+    test_ids = set(ids[: len(ids) // 2])
+    train = [m for m in moments if m["pid"] not in test_ids]
+    test = [m for m in moments if m["pid"] in test_ids]
+    p = METHODS[method](train, [m[key] for m in train])(test)
+    k = max(1, int(len(test) * TOP_FRAC))
+    top = [m for _, m in sorted(zip(p, test), key=lambda x: -x[0])[:k]]
+    def desc(xs):
+        if not xs:
+            return None
+        return {"n": len(xs), "hit": sum(m[key] for m in xs) / len(xs), "price": median(m["p0"] for m in xs),
+                "n_pts": median(m["n_pts"] for m in xs), "jumps": sum(1 for m in xs if m["jumps"] > 0) / len(xs),
+                "r_norm": median(m["r_norm"] for m in xs), "r_min": median(m["r_min"] for m in xs), "old": sum(1 for m in xs if m["age"] > math.log1p(3650)) / len(xs)}
+    liquid = lambda m: m["n_pts"] >= 40 and m["jumps"] == 0
+    return {"all": desc(test), "top": desc(top), "top_liquid": desc([m for m in top if liquid(m)]), "top_thin": desc([m for m in top if not liquid(m)]),
+            "all_liquid": desc([m for m in test if liquid(m)])}
+
+
 def choose(results):
     """Winnaar: beste toplijst (kaarten-toets) onder de methodes die op beide toetsen beter dan basis zijn."""
     ok = []
@@ -282,7 +306,8 @@ def run(series, info, today):
                 i = info.get(m["pid"], {})
                 top.append({"product_id": m["pid"], "name": i.get("name"), "set_id": i.get("set_id"), "number": i.get("number"),
                             "price": round(m["p0"], 2), "chance": round(pp, 3)})
-        out["targets"][key] = {"results": res, "winner": win, "top": top, "sets": sets,
+        prof = profile(moments, tg, win) if win else None
+        out["targets"][key] = {"results": res, "winner": win, "top": top, "sets": sets, "profile": prof,
                                "proof": res["kaarten"].get(win, {}) if win else None}
     return out
 
@@ -312,6 +337,16 @@ def report(o):
         if t["winner"]:
             pr = t["proof"]
             L += [f"**Winnaar: {t['winner']}.** In de toets stegen {pct(pr['top_hit'])} van de toplijst minstens {key[2:]}% (basis {pct(pr['base'])}).", ""]
+            pf = t.get("profile")
+            if pf and pf["top"]:
+                L += ["Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)", "",
+                      "| groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |",
+                      "|---|---|---|---|---|---|---|---|---|"]
+                for g, lab_ in (("all", "alle testkaarten"), ("all_liquid", "alle vloeibare"), ("top", "toplijst"), ("top_liquid", "toplijst, vloeibaar"), ("top_thin", "toplijst, dun")):
+                    x = pf.get(g)
+                    if x:
+                        L.append(f"| {lab_} | {x['n']} | {pct(x['hit'])} | EUR {x['price']:.2f} | {x['n_pts']:.0f} | {pct(x['jumps'])} | x{x['r_norm']:.2f} | x{x['r_min']:.2f} | {pct(x['old'])} |")
+                L.append("")
             if t["top"]:
                 L += ["Toplijst van vandaag (eerste 15):", "", "| kaart | prijs | kans |", "|---|---|---|"]
                 L += [f"| {x['name']} ({x['set_id']} {x['number']}) | EUR {x['price']:.2f} | {pct(x['chance'])} |" for x in t["top"][:15]]
