@@ -26,9 +26,11 @@ from statistics import median
 
 import analysis
 import config
+import market_value
 from store import SupabaseStore
 
-SELL_HAIRCUT = 0.90   # je verkoopt meestal iets onder de laagste vraagprijs
+SELL_HAIRCUT = 0.90   # oude aanname (onder de laagste vraagprijs verkopen); alleen nog als er geen aanbiedingen bekend zijn
+SELL_ABOVE = 1.00     # de gebruiker verkoopt rond EUR 1 boven de 10e goedkoopste aanbieding
 STEP_DAYS = 7
 GAP_DAYS = 28
 
@@ -57,7 +59,12 @@ def band_key(price):
     return f"onder EUR {PRICE_BANDS[0][0]}"
 
 
-def signals(points, release=None, fee_pct=None, detail=None):
+def sell_price(later, ratio):
+    """Verkoopprijs na 30 dagen: met een verhouding 10e/goedkoopste wordt dat later x verhouding + EUR 1, anders de oude 90%."""
+    return later * ratio + SELL_ABOVE if ratio else later * SELL_HAIRCUT
+
+
+def signals(points, release=None, fee_pct=None, detail=None, sell_ratio=None):
     """points: [(datum, prijs)] van één kaart, opgeschoond en gesorteerd. Geeft [(sleutels, klopte, rendement)].
     detail: optionele lijst; per signaal komt er (soort, prijs, kale prijsverandering, rendement na kosten, klopte) bij."""
     fee = config.DEFAULT_FEE_PCT if fee_pct is None else fee_pct
@@ -78,7 +85,7 @@ def signals(points, release=None, fee_pct=None, detail=None):
             if later and 1 / config.ADVICE_MAX_RATIO <= ratio <= config.ADVICE_MAX_RATIO:
                 age = (t - release).days if release else None
                 cost = price + config.ship_cost(price)
-                buy_ret = (later * SELL_HAIRCUT * (1 - fee / 100) - config.PACKAGING - cost) / cost
+                buy_ret = (sell_price(later, sell_ratio) * (1 - fee / 100) - config.PACKAGING - cost) / cost
                 gain = (normal * (1 - fee / 100) - config.PACKAGING - cost) / cost   # wat herstel tot normaal zou opleveren
                 if all(p <= config.ADVICE_LOW * normal for p in rec) and price >= config.ADVICE_MIN_BUY and gain >= config.ADVICE_BUY_GAIN:
                     keys = ["laag", depth_key(ratio)] + ([age_key(age)] if age_key(age) else [])
@@ -135,6 +142,21 @@ def main():
     ids = sorted({r["product_id"] for r in store.select("prices", {"select": "product_id", "source": "eq.pkmnprices", "grade_key": "eq.nm",
                                                                     "date": f"lt.{cutoff}", "order": "product_id.asc"})} & set(prods))
     print(f"{len(ids)} kaarten met Near Mint-geschiedenis van voor {cutoff}")
+    # verkoopprijs: hoe ver ligt de 10e goedkoopste aanbieding boven de goedkoopste? Per kaart uit de huidige aanbiedingen,
+    # anders de mediaan van zijn prijsklasse (de spreiding van nu, toegepast op het verleden: een benadering)
+    own = [r.get("cm_name") for r in store.select("user_settings", {"select": "cm_name", "cm_name": "not.is.null"})]
+    offs = {}
+    for o in store.select("offers", {"select": "product_id,rank,price,seller,language,variant", "order": "product_id.asc,rank.asc"}):
+        offs.setdefault(o["product_id"], []).append(o)
+    ratios = {pid: r for pid, o in offs.items() if (r := market_value.tenth_ratio(o, own))}
+    band_vals = {}
+    for pid, r in ratios.items():
+        lo = min(float(o["price"]) for o in offs[pid])
+        band_vals.setdefault(band_key(lo), []).append(r)
+    band_ratio = {b: median(v) for b, v in band_vals.items() if len(v) >= 5}
+    all_ratio = median(ratios.values()) if ratios else None
+    print(f"10e/goedkoopste: {len(ratios)} kaarten met aanbiedingen; per prijsklasse " +
+          ", ".join(f"{b} x{r:.2f}" for b, r in sorted(band_ratio.items())))
     res = {}
     detail = []
     n_cards = 0
@@ -149,7 +171,9 @@ def main():
             kept, _ = analysis.clean_nm_rows(pts)
             st = sets.get(prods[pid].get("set_id")) or {}
             rel = _d(st["release_date"]) if st.get("release_date") else None
-            sig = signals([(r["date"], r["price"]) for r in kept], rel, detail=detail)
+            last_price = kept[-1]["price"] if kept else 0
+            ratio = ratios.get(pid) or band_ratio.get(band_key(last_price)) or all_ratio
+            sig = signals([(r["date"], r["price"]) for r in kept], rel, detail=detail, sell_ratio=ratio)
             n_cards += bool(sig)
             for keys, ok, ret in sig:
                 for k in keys:
@@ -165,7 +189,8 @@ def main():
              "hoog": "Sell now (ver boven normaal: zakte daarna)", "controle": "Toeval: willekeurige kaarten gekocht"}
     lines = [f"# Terugtest advies op Near Mint-geschiedenis ({today})", "",
              f"{len(ids)} kaarten met genoeg geschiedenis, {n_cards} daarvan gaven minstens één signaal. Uitkomst na {config.ADVICE_HORIZON_DAYS} dagen, "
-             f"verkoop voorzichtig gerekend op {SELL_HAIRCUT:.0%} van de latere vraagprijs, min commissie, verpakking en verzending bij aankoop.", "",
+             f"Verkoop gerekend op EUR {SELL_ABOVE:.0f} boven de 10e goedkoopste aanbieding (de 10e ligt nu gemiddeld "
+             f"x{all_ratio or 0:.2f} boven de goedkoopste), min commissie en verpakking; aankoop plus verzending.", "",
              "| advies | aantal | klopte | gemiddeld rendement |", "|---|---|---|---|"]
     for s in stats:
         pct = f"{s['hits'] / s['n']:.0%}" if s["n"] else "–"
