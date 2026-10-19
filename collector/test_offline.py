@@ -3193,3 +3193,29 @@ if _have_sk:
 _o2 = _sim(False, 300)
 assert _o2["targets"]["up10"]["results"]["kaarten"]["afstand"]["skill"] < 0.03, "puur toeval: niets te voorspellen"
 print("testlab: ok")
+
+# -- testlab op echte verkopen: kaarten met een echte stijging in de verkopen vindt het; geen toekomst in de kenmerken --
+import lab_sales as _ls
+_rs = _rnd.Random(4)
+_rows, _inf = {}, {}
+_st, _end = _dt(2026, 9, 21), _dt(2026, 12, 1)
+for _c in range(600):
+    _a, _rr, _drift = _rs.uniform(4, 80), [], (0.004 if _c % 5 == 0 else 0.0)
+    _sales = [_a] * 40
+    for _d in range((_end - _st).days + 1):
+        _a *= _m.exp(_drift + _rs.gauss(0, 0.01)); _sales.append(_a * _m.exp(_rs.gauss(0, 0.05)))
+        _rr.append({"date": (_st + _tdl(days=_d)).isoformat(), "price": _a, "avg1": _sales[-1], "avg7": sum(_sales[-7:]) / 7,
+                    "avg30": sum(_sales[-30:]) / 30, "low": _a * 0.8})
+    _rows[f"c{_c}"] = _rr
+    _inf[f"c{_c}"] = {"release": _dt(2020, 1, 1), "printings": 1, "newer": False, "name": f"k{_c}", "set_id": "s", "set_name": "S", "number": str(_c)}
+_os = _ls.run(_rows, _inf, _end)
+_ts = _os["targets"]["up10"]
+assert _ts["results"]["kaarten"]["verkopen"]["skill"] > 0.05, "stijgende verkopen: de verkopen-tabel weet iets"
+if _have_sk:
+    assert _ts["winner"] and _ts["proof"]["top_hit"] > 2 * _ts["proof"]["base"], _ts["proof"]
+# geen moment zonder uitkomst, en het moment van vandaag ziet niets van na vandaag
+assert all(_dt.fromisoformat(m["t"]) <= _end - _tdl(days=30) for m in _ls.card_moments(_rows["c0"], _inf["c0"]))
+_cut = [r for r in _rows["c0"] if r["date"] <= "2026-10-19"]
+assert _ls.card_moments(_cut, _inf["c0"], today=_dt(2026, 10, 19))[0]["a30"] == _ls.card_moments(_rows["c0"], _inf["c0"], today=_dt(2026, 10, 19))[0]["a30"]
+assert _ls.run({k: [r for r in v if r["date"] < "2026-10-19"] for k, v in _rows.items()}, _inf, _dt(2026, 10, 19))["moments"] == 0, "nog geen 30 dagen: geen testmomenten"
+print("testlab verkopen: ok")
