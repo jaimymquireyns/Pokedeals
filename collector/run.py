@@ -252,7 +252,10 @@ def spend_pkmn_credits(store, today, log=print, time_budget=None):
         log(f"! eigen collectie eerst overgeslagen: {e}")
     try:
         import advice_data
-        advice_data.run(store, pk_client, today, log=log, deadline=deadline)   # verse aanbiedingen, NM-prijs en aanbod voor de kaarten met een advies
+        if config.ADVICE_DATA_ENABLED:
+            advice_data.run(store, pk_client, today, log=log, deadline=deadline)   # verse aanbiedingen, NM-prijs en aanbod voor de kaarten met een advies
+        else:
+            log("Adviesgegevens staan uit (config.ADVICE_DATA_ENABLED): credits gaan naar scouten.")
     except Exception as e:
         log(f"! advies-gegevens overgeslagen: {e}")
     try:

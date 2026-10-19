@@ -33,4 +33,4 @@ jobs:
           PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
           BACKTEST: ${{ github.event.inputs.backtest }}
         run: |
-          if [ "$BACKTEST" = "ja" ]; then python signals.py --backtest; else python signals.py; fi
+          if [ "$BACKTEST" = "ja" ]; then python signals.py --backtest --skip-snapshot; else python signals.py --skip-snapshot; fi   # momentopname uit (20 okt): kost credits, wordt niet meer gebruikt

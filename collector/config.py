@@ -73,11 +73,11 @@ PK_MAP_PER_RUN = 300       # zoveel nieuwe kaarten per run aan PkmnPrices koppel
 NM_WIDEN_EXTRA = True      # weer aan (19 okt): elke kaart moet dagelijks een Near Mint-prijs krijgen; de geschiedenis van vóór 11 juni bestaat toch niet
 NM_REFRESH_PRICE = True    # weer aan (19 okt): dagelijkse actuele Near Mint-prijs, nodig voor de kansen van vandaag
 HISTORY_PERIOD = "90d"     # hoever de eenmalige geschiedenis-opbouw terugkijkt: zonder limiet vraagt de API blijkbaar veel meer op dan nodig (en dus duurder/trager)
-PK_BUDGET = 72000          # maximaal aantal credits per dag dat de geplande taken zelf gebruiken (plan: 75.000, ververst om 02:00 Belgische tijd; 3.000 blijft over om zelf mee te testen)
+PK_BUDGET = 75000          # het volledige dagplan van PkmnPrices (ververst om 02:00 Belgische tijd); 20 okt op verzoek van 72.000 naar 75.000
 DEALS_MAX_PRICE = 500      # 'goedkope aanbiedingen' voor kaarten duurder dan dit worden niet apart opgehaald
 DEALS_TOP_N = 500          # ...voor de zoveel duurste kaarten onder die grens
 DEALS_FAMOUS_MIN_PRICE = 10   # plus alle kaarten van de 65 beroemde Pokémon vanaf deze prijs
-DEALS_BUDGET = 36000       # eigen, gegarandeerd budget hiervoor (20 okt: 14.000 -> 36.000 om breder te scouten, ~1.800 kaarten per dag)
+DEALS_BUDGET = 55000       # eigen, gegarandeerd budget voor aanbiedingen/scouten (20 okt: 14.000 -> 55.000, ~2.750 kaarten per dag); kreeg de credits van advies en VS-steekproef
 SCOUT_N = 6000             # zoveel kaarten met een levendige markt erbij (offers.liquid_ids), elk om de 3 dagen ververst
 SCOUT_MIN_PRICE = 5.0      # verkoopgemiddelde van 30 dagen tussen deze grenzen
 SCOUT_MAX_PRICE = 500.0
@@ -91,7 +91,7 @@ FAMOUS_DEX_IDS = {
     144, 229, 382, 487, 484, 483, 208, 383, 26, 143, 146, 134, 643, 644, 250, 145, 65, 282, 135, 243, 136, 59,
     133, 470, 244, 245, 445, 160, 157, 448, 255, 68, 471, 700, 493, 132, 778, 491, 386,
 }
-US_SAMPLE_N = 200              # steekproef Amerikaanse prijzen (us_sample.py): zoveel kaarten; 0 = uit
+US_SAMPLE_N = 0                # UIT (20 okt): de Amerikaanse prijzen voorspellen niets voor Europa (zie diag_today.md)
 US_SAMPLE_BUDGET = 30000       # credits per dag tot de steekproef compleet is
 SET_HISTORY_ENABLED = False    # UIT (9 okt): PkmnPrices heeft geen Near Mint-geschiedenis van vóór 11 juni 2026, dieper vragen levert niets op en kost wel credits
 SET_HISTORY_YEARS = 3          # set-geschiedenis (set_history.py): sets van de laatste zoveel jaar
@@ -128,7 +128,7 @@ TCGDEX_HOST = "api.tcgdex.net"
 TCGDEX_PIN_IP = "51.255.35.48"
 
 
-GRADED_ENABLED = True        # gegradeerde geschiedenis (PSA/BGS/CGC) voor de beroemde Pokémon. Stond uit sinds 6 okt (de uitlezing herkende niets); hersteld op 7 okt met het echte antwoord van PkmnPrices als uitgangspunt. Op False zetten om uit te schakelen.
+GRADED_ENABLED = False       # UIT (20 okt): gegradeerde geschiedenis wordt nergens gebruikt om te kopen; credits naar scouten. Op True zetten om weer aan te zetten.
 GRADED_BUDGET = 12000        # nooit meer dan dit per dag (1 credit per teruggegeven verkoop); bewust klein begonnen, na een paar goede nachten te verhogen
 GRADED_MAX_PAGES = 3         # hoogstens zoveel pagina's (van 20 verkopen) per kaart/graad per opvraging
 GRADED_RECHECK_DAYS = 14     # een kaart/graad met verkopen: pas na zoveel dagen opnieuw opvragen
@@ -138,7 +138,7 @@ PK_MISS_RETRY_DAYS = 30      # een kaart die PkmnPrices niet kon vinden, pas na 
 PK_MISS_RETRY_DAYS_FAMOUS = 7    # beroemde Pokémon zijn belangrijker en PkmnPrices vult zijn lijst aan: die proberen we elke week opnieuw (de rest na PK_MISS_RETRY_DAYS)
 CM_LINKS_BUDGET = 1500       # PkmnPrices-credits per dag om per kaart de exacte Cardmarket-pagina op te zoeken (1 credit per kaart; ~6.000 kaarten = ongeveer 4 nachten)
 CM_RETRY_DAYS = 7              # een kaart die je gebruikt (collectie, watchlist, aanbiedingen) of van een beroemde Pokémon, waar PkmnPrices geen Cardmarket-adres voor had: elke week opnieuw proberen
-SNAPSHOT_PK_BUDGET = 6000    # PkmnPrices-credits per dag voor de marktmomentopname (alleen kandidaten; PokemonPriceTracker staat op het gratis plan)
+SNAPSHOT_PK_BUDGET = 0      # UIT (20 okt): de signalen-taak is achterhaald door het lab; de signalen zelf kosten niets
 SNAPSHOT_PER_PAGE = 20       # aanbiedingen per kaart per opvraging; PkmnPrices rekent per rij, dus dit is ook het maximum aan credits per kaart
 SNAPSHOT_MAX_MINUTES = 40     # de aparte signalentaak krijgt 60 minuten van GitHub; de momentopname stopt ruim daarvoor
 # Meersignalenplan, stap 2: grenzen per signaal (zie signals.py)
@@ -187,7 +187,8 @@ NOTIFY_SELL_PROFIT = 0.15       # melding 'Sell now' vanaf zoveel winst na koste
 NOTIFY_DEAL_GAIN = 0.25         # melding over een nieuwe deal pas vanaf zoveel winst na kosten als de prijs herstelt
 ADVICE_MIN_NM_POINTS = 20       # scheve trendprijs: minstens zoveel Near Mint-punten in die 90 dagen om op Near Mint te beoordelen
 ADVICE_ASK_MAX_AGE = 7          # die aanbiedingen tellen alleen als ze hooguit zoveel dagen oud zijn
-ADVICE_SNAPSHOT_BUDGET = 30000  # credits per dag voor het aantal aanbiedingen van de kaarten met een advies (max 20 per kaart)
+ADVICE_SNAPSHOT_BUDGET = 0  # UIT (20 okt): het advies is nog niet beter dan gokken; credits naar scouten
+ADVICE_DATA_ENABLED = False  # UIT (20 okt): extra aanbiedingen/NM/aanbod voor advieskaarten; de scouting dekt aanbiedingen al
 
 # ---- Kansen uit de praktijk (okt 2026) ----
 # Onderzoek op ~14.000 testmomenten (Near Mint-reeksen juni-okt 2026): voor één kaart is 'de prijs blijft gelijk' de beste
