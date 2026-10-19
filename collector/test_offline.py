@@ -3220,47 +3220,38 @@ assert _ls.card_moments(_cut, _inf["c0"], today=_dt(2026, 10, 19))[0]["a30"] == 
 assert _ls.run({k: [r for r in v if r["date"] < "2026-10-19"] for k, v in _rows.items()}, _inf, _dt(2026, 10, 19))["moments"] == 0, "nog geen 30 dagen: geen testmomenten"
 print("testlab verkopen: ok")
 
-# -- verkopers: alle aanbiedingen tellen, niet alleen de allergoedkoopste; één verzending per bestelling --
+# -- verkopers: alle aanbiedingen tellen, verkoopprijs = laagste van verkopen en wat de anderen vragen; tegen gestuurde prijzen --
 import sellers as _sel
 _t = _dt(2026, 10, 19)
-_offs = [
-    {"product_id": "a", "price": 5.0, "seller": "Ann", "language": "EN", "date": "2026-10-18"},   # goedkoopste
-    {"product_id": "a", "price": 6.0, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # niet de goedkoopste, wel een koopje
-    {"product_id": "b", "price": 7.0, "seller": "bob", "language": "EN", "date": "2026-10-18"},
-    {"product_id": "b", "price": 6.5, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # zelfde kaart: de goedkoopste telt
-    {"product_id": "c", "price": 7.0, "seller": "Bob", "language": "DE", "date": "2026-10-18"},   # niet Engels
-    {"product_id": "d", "price": 7.0, "seller": "Bob", "language": "EN", "date": "2026-10-01"},   # te oud
-    {"product_id": "e", "price": 9.5, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # niet 10% onder de verkopen
-    {"product_id": "a", "price": 5.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},    # eigen aanbieding
-    {"product_id": "b", "price": 5.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},
-]
-_offs += [{"product_id": pid, "price": 12.0 + i, "seller": f"x{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "abcde" for i in range(10)]
-_sold = {"a": 10.0, "b": 10.0, "c": 10.0, "d": 10.0, "e": 10.0}
+def _lad(pid, base, n=8, var=None, step=0.2):
+    return [{"product_id": pid, "price": base + step * i, "seller": f"o{pid}{var or ''}{i}", "language": "EN", "variant": var, "date": "2026-10-18"} for i in range(n)]
+_offs = [{"product_id": "a", "price": 8.0, "seller": "Bob", "language": "EN", "date": "2026-10-18"},
+         {"product_id": "b", "price": 8.5, "seller": "bob", "language": "EN", "date": "2026-10-18"},
+         {"product_id": "b", "price": 9.0, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # zelfde kaart: de goedkoopste telt
+         {"product_id": "c", "price": 8.0, "seller": "Bob", "language": "DE", "date": "2026-10-18"},   # niet Engels
+         {"product_id": "d", "price": 8.0, "seller": "Bob", "language": "EN", "date": "2026-10-01"},   # te oud
+         {"product_id": "a", "price": 7.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},    # eigen aanbieding
+         {"product_id": "b", "price": 7.5, "seller": "Me", "language": "EN", "date": "2026-10-18"}]
+for _pid in "abcd":
+    _offs += _lad(_pid, 12.0)
+_sold = {k: {"normal": 12.5, "reverse": None} for k in "abcd"}
 _g = _sel.groups(_offs, _sold, {}, own=["me"], today=_t, fee_pct=3)
-assert [x["seller"] for x in _g] == ["Bob"], _g
-assert _g[0]["n"] == 2 and _g[0]["total"] == 12.5 and _g[0]["ship"] == 3.0, _g[0]
-assert abs(_g[0]["gain"] - ((10 * 0.97 - 0.5 - 6.0) + (10 * 0.97 - 0.5 - 6.5) - 3.0)) < 0.02, _g[0]["gain"]
-# verkoopgemiddelde veel hoger dan wat er te koop staat (oude kaart, 1st edition in het gemiddelde): de 10e goedkoopste + EUR 1 telt
-_offs2 = [{"product_id": "m", "price": 30.0, "seller": "Cheap", "language": "EN", "date": "2026-10-18"},
-          {"product_id": "n", "price": 30.0, "seller": "Cheap", "language": "EN", "date": "2026-10-18"}]
-_offs2 += [{"product_id": pid, "price": 30.2 + 0.3 * i, "seller": f"y{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "mn" for i in range(12)]
-assert abs(_sel.sell_refs(_offs2)[("m", None)] - (30.2 + 0.3 * 8 + 1)) < 1e-9, "10e goedkoopste (verkoper Cheap is de 1e) + EUR 1"
-assert _sel.groups(_offs2, {"m": 273.0, "n": 273.0}, {}, today=_t, fee_pct=3) == [], "30 tegen 10e goedkoopste 32.60+1: geen 10% korting, ook al zegt het gemiddelde 273"
-# meer dan 50% onder de verkoopprijs: verdacht (andere uitvoering), telt niet
-_offs3 = [{"product_id": pid, "price": 4.0, "seller": "Z", "language": "EN", "date": "2026-10-18"} for pid in "pq"]
-_offs3 += [{"product_id": pid, "price": 10.0 + 0.1 * i, "seller": f"z{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "pq" for i in range(12)]
-assert _sel.groups(_offs3, {"p": 11.0, "q": 11.0}, {}, today=_t, fee_pct=3) == [], "60% goedkoper: niet als koopje tellen"
+assert [x["seller"] for x in _g] == ["Bob"] and _g[0]["n"] == 2, _g
+_mk = _sel.market_price({f"o{i}": 12.0 + 0.2 * i for i in range(8)}, "bob")
+assert abs(_mk - 12.4) < 1e-9, _mk
+assert abs(_g[0]["gain"] - ((12.4 * 0.97 - 0.5 - 8.0) + (12.4 * 0.97 - 0.5 - 8.5) - 3.0)) < 0.02, _g[0]
+# dunne markt (te weinig verkopers): niets
+_thin = [{"product_id": pid, "price": 8.0, "seller": "Bob", "language": "EN", "date": "2026-10-18"} for pid in "pq"] + _lad("p", 12.0, n=3) + _lad("q", 12.0, n=3)
+assert _sel.groups(_thin, {"p": {"normal": 12.0}, "q": {"normal": 12.0}}, {}, today=_t, fee_pct=3) == [], "dunne markt"
+# opgeblazen verkoopprijs: verkocht 241 maar de anderen vragen ~140 -> te ver uit elkaar, niet vertrouwen
+_gen = [{"product_id": pid, "price": 100.0, "seller": "Z", "language": "EN", "date": "2026-10-18"} for pid in "gh"] + _lad("g", 140.0, step=5) + _lad("h", 140.0, step=5)
+assert _sel.groups(_gen, {"g": {"normal": 241.0}, "h": {"normal": 241.0}}, {}, today=_t, fee_pct=3) == [], "verkocht en gevraagd kloppen niet"
+# grillige verkoopcijfers: geen prijs
+assert _sel.consistent([10.0, 30.0]) is None and _sel.consistent([10.0, 12.0]) == 10.0
 _rai = {"avg30": 137.16, "avg7": 149.73, "trend": 156.21, "avg30-holo": 39.71, "avg7-holo": 53.12, "trend-holo": 54.93}
-assert _sel.guide_price(_rai, "Normal") == 39.71, "gewoon en holo spreken elkaar tegen (137 tegen 40): het laagste"
+assert _sel.guide_price(_rai, "Normal") is None, "gewoon en holo spreken elkaar tegen en de holo-cijfers zijn grillig: geen prijs"
 _mod = {"avg30": 10.0, "avg7": 11.0, "trend": 10.5, "avg30-holo": 14.0, "avg7-holo": 15.0, "trend-holo": 14.5}
 assert _sel.guide_price(_mod, "Normal") == 10.0 and _sel.guide_price(_mod, "Reverse Holofoil") == 14.0, "gewoon en reverse apart"
-assert _sel.guide_price({"avg30": 682.59, "trend": 0.02, "avg7": 265.94}, "Normal") == 265.94, "trend 0,02 is geen prijs"
+assert _sel.guide_price({"avg30": 270.0, "trend": 0.02, "avg7": 265.94}, "Normal") == 265.94, "trend 0,02 is geen prijs"
 assert _sel.guide_price(None, "Normal") is None
-_offs4 = [{"product_id": "r", "price": 9.0, "seller": "V", "language": "EN", "variant": "Normal", "date": "2026-10-18"},
-          {"product_id": "r", "price": 11.0, "seller": "V", "language": "EN", "variant": "Reverse Holofoil", "date": "2026-10-18"},
-          {"product_id": "s", "price": 9.0, "seller": "V", "language": "EN", "variant": "Normal", "date": "2026-10-18"}]
-_offs4 += [{"product_id": pid, "price": p + 0.2 * i, "seller": f"w{pid}{var[0]}{i}", "language": "EN", "variant": var, "date": "2026-10-18"}
-           for pid in "rs" for var, p in (("Normal", 12.0), ("Reverse Holofoil", 16.0)) for i in range(12)]
-_g4 = _sel.groups(_offs4, {"r": {"normal": 12.0, "reverse": 16.0}, "s": {"normal": 12.0, "reverse": 16.0}}, {}, today=_t, fee_pct=3)
-assert _g4 and _g4[0]["n"] == 2 and {c["product_id"] for c in _g4[0]["cards"]} == {"r", "s"}, _g4
 print("verkopers: ok")

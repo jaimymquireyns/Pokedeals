@@ -1,13 +1,20 @@
 """Verkopers met meerdere koopjes, voor het blok 'Sellers' bovenaan Home.
 
-Kijkt naar ALLE bewaarde aanbiedingen (tabel offers, tot 20 per kaart), niet alleen de allergoedkoopste: elke aanbieding die minstens
-MIN_BELOW_SOLD onder Cardmarkets echte verkoopgemiddelde van 30 dagen ligt (avg30, niet te sturen met een vraagprijs), telt mee
-voor die verkoper. Per verkoper: wat je overhoudt als je alles in één bestelling koopt (verzending één keer, naar de totale waarde)
-en elke kaart later verkoopt tegen het verkoopgemiddelde, min commissie en verpakking.
+Kijkt naar ALLE bewaarde aanbiedingen (tabel offers, tot 20 per kaart), niet alleen de allergoedkoopste. Een aanbieding is een
+koopje als hij minstens MIN_BELOW_SOLD onder de verkoopprijs ligt. Per verkoper: wat je overhoudt als je alles in één bestelling
+koopt (verzending één keer, naar de totale waarde) en elke kaart later verkoopt, min commissie en verpakking.
 
-Verkoopprijs = de laagste van (a) het verkoopgemiddelde en (b) de 10e goedkoopste Engelse aanbieding van dezelfde uitvoering + EUR 1
-(zo verkoopt de gebruiker). Nodig omdat Cardmarkets gemiddelde bij oude kaarten alle uitvoeringen (1st edition, andere talen) op één
-hoop gooit en dan veel te hoog ligt (Machamp: aanbieding EUR 30, 'verkocht voor' EUR 273).
+Verkoopprijs = de laagste van
+  (a) Cardmarkets echte verkoopcijfers (prijslijst; gewoon en reverse holo apart, zie guide_price), en
+  (b) wat de ANDERE verkopers vragen: de mediaan van de MARKET_N goedkoopste andere Engelse verkopers van dezelfde uitvoering.
+      Daaronder moet je zitten om te verkopen; een paar dure aanbiedingen achteraan tellen niet.
+
+Bescherming tegen gestuurde prijzen (19 okt: de lijst zat vol kaarten met een opgeblazen of grillige prijs):
+  - minstens MIN_SELLERS verschillende Engelse verkopers in die uitvoering (dunne markt = één verkoper bepaalt de prijs)
+  - de verkoopcijfers moeten met elkaar kloppen: avg30, avg7 en trend liggen niet meer dan MAX_SPREAD keer uit elkaar
+  - wat verkocht wordt en wat gevraagd wordt moeten kloppen: niet meer dan MAX_SPREAD keer uit elkaar
+  - meer dan MAX_BELOW goedkoper: bijna altijd een andere uitvoering of conditie
+  - kaarten onder MIN_PRICE tellen niet (de ruis is groter dan de winst)
 
 Alleen Engels, Near Mint (offers bevat alleen NM), geen eigen aanbiedingen (user_settings.cm_name), niet ouder dan MAX_AGE_DAYS.
 Schrijft reports/sellers.json (branch reports); de app leest dat bestand.
@@ -18,6 +25,7 @@ import argparse
 import json
 import os
 from datetime import date, timedelta
+from statistics import median
 
 import config
 
@@ -26,15 +34,15 @@ MAX_AGE_DAYS = 7
 MIN_CARDS = 2
 MIN_GAIN = 1.0
 MAX_SELLERS = 150
-SELL_RANK = 10      # de gebruiker verkoopt rond de 10e goedkoopste aanbieding...
-SELL_ABOVE = 1.0    # ...plus EUR 1
-MAX_BELOW = 0.50    # meer dan de helft goedkoper: bijna altijd een andere uitvoering (holo/niet-holo, Skyridge, e-card) of conditie, geen koopje
-MIN_LISTINGS = 3    # minder Engelse aanbiedingen in die uitvoering: te weinig om een verkoopprijs op te baseren
+MARKET_N = 5        # verkoopprijs volgens de aanbiedingen: mediaan van de 5 goedkoopste andere verkopers
+MIN_SELLERS = 6     # minder verschillende Engelse verkopers in die uitvoering: dunne markt, niet te vertrouwen
+MAX_SPREAD = 1.6    # verkoopcijfers onderling, en verkocht tegen gevraagd, mogen niet verder uit elkaar liggen
+MAX_BELOW = 0.50    # meer dan de helft goedkoper: bijna altijd een andere uitvoering (holo/niet-holo, Skyridge, e-card) of conditie
+MIN_PRICE = 3.0
 
 
-def sell_refs(offers, own=()):
-    """{(kaart, uitvoering): verkoopprijs volgens de aanbiedingen} = 10e goedkoopste (of de duurste als er minder zijn) + EUR 1,
-    elke verkoper één keer, alleen Engels, zonder eigen aanbiedingen."""
+def ladders(offers, own=()):
+    """{(kaart, uitvoering): {verkoper: goedkoopste prijs}}, alleen Engels, zonder eigen aanbiedingen."""
     own = {n.strip().lower() for n in own if n}
     by = {}
     for o in offers:
@@ -44,19 +52,22 @@ def sell_refs(offers, own=()):
         d = by.setdefault((o.get("product_id"), o.get("variant")), {})
         key = seller or f"#{len(d)}"
         d[key] = min(d.get(key, float("inf")), float(o["price"]))
-    out = {}
-    for k, d in by.items():
-        ps = sorted(d.values())
-        if len(ps) >= MIN_LISTINGS:
-            out[k] = ps[min(SELL_RANK, len(ps)) - 1] + SELL_ABOVE
-    return out
+    return by
+
+
+def market_price(ladder, seller):
+    """Wat de andere verkopers vragen: mediaan van de MARKET_N goedkoopsten zonder deze verkoper, of None bij een dunne markt."""
+    if len(ladder) < MIN_SELLERS:
+        return None
+    others = sorted(p for s, p in ladder.items() if s != seller)
+    return median(others[:MARKET_N]) if others else None
 
 
 def groups(offers, sold, products, own=(), today=None, fee_pct=None):
-    """offers: rijen uit offers; sold: {product_id: verkoopgemiddelde}; products: {product_id: {...}}. Geeft verkopers, beste eerst."""
+    """offers: rijen uit offers; sold: {product_id: {'normal': prijs, 'reverse': prijs}} (of één getal); products: {product_id: {...}}."""
     fee = config.DEFAULT_FEE_PCT if fee_pct is None else fee_pct
     today = today or date.today()
-    refs = sell_refs(offers, own)
+    lad = ladders(offers, own)
     own = {n.strip().lower() for n in own if n}
     best = {}   # (verkoper, kaart) -> goedkoopste aanbieding van die verkoper voor die kaart
     for o in offers:
@@ -66,13 +77,16 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
             continue
         if o.get("date") and (today - date.fromisoformat(str(o["date"])[:10])).days > MAX_AGE_DAYS:
             continue
-        sv, ref, price = sold.get(pid), refs.get((pid, o.get("variant"))), float(price)
-        if isinstance(sv, dict):   # uit de prijslijst: holo en gewoon apart
-            sv = sv["reverse"] if (o.get("variant") or "").lower().startswith("reverse") else sv["normal"]
-        s = sv
-        if not s or not ref:
+        price = float(price)
+        if price < MIN_PRICE:
             continue
-        s = min(s, ref)   # verkoopprijs: nooit hoger dan de 10e goedkoopste aanbieding + EUR 1
+        sv = sold.get(pid)
+        if isinstance(sv, dict):   # holo en gewoon apart
+            sv = sv.get("reverse") if (o.get("variant") or "").lower().startswith("reverse") else sv.get("normal")
+        mk = market_price(lad.get((pid, o.get("variant")), {}), seller.lower())
+        if not sv or not mk or max(sv, mk) > MAX_SPREAD * min(sv, mk):
+            continue   # geen of onbetrouwbare verkoopprijs, dunne markt, of verkocht en gevraagd kloppen niet
+        s = min(sv, mk)
         if price > s * (1 - MIN_BELOW_SOLD) or price < s * (1 - MAX_BELOW):
             continue
         net = s * (1 - fee / 100) - config.PACKAGING - price
@@ -99,6 +113,14 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
     return out[:MAX_SELLERS]
 
 
+def consistent(vals):
+    """Het laagste verkoopcijfer, maar alleen als de cijfers met elkaar kloppen (anders None: grillig of gestuurd)."""
+    vals = [v for v in vals if v and v > 0.05]
+    if not vals or max(vals) > MAX_SPREAD * min(vals):
+        return None
+    return min(vals)
+
+
 GUIDE_CONFLICT = 2.5   # liggen de gewone en de holo-cijfers verder dan zoveel keer uit elkaar, dan vertrouwen we geen van beide apart
 
 
@@ -118,14 +140,14 @@ def guide_price(entry, variant):
     """Verkoopprijs uit Cardmarkets prijslijst voor één product en één uitvoering, holo en gewoon apart:
     Reverse Holofoil -> de '-holo'-cijfers, Normal/Holofoil -> de gewone. Telkens het laagste van avg30, avg7 en trend.
     Spreken de twee sets elkaar sterk tegen (oude sets als Skyridge: 137 gewoon tegen 40 holo, terwijl de pagina 26,57 toont),
-    dan het laagste van allebei: dan weten we niet welke bij welke uitvoering hoort."""
+    dan geen prijs: we weten niet welke bij welke uitvoering hoort. Ook geen prijs als de cijfers onderling niet kloppen."""
     if not entry:
         return None
     norm, holo = _vals(entry, ""), _vals(entry, "-holo")
     if norm and holo and max(min(norm), min(holo)) > GUIDE_CONFLICT * min(min(norm), min(holo)):
-        return min(norm + holo)
+        return None   # gewoon en holo spreken elkaar tegen: we weten niet welke bij welke uitvoering hoort, dus geen koopje tonen
     own = holo if (variant or "").lower().startswith("reverse") else norm
-    return min(own) if own else None
+    return consistent(own)
 
 
 def load(store, today):
@@ -138,9 +160,10 @@ def load(store, today):
         for r in store.select("prices", {"select": "product_id,date,avg7,avg30", "grade_key": "eq.raw", "source": "in.(tcgdex,cardmarket)",
                                          "date": f"gte.{since_p}", "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")",
                                          "order": "product_id.asc,date.desc"}):
-            v = r.get("avg30") or r.get("avg7")
-            if v and r["product_id"] not in sold:
-                sold[r["product_id"]] = float(v)
+            if r["product_id"] not in sold:
+                v = consistent([float(x) for x in (r.get("avg30"), r.get("avg7")) if x is not None])
+                if v:
+                    sold[r["product_id"]] = {"normal": v, "reverse": None}
     products = {}
     for i in range(0, len(ids), 150):
         chunk = ids[i:i + 150]
