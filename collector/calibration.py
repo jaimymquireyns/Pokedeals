@@ -102,8 +102,16 @@ def main():
     args = ap.parse_args()
     from store import SupabaseStore
     store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
-    rows = store.select("model_checks", {"select": "check_date,product_id,basis,p_up,p_down,up10,down10", "order": "check_date.asc"})
-    text = report(rows, date.today().isoformat())
+    try:
+        rows = store.select("model_checks", {"select": "check_date,product_id,basis,p_up,p_down,up10,down10", "order": "check_date.asc"})
+        text = report(rows, date.today().isoformat())
+    except Exception as e:   # meestal: de kolommen p_up/p_down/up10/down10 bestaan nog niet (supabase/schema.sql niet opnieuw gedraaid)
+        try:
+            n = len(store.select("model_checks", {"select": "check_date"}))
+        except Exception as e2:
+            n = f"onbekend ({type(e2).__name__})"
+        text = (f"# Kloppen de kansen? ({date.today().isoformat()})\n\nKon de kansen niet lezen: {type(e).__name__}: {str(e)[:300]}\n\n"
+                f"Rijen in model_checks: {n}. Ontbreken de kolommen p_up, p_down, up10 en down10, draai dan supabase/schema.sql opnieuw.\n")
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w") as f:
         f.write(text)
