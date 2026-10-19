@@ -3250,7 +3250,17 @@ assert _sel.groups(_offs2, {"m": 273.0, "n": 273.0}, {}, today=_t, fee_pct=3) ==
 _offs3 = [{"product_id": pid, "price": 4.0, "seller": "Z", "language": "EN", "date": "2026-10-18"} for pid in "pq"]
 _offs3 += [{"product_id": pid, "price": 10.0 + 0.1 * i, "seller": f"z{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "pq" for i in range(12)]
 assert _sel.groups(_offs3, {"p": 11.0, "q": 11.0}, {}, today=_t, fee_pct=3) == [], "60% goedkoper: niet als koopje tellen"
-assert _sel.guide_floor({"avg30": 137.16, "avg7": 149.73, "trend": 156.21, "avg30-holo": 39.71, "avg7-holo": 53.12, "trend-holo": 54.93}) == 39.71
-assert _sel.guide_floor({"avg30": 682.59, "trend": 0.02, "avg7": 265.94}) == 265.94, "trend 0,02 is geen prijs"
-assert _sel.guide_floor(None) is None
+_rai = {"avg30": 137.16, "avg7": 149.73, "trend": 156.21, "avg30-holo": 39.71, "avg7-holo": 53.12, "trend-holo": 54.93}
+assert _sel.guide_price(_rai, "Normal") == 39.71, "gewoon en holo spreken elkaar tegen (137 tegen 40): het laagste"
+_mod = {"avg30": 10.0, "avg7": 11.0, "trend": 10.5, "avg30-holo": 14.0, "avg7-holo": 15.0, "trend-holo": 14.5}
+assert _sel.guide_price(_mod, "Normal") == 10.0 and _sel.guide_price(_mod, "Reverse Holofoil") == 14.0, "gewoon en reverse apart"
+assert _sel.guide_price({"avg30": 682.59, "trend": 0.02, "avg7": 265.94}, "Normal") == 265.94, "trend 0,02 is geen prijs"
+assert _sel.guide_price(None, "Normal") is None
+_offs4 = [{"product_id": "r", "price": 9.0, "seller": "V", "language": "EN", "variant": "Normal", "date": "2026-10-18"},
+          {"product_id": "r", "price": 11.0, "seller": "V", "language": "EN", "variant": "Reverse Holofoil", "date": "2026-10-18"},
+          {"product_id": "s", "price": 9.0, "seller": "V", "language": "EN", "variant": "Normal", "date": "2026-10-18"}]
+_offs4 += [{"product_id": pid, "price": p + 0.2 * i, "seller": f"w{pid}{var[0]}{i}", "language": "EN", "variant": var, "date": "2026-10-18"}
+           for pid in "rs" for var, p in (("Normal", 12.0), ("Reverse Holofoil", 16.0)) for i in range(12)]
+_g4 = _sel.groups(_offs4, {"r": {"normal": 12.0, "reverse": 16.0}, "s": {"normal": 12.0, "reverse": 16.0}}, {}, today=_t, fee_pct=3)
+assert _g4 and _g4[0]["n"] == 2 and {c["product_id"] for c in _g4[0]["cards"]} == {"r", "s"}, _g4
 print("verkopers: ok")

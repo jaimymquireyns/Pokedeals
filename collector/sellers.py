@@ -66,7 +66,10 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
             continue
         if o.get("date") and (today - date.fromisoformat(str(o["date"])[:10])).days > MAX_AGE_DAYS:
             continue
-        s, ref, price = sold.get(pid), refs.get((pid, o.get("variant"))), float(price)
+        sv, ref, price = sold.get(pid), refs.get((pid, o.get("variant"))), float(price)
+        if isinstance(sv, dict):   # uit de prijslijst: holo en gewoon apart
+            sv = sv["reverse"] if (o.get("variant") or "").lower().startswith("reverse") else sv["normal"]
+        s = sv
         if not s or not ref:
             continue
         s = min(s, ref)   # verkoopprijs: nooit hoger dan de 10e goedkoopste aanbieding + EUR 1
@@ -96,21 +99,33 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
     return out[:MAX_SELLERS]
 
 
-def guide_floor(entry):
-    """Laagste verkoopcijfer uit Cardmarkets prijslijst voor één product, over de gewone én de holo/reverse-cijfers.
-    Bij oude sets (Skyridge, e-card) lopen die door elkaar en spreken ze elkaar tegen (Raichu SK27: gemiddeld 137 gewoon, 40 holo,
-    op de pagina 26,57); het laagste is dan de enige veilige verkoopprijs."""
-    if not entry:
-        return None
-    vals = []
-    for k in ("avg30", "avg7", "trend", "avg30-holo", "avg7-holo", "trend-holo"):
+GUIDE_CONFLICT = 2.5   # liggen de gewone en de holo-cijfers verder dan zoveel keer uit elkaar, dan vertrouwen we geen van beide apart
+
+
+def _vals(entry, suffix):
+    out = []
+    for k in ("avg30", "avg7", "trend"):
         try:
-            v = float(entry.get(k)) if entry.get(k) is not None else None
+            v = float(entry.get(k + suffix)) if entry.get(k + suffix) is not None else None
         except (TypeError, ValueError):
             v = None
         if v and v > 0.05:
-            vals.append(v)
-    return min(vals) if vals else None
+            out.append(v)
+    return out
+
+
+def guide_price(entry, variant):
+    """Verkoopprijs uit Cardmarkets prijslijst voor één product en één uitvoering, holo en gewoon apart:
+    Reverse Holofoil -> de '-holo'-cijfers, Normal/Holofoil -> de gewone. Telkens het laagste van avg30, avg7 en trend.
+    Spreken de twee sets elkaar sterk tegen (oude sets als Skyridge: 137 gewoon tegen 40 holo, terwijl de pagina 26,57 toont),
+    dan het laagste van allebei: dan weten we niet welke bij welke uitvoering hoort."""
+    if not entry:
+        return None
+    norm, holo = _vals(entry, ""), _vals(entry, "-holo")
+    if norm and holo and max(min(norm), min(holo)) > GUIDE_CONFLICT * min(min(norm), min(holo)):
+        return min(norm + holo)
+    own = holo if (variant or "").lower().startswith("reverse") else norm
+    return min(own) if own else None
 
 
 def load(store, today):
@@ -146,13 +161,10 @@ def load(store, today):
             for p in store.select("products", {"select": "product_id,cm_product_id", "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")",
                                                "cm_product_id": "not.is.null"}):
                 cm_ids[p["product_id"]] = int(p["cm_product_id"])
-        n = 0
         for pid, cid in cm_ids.items():
-            f = guide_floor(guide.get(cid))
-            if f and pid in sold and f < sold[pid]:
-                sold[pid] = f
-                n += 1
-        print(f"Prijslijst Cardmarket: {len(cm_ids)} kaarten gekoppeld, bij {n} lag het laagste verkoopcijfer lager dan het gemiddelde.")
+            if guide.get(cid):
+                sold[pid] = {"normal": guide_price(guide[cid], "Normal"), "reverse": guide_price(guide[cid], "Reverse Holofoil"), "avg": sold.get(pid)}
+        print(f"Prijslijst Cardmarket: {len(cm_ids)} kaarten gekoppeld; gewoon en reverse holo apart.")
     except Exception as e:   # prijslijst niet bereikbaar: dan alleen het gemiddelde en de aanbiedingen
         print(f"Prijslijst Cardmarket niet gelezen: {type(e).__name__}: {e}")
     return offers, sold, products, own
