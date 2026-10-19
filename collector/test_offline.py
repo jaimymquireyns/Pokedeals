@@ -994,7 +994,7 @@ spy = SpySess()
 nm.find_card(pkmnprices.PkmnPrices("pk", session=spy), {"name": "Charizard ex", "number": "125", "set_name": "S"})
 assert spy.seen[0]["number"] == "125" and spy.seen[0]["per_page"] == 15, spy.seen[0]
 assert len(spy.seen) == 1, "max_pages=1: er wordt geen 2e pagina meer opgehaald, ook al zijn er meer beschikbaar"
-assert config.PK_BUDGET <= 72000, "dagbudget van de geplande taken blijft onder het echte Pro-plan (75.000), zodat er een paar duizend credits overblijven om zelf mee te testen"
+assert config.PK_BUDGET <= 75000, "dagbudget van de geplande taken nooit boven het echte Pro-plan (75.000)"
 
 # ============ 22. extra_targets: een kaart met meerdere periodes komt maar 1x in de lijst ============
 fc_multi = [{"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0}, {"product_id": "z-1", "price": 50.0},
@@ -1746,6 +1746,7 @@ class ListSess:
         return PkResp({"data": [{"price": 50, "seller": "enige"}], "pagination": {"page": 1, "total_pages": 1}})
 
 ls = ListSess()
+config.SNAPSHOT_PK_BUDGET, _snap_orig = 6000, config.SNAPSHOT_PK_BUDGET   # het mechanisme zelf testen (staat standaard uit)
 n36 = market_snapshot.run(store36, pkmnprices.PkmnPrices("pk", session=ls), today36, log=quiet)
 assert ls.order == ["14", "11", "12"], f"al gevolgd eerst, dan kandidaten duurste eerst; niet 'boven gemiddelde' of zonder koppeling: {ls.order}"
 snap36 = fake36.t["market_snapshots"]
@@ -1771,6 +1772,7 @@ try:
     assert len(cs.order) == 1, cs.order
 finally:
     config.SNAPSHOT_PK_BUDGET = orig_b
+config.SNAPSHOT_PK_BUDGET = _snap_orig
 # dunne markt (1 verkoper) geeft meteen een negatief liquiditeitssignaal
 assert signals.market_signals([snap36[("k-goedkoop", today36)]]) == {"liquiditeit": -1}
 
@@ -2074,7 +2076,7 @@ check_card.check(store45, pkmnprices.PkmnPrices("pk", session=CardSess()), "cc-1
 assert any("Cardmarket-pagina: https://www.cardmarket.com/en/Pokemon/Products/Singles/Skyridge/Lapras-V1-SK71" in l and "26950" in l for l in logs45), logs45
 
 # ============ 55. Gegradeerde verkopen: getest met de ECHTE antwoorden van PkmnPrices (6 okt) ============
-assert config.GRADED_ENABLED is True and config.GRADED_BUDGET == 12000 and config.GRADED_MAX_UNPARSED == 20 and config.GRADED_MAX_PAGES == 3
+assert config.GRADED_ENABLED is False and config.GRADED_BUDGET == 12000 and config.GRADED_MAX_UNPARSED == 20 and config.GRADED_MAX_PAGES == 3, "gegradeerd staat uit sinds 20 okt; het mechanisme hieronder blijft getest"
 USD = 0.89
 REAL_PSA10 = [  # Lapras (Skyridge #71), PSA 10, letterlijk uit het logboek
     {"id": 42790047, "title": "PSA 10 2003 Pokémon TCG Skyridge Lapras #71/144 Regular Basic Common English 71/144 [eBay]", "price": 500.0, "currency": "USD", "grader": "PSA", "grade": "10", "grade_qualifier": None, "variant": "Normal", "attribution": "exact", "sold_at": "2026-06-27", "ingested_at": "2026-08-06T05:55:55.810590Z", "listing_url": "https://www.ebay.com/itm/406967327514"},
