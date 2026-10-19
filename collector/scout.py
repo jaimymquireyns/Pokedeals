@@ -38,4 +38,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import traceback
+    os.makedirs("../reports", exist_ok=True)
+    try:
+        main()
+        msg = "ok"
+    except Exception:
+        msg = traceback.format_exc()
+        print(msg)
+    with open("../reports/scout.md", "w") as f:
+        f.write(f"# Scouten {date.today().isoformat()}\n\n```\n{msg}\n```\n")
+    if msg != "ok":
+        raise SystemExit(1)
