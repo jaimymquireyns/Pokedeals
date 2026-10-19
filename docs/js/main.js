@@ -5,6 +5,7 @@ import { $, h, icon } from "./ui.js";
 import { collectionView } from "./views/collection.js";
 import { watchlistView } from "./views/watchlist.js";
 import { detailView } from "./views/detail.js";
+import { setView } from "./views/setview.js";
 import { homeView } from "./views/home.js";
 import { loginView } from "./views/login.js";
 import { searchView } from "./views/search.js";
@@ -54,6 +55,7 @@ async function route() {
         break;
       case "watchlist": drawTabs("watchlist"); await watchlistView(app); break;
       case "detail": drawTabs(null); await detailView(app, parts[1], q.get("c")); break;
+      case "set": drawTabs("search"); await setView(app, parts[1]); break;
       case "settings": drawTabs("settings"); await settingsView(app); break;
       case "track": drawTabs(null); await trackView(app); break;
       case "login": drawTabs(null); loginView(app, { onDone: () => { const next = q.get("next"); go(next || "#/home"); } }); break;
