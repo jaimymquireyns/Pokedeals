@@ -26,14 +26,16 @@ def main():
     today = date.today().isoformat()
     deadline = time.time() + args.minutes * 60
     targets = offers.liquid_ids(store, today)[:args.n]
+    sealed = offers.liquid_sealed_ids(store, today)[:config.SCOUT_SEALED_N]
+    print(f"Sealed: {len(sealed)} producten met een levendige markt (gekoppeld aan PkmnPrices).")
     cards = {p["product_id"]: p for p in store.products("card")}
     unmapped = [pid for pid in targets if pid in cards and not cards[pid].get("pk_id")]
     print(f"Scouten: {len(targets)} kaarten met een levendige markt, {len(unmapped)} nog niet gekoppeld aan PkmnPrices.")
     if unmapped:
         # eerst de aanbiedingen van wat al gekoppeld is (goedkoper), daarna koppelen met wat er overblijft
-        offers.run(store, pk, today, deadline=deadline, only=targets)
+        offers.run(store, pk, today, deadline=deadline, only=targets + sealed)
         nm._map_and_refresh(store, pk, today, unmapped, {pid: cards[pid] for pid in unmapped}, print, deadline=deadline, refresh_price=False)
-    offers.run(store, pk, today, deadline=deadline, only=targets)
+    offers.run(store, pk, today, deadline=deadline, only=targets + sealed)
     print(f"Klaar: {pk.credits} credits gebruikt.")
 
 

@@ -66,6 +66,33 @@ def liquid_ids(store, today=None, min_price=None, max_price=None):
     return [pid for _, pid in sorted(out, reverse=True)]
 
 
+def liquid_sealed_ids(store, today=None, min_price=None, max_price=None):
+    """Sealed met een levendige markt (Cardmarkets prijslijst, bron 'cardmarket'): gekoppeld aan PkmnPrices, 7- en
+    30-dagengemiddelde kloppen, tussen min_price en max_price. Duurste eerst."""
+    from datetime import date as _date
+    today = today or _date.today().isoformat()
+    min_price = config.SCOUT_SEALED_MIN_PRICE if min_price is None else min_price
+    max_price = config.SCOUT_SEALED_MAX_PRICE if max_price is None else max_price
+    since = (_date.fromisoformat(today) - timedelta(days=3)).isoformat()
+    ids = sorted(p["product_id"] for p in store.products("sealed") if p.get("pk_id"))
+    last = {}
+    for i in range(0, len(ids), 200):
+        chunk = ids[i:i + 200]
+        for r in store.select("prices", {"select": "product_id,date,avg7,avg30", "source": "eq.cardmarket", "grade_key": "eq.raw",
+                                         "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")",
+                                         "date": f"gte.{since}", "order": "product_id.asc,date.desc"}):
+            last.setdefault(r["product_id"], r)
+    out = []
+    for pid, r in last.items():
+        try:
+            a7, a30 = (float(r[k]) if r.get(k) is not None else None for k in ("avg7", "avg30"))
+        except (TypeError, ValueError):
+            continue
+        if a7 and a30 and min_price <= a30 <= max_price and max(a7, a30) <= 1.6 * min(a7, a30):
+            out.append((a30, pid))
+    return [pid for _, pid in sorted(out, reverse=True)]
+
+
 def deal_targets(store):
     """Kaarten voor 'Goedkope aanbiedingen' op Home: de beroemde Pokémon vanaf config.DEALS_FAMOUS_MIN_PRICE (goedkoper
     heeft geen zin: na commissie en verzending blijft er niets over), plus de config.DEALS_TOP_N duurste kaarten onder
@@ -82,7 +109,7 @@ def deal_targets(store):
             out.append(pid)
     # breder scouten (20 okt): kaarten met een levendige markt, daar zitten de betrouwbare koopjes en de verkopers met meerdere
     try:
-        for pid in liquid_ids(store)[:config.SCOUT_N]:
+        for pid in liquid_ids(store)[:config.SCOUT_N] + liquid_sealed_ids(store)[:config.SCOUT_SEALED_N]:
             if pid not in seen:
                 seen.add(pid)
                 out.append(pid)
@@ -117,7 +144,7 @@ def stale(store, product_ids, today, max_age_days=REFRESH_DAYS):
     fresh = set()
     try:
         for ch in _chunks(sorted(product_ids), 150):
-            rows = store.select("offers", {"select": "product_id", "product_id": f"in.({','.join(ch)})", "date": f"gte.{cutoff}"})
+            rows = store.select("offers", {"select": "product_id", "product_id": "in.(" + ",".join(f'"{x}"' for x in ch) + ")", "date": f"gte.{cutoff}"})
             fresh.update(r["product_id"] for r in rows)
     except Exception as e:
         print(f"  (kon niet controleren welke kaarten al vers zijn, ga gewoon door: {e})")
@@ -128,17 +155,21 @@ def _flag(v):
     return v is True or str(v).strip().lower() in ("true", "1", "yes")
 
 
-def usable(r):
+def usable(r, sealed=False):
     """Alleen gewone Near Mint-aanbiedingen. Gegradeerde, getekende en bewerkte kaarten horen daar niet bij: ze hebben
-    een heel andere prijs. De API kan al filteren op conditie, maar voor de zekerheid filteren we hier nog eens zelf."""
-    return (isinstance(r, dict) and (r.get("condition") or "").lower() == "near mint" and bool(r.get("price"))
-            and not _flag(r.get("graded")) and not _flag(r.get("signed")) and not _flag(r.get("altered")))
+    een heel andere prijs. De API kan al filteren op conditie, maar voor de zekerheid filteren we hier nog eens zelf.
+    Sealed heeft geen conditie; daar vallen geopende producten weg."""
+    if not isinstance(r, dict) or not r.get("price") or _flag(r.get("altered")) or _flag(r.get("signed")):
+        return False
+    if sealed:
+        return not _flag(r.get("opened"))
+    return (r.get("condition") or "").lower() == "near mint" and not _flag(r.get("graded"))
 
 
-def parse_offers(product_id, rows, today, limit=LIMIT):
+def parse_offers(product_id, rows, today, limit=LIMIT, sealed=False):
     """Goedkoopste eerst, met de uitvoering ('variant': Normal, Reverse Holofoil, ...): die verschillen soms een factor
     10 in prijs en horen niet door elkaar vergeleken te worden."""
-    nm_rows = [r for r in rows if usable(r)]
+    nm_rows = [r for r in rows if usable(r, sealed)]
     nm_rows.sort(key=lambda r: float(r["price"]))
     out = []
     for i, r in enumerate(nm_rows[:limit], 1):
@@ -153,6 +184,8 @@ def run(store, pk, today, log=print, deadline=None, only=None, max_age_days=REFR
     prioriteitsronde), geef die dan hier mee in plaats van de volledige prioriteitslijst te gebruiken."""
     cands = only if only is not None else candidates(store)
     products = {p["product_id"]: p for p in store.products("card") if p.get("pk_id")}
+    if any(":" in pid for pid in cands):   # sealed ('cm:12345') doet ook mee als het gekoppeld is
+        products.update({p["product_id"]: p for p in store.products("sealed") if p.get("pk_id")})
     cands = [pid for pid in cands if pid in products]
     todo = stale(store, cands, today, max_age_days=max_age_days)
     log(f"Laagste aanbiedingen: {len(cands)} kaarten in aanmerking, {len(todo)} zijn aan de beurt (ouder dan {max_age_days} dagen of nog nooit opgehaald)")
@@ -166,12 +199,16 @@ def run(store, pk, today, log=print, deadline=None, only=None, max_age_days=REFR
             log("Tijdslimiet van deze run bereikt. Morgen gaat het verder waar het nu stopt.")
             break
         p = products[pid]
+        sealed = ":" in pid
         try:
-            data = pk.list_all(f"/cards/{p['pk_id']}/listings/cardmarket", {"condition": "Near Mint"}, per_page=20, max_pages=1)
+            if sealed:
+                data = pk.list_all(f"/sealed/{p['pk_id']}/listings/cardmarket", {}, per_page=20, max_pages=1)
+            else:
+                data = pk.list_all(f"/cards/{p['pk_id']}/listings/cardmarket", {"condition": "Near Mint"}, per_page=20, max_pages=1)
         except Exception as e:
             log(f"  {p['name']}: {e}")
             continue
-        rows = parse_offers(pid, data, today)
+        rows = parse_offers(pid, data, today, sealed=sealed)
         try:
             if rows:
                 store.upsert("offers", rows, "product_id,rank")
