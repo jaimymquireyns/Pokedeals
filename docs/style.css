@@ -526,3 +526,6 @@ body{background:linear-gradient(rgba(0,0,0,.74),rgba(0,0,0,.74)),url(img/bg.jpg)
 .sellerbody .linkbtn{display:block;margin:8px 16px 0}
 .sellercard{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 16px;width:100%}
 .tag.warn{background:rgba(224,168,58,.16);color:var(--amber);border-color:transparent}
+.sellersort{margin:0 16px 8px}
+.sellerfig{display:flex;flex-direction:column;align-items:flex-end;flex:none}
+.sellerfig .ret{font-size:12px;color:var(--muted);font-weight:700}
