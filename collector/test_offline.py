@@ -3271,4 +3271,17 @@ _fs.t["prices"].update({
     ("tiny", "2026-10-19", "tcgdex", "raw"): {"product_id": "tiny", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 1.0, "avg7": 1.0, "avg30": 1.0},
 })
 assert _ofs.liquid_ids(_ss, today="2026-10-19") == ["rich", "live"], _ofs.liquid_ids(_ss, today="2026-10-19")
+# sealed: geen conditie, geopende producten weg; levendige sealed uit de Cardmarket-prijslijst, alleen gekoppeld
+assert _ofs.usable({"price": 60.0, "condition": None, "opened": False}, sealed=True)
+assert not _ofs.usable({"price": 60.0, "condition": None, "opened": True}, sealed=True)
+assert not _ofs.usable({"price": 60.0, "condition": None}), "kaart zonder conditie telt niet"
+assert [r["price"] for r in _ofs.parse_offers("cm:1", [{"price": 70, "language": "EN"}, {"price": 62.9, "language": "EN", "opened": True}, {"price": 63, "language": "EN"}], "2026-10-19", sealed=True)] == [63, 70]
+_ss.upsert_products([{"product_id": "cm:1", "kind": "sealed", "name": "ETB", "pk_id": "1483"}, {"product_id": "cm:2", "kind": "sealed", "name": "Box"},
+                     {"product_id": "cm:3", "kind": "sealed", "name": "Bundle", "pk_id": "1909"}])
+_fs.t["prices"].update({
+    ("cm:1", "2026-10-19", "cardmarket", "raw"): {"product_id": "cm:1", "date": "2026-10-19", "source": "cardmarket", "grade_key": "raw", "avg7": 64.0, "avg30": 65.0},
+    ("cm:2", "2026-10-19", "cardmarket", "raw"): {"product_id": "cm:2", "date": "2026-10-19", "source": "cardmarket", "grade_key": "raw", "avg7": 180.0, "avg30": 180.0},
+    ("cm:3", "2026-10-19", "cardmarket", "raw"): {"product_id": "cm:3", "date": "2026-10-19", "source": "cardmarket", "grade_key": "raw", "avg7": 75.0, "avg30": 76.0},
+})
+assert _ofs.liquid_sealed_ids(_ss, today="2026-10-19") == ["cm:3", "cm:1"], "niet gekoppeld (cm:2) valt weg; duurste eerst"
 print("verkopers: ok")

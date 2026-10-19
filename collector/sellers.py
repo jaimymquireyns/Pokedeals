@@ -198,6 +198,9 @@ def load(store, today):
             for p in store.select("products", {"select": "product_id,cm_product_id", "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")",
                                                "cm_product_id": "not.is.null"}):
                 cm_ids[p["product_id"]] = int(p["cm_product_id"])
+        for pid in ids:   # sealed: het Cardmarket-productnummer zit in de id ('cm:12345')
+            if pid.startswith("cm:") and pid[3:].isdigit():
+                cm_ids[pid] = int(pid[3:])
         for pid, cid in cm_ids.items():
             if guide.get(cid):
                 sold[pid] = {"normal": guide_price(guide[cid], "Normal"), "reverse": guide_price(guide[cid], "Reverse Holofoil"), "avg": sold.get(pid)}

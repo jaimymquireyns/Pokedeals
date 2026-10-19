@@ -81,6 +81,9 @@ DEALS_BUDGET = 55000       # eigen, gegarandeerd budget voor aanbiedingen/scoute
 SCOUT_N = 6000             # zoveel kaarten met een levendige markt erbij (offers.liquid_ids), elk om de 3 dagen ververst
 SCOUT_MIN_PRICE = 5.0      # verkoopgemiddelde van 30 dagen tussen deze grenzen
 SCOUT_MAX_PRICE = 500.0
+SCOUT_SEALED_N = 1500      # sealed erbij (ETB's, bundles, boxen ...), alleen wat aan PkmnPrices gekoppeld is
+SCOUT_SEALED_MIN_PRICE = 15.0
+SCOUT_SEALED_MAX_PRICE = 1500.0
 OFFERS_ENABLED = True      # 'Goedkope aanbiedingen' op Home (4 okt weer aangezet): 500 duurste kaarten onder EUR500 + beroemde Pokémon vanaf EUR10, eigen budget DEALS_BUDGET, elke kaart om de 3 dagen ververst
 
 # 65 beroemde Pokémon (dex-nummers), samen met de gebruiker vastgesteld op basis van aantal kaarten x gemiddelde
