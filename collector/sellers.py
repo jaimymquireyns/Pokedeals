@@ -5,6 +5,10 @@ MIN_BELOW_SOLD onder Cardmarkets echte verkoopgemiddelde van 30 dagen ligt (avg3
 voor die verkoper. Per verkoper: wat je overhoudt als je alles in één bestelling koopt (verzending één keer, naar de totale waarde)
 en elke kaart later verkoopt tegen het verkoopgemiddelde, min commissie en verpakking.
 
+Verkoopprijs = de laagste van (a) het verkoopgemiddelde en (b) de 10e goedkoopste Engelse aanbieding van dezelfde uitvoering + EUR 1
+(zo verkoopt de gebruiker). Nodig omdat Cardmarkets gemiddelde bij oude kaarten alle uitvoeringen (1st edition, andere talen) op één
+hoop gooit en dan veel te hoog ligt (Machamp: aanbieding EUR 30, 'verkocht voor' EUR 273).
+
 Alleen Engels, Near Mint (offers bevat alleen NM), geen eigen aanbiedingen (user_settings.cm_name), niet ouder dan MAX_AGE_DAYS.
 Schrijft reports/sellers.json (branch reports); de app leest dat bestand.
 
@@ -22,12 +26,36 @@ MAX_AGE_DAYS = 7
 MIN_CARDS = 2
 MIN_GAIN = 1.0
 MAX_SELLERS = 150
+SELL_RANK = 10      # de gebruiker verkoopt rond de 10e goedkoopste aanbieding...
+SELL_ABOVE = 1.0    # ...plus EUR 1
+MIN_LISTINGS = 3    # minder Engelse aanbiedingen in die uitvoering: te weinig om een verkoopprijs op te baseren
+
+
+def sell_refs(offers, own=()):
+    """{(kaart, uitvoering): verkoopprijs volgens de aanbiedingen} = 10e goedkoopste (of de duurste als er minder zijn) + EUR 1,
+    elke verkoper één keer, alleen Engels, zonder eigen aanbiedingen."""
+    own = {n.strip().lower() for n in own if n}
+    by = {}
+    for o in offers:
+        seller = (o.get("seller") or "").strip().lower()
+        if o.get("price") is None or (o.get("language") or "EN") != "EN" or seller in own:
+            continue
+        d = by.setdefault((o.get("product_id"), o.get("variant")), {})
+        key = seller or f"#{len(d)}"
+        d[key] = min(d.get(key, float("inf")), float(o["price"]))
+    out = {}
+    for k, d in by.items():
+        ps = sorted(d.values())
+        if len(ps) >= MIN_LISTINGS:
+            out[k] = ps[min(SELL_RANK, len(ps)) - 1] + SELL_ABOVE
+    return out
 
 
 def groups(offers, sold, products, own=(), today=None, fee_pct=None):
     """offers: rijen uit offers; sold: {product_id: verkoopgemiddelde}; products: {product_id: {...}}. Geeft verkopers, beste eerst."""
     fee = config.DEFAULT_FEE_PCT if fee_pct is None else fee_pct
     today = today or date.today()
+    refs = sell_refs(offers, own)
     own = {n.strip().lower() for n in own if n}
     best = {}   # (verkoper, kaart) -> goedkoopste aanbieding van die verkoper voor die kaart
     for o in offers:
@@ -37,8 +65,11 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
             continue
         if o.get("date") and (today - date.fromisoformat(str(o["date"])[:10])).days > MAX_AGE_DAYS:
             continue
-        s, price = sold.get(pid), float(price)
-        if not s or price > s * (1 - MIN_BELOW_SOLD):
+        s, ref, price = sold.get(pid), refs.get((pid, o.get("variant"))), float(price)
+        if not s or not ref:
+            continue
+        s = min(s, ref)   # verkoopprijs: nooit hoger dan de 10e goedkoopste aanbieding + EUR 1
+        if price > s * (1 - MIN_BELOW_SOLD):
             continue
         net = s * (1 - fee / 100) - config.PACKAGING - price
         if net <= 0:

@@ -38,9 +38,11 @@ async function soldPrices(ids) {
 export function dealCandidate(d, sold, s, today = new Date()) {
   const age = d.date ? (today - new Date(d.date)) / 864e5 : 0;
   if (age > DEAL_MAX_AGE_DAYS + 0.99) return null;
-  if (!sold || d.cheapest > sold * (1 - DEAL_MIN_BELOW_SOLD)) return null;
+  if (!sold) return null;
+  // verkoopprijs: nooit hoger dan de volgende aanbieding (Cardmarkets gemiddelde gooit bij oude kaarten alle uitvoeringen op één hoop)
   const resale = Math.min(d.market, sold);
-  return { ...d, sold, resale, belowSold: 1 - d.cheapest / sold, unitNet: resale * (1 - s.fee_pct / 100) - PACKAGING - d.cheapest };
+  if (d.cheapest > resale * (1 - DEAL_MIN_BELOW_SOLD)) return null;
+  return { ...d, sold, resale, belowSold: 1 - d.cheapest / resale, unitNet: resale * (1 - s.fee_pct / 100) - PACKAGING - d.cheapest };
 }
 
 /** Zuivere regel (ook getest): kaart met aanbieding en verkoopgemiddelde -> koopje of niet, met de winst (verzending per kaart). */
