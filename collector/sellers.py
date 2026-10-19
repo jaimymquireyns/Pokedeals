@@ -96,6 +96,23 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
     return out[:MAX_SELLERS]
 
 
+def guide_floor(entry):
+    """Laagste verkoopcijfer uit Cardmarkets prijslijst voor één product, over de gewone én de holo/reverse-cijfers.
+    Bij oude sets (Skyridge, e-card) lopen die door elkaar en spreken ze elkaar tegen (Raichu SK27: gemiddeld 137 gewoon, 40 holo,
+    op de pagina 26,57); het laagste is dan de enige veilige verkoopprijs."""
+    if not entry:
+        return None
+    vals = []
+    for k in ("avg30", "avg7", "trend", "avg30-holo", "avg7-holo", "trend-holo"):
+        try:
+            v = float(entry.get(k)) if entry.get(k) is not None else None
+        except (TypeError, ValueError):
+            v = None
+        if v and v > 0.05:
+            vals.append(v)
+    return min(vals) if vals else None
+
+
 def load(store, today):
     since = (today - timedelta(days=MAX_AGE_DAYS)).isoformat()
     offers = store.select("offers", {"select": "product_id,price,seller,language,variant,date", "date": f"gte.{since}", "order": "product_id.asc,rank.asc"})
@@ -115,6 +132,29 @@ def load(store, today):
         for p in store.select("products", {"select": "product_id,name,set_name,number,image,kind", "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")"}):
             products[p["product_id"]] = p
     own = [r.get("cm_name") for r in store.select("user_settings", {"select": "cm_name", "cm_name": "not.is.null"})]
+    # Cardmarkets eigen prijslijst: het laagste van alle verkoopcijfers (gewoon en holo) begrenst de verkoopprijs
+    try:
+        import requests
+        import cardmarket
+        guide = {}
+        for d in cardmarket.records(cardmarket.fetch(requests.Session(), f"priceGuide/price_guide_{config.CARDMARKET_GAME_ID}.json")):
+            if d.get("idProduct") is not None:
+                guide[int(d["idProduct"])] = d
+        cm_ids = {}
+        for i in range(0, len(ids), 150):
+            chunk = ids[i:i + 150]
+            for p in store.select("products", {"select": "product_id,cm_product_id", "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")",
+                                               "cm_product_id": "not.is.null"}):
+                cm_ids[p["product_id"]] = int(p["cm_product_id"])
+        n = 0
+        for pid, cid in cm_ids.items():
+            f = guide_floor(guide.get(cid))
+            if f and pid in sold and f < sold[pid]:
+                sold[pid] = f
+                n += 1
+        print(f"Prijslijst Cardmarket: {len(cm_ids)} kaarten gekoppeld, bij {n} lag het laagste verkoopcijfer lager dan het gemiddelde.")
+    except Exception as e:   # prijslijst niet bereikbaar: dan alleen het gemiddelde en de aanbiedingen
+        print(f"Prijslijst Cardmarket niet gelezen: {type(e).__name__}: {e}")
     return offers, sold, products, own
 
 
