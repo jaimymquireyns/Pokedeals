@@ -2,19 +2,37 @@
 import json, os, sys
 import requests
 from store import SupabaseStore
+import cardmarket
 
 ids = sys.argv[1:] or ["ecard3-27"]
 s = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
 L = ["# Diagnose prijzen", ""]
+sess = requests.Session()
+raw_guide = {}
+for d in cardmarket.records(cardmarket.fetch(sess, "priceGuide/price_guide_6.json")):
+    if d.get("idProduct") is not None:
+        raw_guide[int(d["idProduct"])] = d
+names = {}
+for d in cardmarket.records(cardmarket.fetch(sess, "productList/products_singles_6.json")):
+    if d.get("idProduct") is not None:
+        names[int(d["idProduct"])] = d
 for pid in ids:
     L += [f"## {pid}", "", "Database (laatste 5 dagen, alle bronnen):", ""]
     for r in s.select("prices", {"select": "date,source,grade_key,price,avg1,avg7,avg30,low", "product_id": f"eq.{pid}", "order": "date.desc", "limit": 12}):
         L.append(f"- {r}")
+    prod = (s.select("products", {"select": "product_id,name,set_name,number,cm_product_id,cm_url,cm_name", "product_id": f"eq.{pid}"}) or [{}])[0]
+    L += ["", f"Product: {prod}", ""]
+    for label, cid in (("PkmnPrices-pagina (cm_product_id)", prod.get("cm_product_id")),):
+        if cid:
+            L.append(f"- Cardmarket-prijsgids voor {label} {cid}: {raw_guide.get(int(cid))} | product: {names.get(int(cid))}")
     L += ["", "Aanbiedingen:", ""]
     for o in s.select("offers", {"select": "rank,price,seller,language,variant,date", "product_id": f"eq.{pid}", "order": "rank.asc"}):
         L.append(f"- {o}")
     try:
         d = requests.get(f"https://api.tcgdex.net/v2/en/cards/{pid}", timeout=30).json()
+        tid = ((d.get("pricing") or {}).get("cardmarket") or {}).get("idProduct")
+        if tid:
+            L.append(f"- Cardmarket-prijsgids voor TCGdex idProduct {tid}: {raw_guide.get(int(tid))} | product: {names.get(int(tid))}")
         L += ["", "TCGdex nu:", "", "```", json.dumps({"name": d.get("name"), "rarity": d.get("rarity"), "variants": d.get("variants"),
                                                        "cardmarket": (d.get("pricing") or {}).get("cardmarket")}, indent=1), "```"]
     except Exception as e:
