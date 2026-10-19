@@ -1,0 +1,30 @@
+name: Scouten (los starten)
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "maximaal aantal credits"
+        default: "36000"
+      minutes:
+        description: "maximaal aantal minuten"
+        default: "50"
+concurrency:
+  group: pokedeals-data
+  cancel-in-progress: false
+jobs:
+  scout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Scouten
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
+        run: python scout.py --budget ${{ github.event.inputs.budget || '36000' }} --minutes ${{ github.event.inputs.minutes || '50' }}
