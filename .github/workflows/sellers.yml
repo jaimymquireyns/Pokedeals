@@ -1,7 +1,7 @@
 name: Verkopers met koopjes
 on:
   workflow_run:
-    workflows: ["Dagelijkse update", "Credits opmaken (laat op de dag)"]
+    workflows: ["Dagelijkse update", "Credits opmaken (laat op de dag)", "Scouten (los starten)"]
     types: [completed]
   schedule:
     - cron: "45 11 * * *"   # vangnet als de dagelijkse update niet afloopt
