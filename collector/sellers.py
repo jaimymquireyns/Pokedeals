@@ -63,6 +63,13 @@ def market_price(ladder, seller):
     return median(others[:MARKET_N]) if others else None
 
 
+WHY = {}
+
+
+def _why(k):
+    WHY[k] = WHY.get(k, 0) + 1
+
+
 def groups(offers, sold, products, own=(), today=None, fee_pct=None):
     """offers: rijen uit offers; sold: {product_id: {'normal': prijs, 'reverse': prijs}} (of één getal); products: {product_id: {...}}."""
     fee = config.DEFAULT_FEE_PCT if fee_pct is None else fee_pct
@@ -74,24 +81,31 @@ def groups(offers, sold, products, own=(), today=None, fee_pct=None):
         seller = (o.get("seller") or "").strip()
         pid, price = o.get("product_id"), o.get("price")
         if not seller or seller.lower() in own or price is None or (o.get("language") or "EN") != "EN":
-            continue
+            _why("eigen, niet Engels of zonder verkoper"); continue
         if o.get("date") and (today - date.fromisoformat(str(o["date"])[:10])).days > MAX_AGE_DAYS:
-            continue
+            _why("te oud"); continue
         price = float(price)
         if price < MIN_PRICE:
-            continue
+            _why("onder minimumprijs"); continue
         sv = sold.get(pid)
         if isinstance(sv, dict):   # holo en gewoon apart
             sv = sv.get("reverse") if (o.get("variant") or "").lower().startswith("reverse") else sv.get("normal")
         mk = market_price(lad.get((pid, o.get("variant")), {}), seller.lower())
-        if not sv or not mk or max(sv, mk) > MAX_SPREAD * min(sv, mk):
-            continue   # geen of onbetrouwbare verkoopprijs, dunne markt, of verkocht en gevraagd kloppen niet
+        if not sv:
+            _why("geen of onbetrouwbare verkoopprijs"); continue
+        if not mk:
+            _why("dunne markt (< %d verkopers)" % MIN_SELLERS); continue
+        if max(sv, mk) > MAX_SPREAD * min(sv, mk):
+            _why("verkocht en gevraagd kloppen niet"); continue
         s = min(sv, mk)
-        if price > s * (1 - MIN_BELOW_SOLD) or price < s * (1 - MAX_BELOW):
-            continue
+        if price > s * (1 - MIN_BELOW_SOLD):
+            _why("niet 10% onder de verkoopprijs"); continue
+        if price < s * (1 - MAX_BELOW):
+            _why("meer dan de helft goedkoper"); continue
         net = s * (1 - fee / 100) - config.PACKAGING - price
         if net <= 0:
-            continue
+            _why("geen winst na kosten"); continue
+        _why("koopje")
         k = (seller.lower(), pid)
         if k not in best or price < best[k]["price"]:
             p = products.get(pid, {})
@@ -203,10 +217,13 @@ def main():
     offers, sold, products, own = load(store, today)
     gs = groups(offers, sold, products, own, today)
     doc = {"updated": today.isoformat(), "offers": len(offers), "cards": len({o["product_id"] for o in offers}),
-           "cards_with_sales": len(sold), "sellers": gs}
+           "cards_with_sales": len(sold), "why": WHY, "sold_kinds": {
+               "guide_normal": sum(1 for v in sold.values() if isinstance(v, dict) and v.get("normal")),
+               "guide_none": sum(1 for v in sold.values() if isinstance(v, dict) and not v.get("normal") and not v.get("reverse"))}, "sellers": gs}
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w") as f:
         json.dump(doc, f, separators=(",", ":"))
+    print("Waarom:", WHY)
     print(f"Verkopers: {len(gs)} met minstens {MIN_CARDS} koopjes, uit {len(offers)} aanbiedingen van {doc['cards']} kaarten "
           f"({len(sold)} met een verkoopgemiddelde).")
     for g in gs[:10]:
