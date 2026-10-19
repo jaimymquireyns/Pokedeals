@@ -45,9 +45,13 @@ def liquid_ids(store, today=None, min_price=None, max_price=None):
     max_price = config.SCOUT_MAX_PRICE if max_price is None else max_price
     since = (_date.fromisoformat(today) - timedelta(days=3)).isoformat()
     last = {}
-    for r in store.select("prices", {"select": "product_id,date,avg1,avg7,avg30", "source": "eq.tcgdex", "grade_key": "eq.raw",
-                                     "date": f"gte.{since}", "order": "product_id.asc,date.desc"}):
-        last.setdefault(r["product_id"], r)
+    ids = sorted(p["product_id"] for p in store.select("products", {"select": "product_id", "kind": "eq.card"}))
+    for i in range(0, len(ids), 200):   # per 200 kaarten: één grote vraag naar alle prijzen liep op een time-out
+        chunk = ids[i:i + 200]
+        for r in store.select("prices", {"select": "product_id,date,avg1,avg7,avg30", "source": "eq.tcgdex", "grade_key": "eq.raw",
+                                         "product_id": "in.(" + ",".join(f'"{x}"' for x in chunk) + ")",
+                                         "date": f"gte.{since}", "order": "product_id.asc,date.desc"}):
+            last.setdefault(r["product_id"], r)
     out = []
     for pid, r in last.items():
         try:

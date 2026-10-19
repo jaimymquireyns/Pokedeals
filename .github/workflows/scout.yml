@@ -8,6 +8,8 @@ on:
       minutes:
         description: "maximaal aantal minuten"
         default: "50"
+permissions:
+  contents: write
 concurrency:
   group: pokedeals-data
   cancel-in-progress: false
@@ -28,3 +30,15 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           PKMN_API_KEY: ${{ secrets.PKMN_API_KEY }}
         run: python scout.py --budget ${{ github.event.inputs.budget || '36000' }} --minutes ${{ github.event.inputs.minutes || '50' }}
+      - name: Verslag bewaren (branch reports)
+        if: always()
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          cp reports/scout.md /tmp/scout.md || exit 0
+          rm -rf reports
+          git fetch -q origin reports || true
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          mkdir -p reports && cp /tmp/scout.md reports/scout.md
+          git add reports/scout.md
+          git commit -qm "Scouten $(date -u +%F)" || exit 0
+          git push -q origin reports

@@ -112,7 +112,7 @@ class FakePostgrest:
             def ok(r):
                 cell = r.get(k)
                 if op == "in":
-                    return str(cell) in val.strip("()").split(",")
+                    return str(cell) in [x.strip('"') for x in val.strip("()").split(",")]   # PostgREST accepteert waarden tussen aanhalingstekens
                 if op == "is":
                     return (cell is None) == (val == "null")
                 if op == "ilike":
@@ -3260,6 +3260,7 @@ assert _sel.guide_price(None, "Normal") is None
 # scouten: alleen kaarten met een levendige markt (gisteren verkocht, gemiddelden kloppen), duurste eerst
 import offers as _ofs
 _fs, _ss = new_store()
+_ss.upsert_products([{"product_id": x, "kind": "card", "name": x, "set_id": "s", "set_name": "S", "number": "1"} for x in ("live", "rich", "dead", "jump", "tiny")])
 _fs.t["prices"].update({
     ("live", "2026-10-19", "tcgdex", "raw"): {"product_id": "live", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 20.0, "avg7": 21.0, "avg30": 20.0},
     ("rich", "2026-10-19", "tcgdex", "raw"): {"product_id": "rich", "date": "2026-10-19", "source": "tcgdex", "grade_key": "raw", "avg1": 90.0, "avg7": 95.0, "avg30": 100.0},
