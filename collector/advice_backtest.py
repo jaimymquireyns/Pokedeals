@@ -47,8 +47,19 @@ def age_key(age_days):
     return "laag_jong" if age_days < config.ADVICE_YOUNG_SET_DAYS else "laag_oud"
 
 
-def signals(points, release=None, fee_pct=None):
-    """points: [(datum, prijs)] van één kaart, opgeschoond en gesorteerd. Geeft [(sleutels, klopte, rendement)]."""
+PRICE_BANDS = [(10, 25), (25, 50), (50, 100), (100, 250), (250, None)]
+
+
+def band_key(price):
+    for lo, hi in PRICE_BANDS:
+        if price >= lo and (hi is None or price < hi):
+            return f"EUR {lo}-{hi}" if hi else f"EUR {lo}+"
+    return f"onder EUR {PRICE_BANDS[0][0]}"
+
+
+def signals(points, release=None, fee_pct=None, detail=None):
+    """points: [(datum, prijs)] van één kaart, opgeschoond en gesorteerd. Geeft [(sleutels, klopte, rendement)].
+    detail: optionele lijst; per signaal komt er (soort, prijs, kale prijsverandering, rendement na kosten, klopte) bij."""
     fee = config.DEFAULT_FEE_PCT if fee_pct is None else fee_pct
     if len(points) < 40:
         return []
@@ -73,13 +84,40 @@ def signals(points, release=None, fee_pct=None):
                     keys = ["laag", depth_key(ratio)] + ([age_key(age)] if age_key(age) else [])
                     if (t - last_sig.get("laag", date.min)).days >= GAP_DAYS:
                         out.append((keys, buy_ret > 0, buy_ret)); last_sig["laag"] = t
+                        if detail is not None:
+                            detail.append(("laag", price, later / price - 1, buy_ret, buy_ret > 0))
                 elif all(p >= config.ADVICE_HIGH * normal for p in rec):
                     if (t - last_sig.get("hoog", date.min)).days >= GAP_DAYS:
                         out.append((["hoog"], later < price, later / price - 1)); last_sig["hoog"] = t
+                        if detail is not None:
+                            detail.append(("hoog", price, later / price - 1, later / price - 1, later < price))
                 elif price >= config.ADVICE_MIN_BUY and zlib.crc32(f"{price}|{t}".encode()) % 4 == 0:   # steekproef van gewone momenten
                     if (t - last_sig.get("controle", date.min)).days >= GAP_DAYS:
                         out.append((["controle"], buy_ret > 0, buy_ret)); last_sig["controle"] = t
+                        if detail is not None:
+                            detail.append(("controle", price, later / price - 1, buy_ret, buy_ret > 0))
         t += timedelta(days=STEP_DAYS)
+    return out
+
+
+def band_report(detail):
+    """Per prijsklasse: werkt het signaal zelf (kale prijsverandering), en blijft er na kosten iets over?"""
+    def cell(xs, i):
+        return f"{sum(x[i] for x in xs) / len(xs) * 100:+.1f}%" if xs else "–"
+    out = ["", "## Per prijsklasse (prijs op het moment van het signaal)", "",
+           "Kale verandering = de vraagprijs 30 dagen later tegen die van toen, zonder kosten. Na kosten = zoals hierboven. "
+           "Toont Good buy een betere kale verandering dan Toeval, dan werkt het signaal; is het na kosten toch negatief, dan eten de kosten het op.", "",
+           "| prijsklasse | Good buy: aantal | klopte | kaal | na kosten | Toeval: aantal | klopte | kaal | na kosten | Sell now: aantal | klopte | kaal |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    bands = [band_key(0)] + [band_key(lo) for lo, _ in PRICE_BANDS]
+    for b in bands:
+        row = [b]
+        for kind in ("laag", "controle", "hoog"):
+            xs = [x for x in detail if x[0] == kind and band_key(x[1]) == b]
+            hit = f"{sum(1 for x in xs if x[4]) / len(xs):.0%}" if xs else "–"
+            row += [str(len(xs)), hit, cell(xs, 2)] + ([] if kind == "hoog" else [cell(xs, 3)])
+        if any(c not in ("0", "–") for c in row[1:]):
+            out.append("| " + " | ".join(row) + " |")
     return out
 
 
@@ -98,6 +136,7 @@ def main():
                                                                     "date": f"lt.{cutoff}", "order": "product_id.asc"})} & set(prods))
     print(f"{len(ids)} kaarten met Near Mint-geschiedenis van voor {cutoff}")
     res = {}
+    detail = []
     n_cards = 0
     for i in range(0, len(ids), 50):
         chunk = ids[i:i + 50]
@@ -110,7 +149,7 @@ def main():
             kept, _ = analysis.clean_nm_rows(pts)
             st = sets.get(prods[pid].get("set_id")) or {}
             rel = _d(st["release_date"]) if st.get("release_date") else None
-            sig = signals([(r["date"], r["price"]) for r in kept], rel)
+            sig = signals([(r["date"], r["price"]) for r in kept], rel, detail=detail)
             n_cards += bool(sig)
             for keys, ok, ret in sig:
                 for k in keys:
@@ -132,6 +171,7 @@ def main():
         pct = f"{s['hits'] / s['n']:.0%}" if s["n"] else "–"
         avg = f"{s['avg_ret'] * 100:+.1f}%" if s["avg_ret"] is not None else "–"
         lines.append(f"| {names[s['state']]} | {s['n']} | {pct} | {avg} |")
+    lines += band_report(detail)
     text = "\n".join(lines) + "\n"
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w") as f:
