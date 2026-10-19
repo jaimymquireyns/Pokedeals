@@ -3234,9 +3234,16 @@ _offs = [
     {"product_id": "a", "price": 5.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},    # eigen aanbieding
     {"product_id": "b", "price": 5.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},
 ]
+_offs += [{"product_id": pid, "price": 12.0 + i, "seller": f"x{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "abcde" for i in range(10)]
 _sold = {"a": 10.0, "b": 10.0, "c": 10.0, "d": 10.0, "e": 10.0}
 _g = _sel.groups(_offs, _sold, {}, own=["me"], today=_t, fee_pct=3)
 assert [x["seller"] for x in _g] == ["Bob"], _g
 assert _g[0]["n"] == 2 and _g[0]["total"] == 12.5 and _g[0]["ship"] == 3.0, _g[0]
 assert abs(_g[0]["gain"] - ((10 * 0.97 - 0.5 - 6.0) + (10 * 0.97 - 0.5 - 6.5) - 3.0)) < 0.02, _g[0]["gain"]
+# verkoopgemiddelde veel hoger dan wat er te koop staat (oude kaart, 1st edition in het gemiddelde): de 10e goedkoopste + EUR 1 telt
+_offs2 = [{"product_id": "m", "price": 30.0, "seller": "Cheap", "language": "EN", "date": "2026-10-18"},
+          {"product_id": "n", "price": 30.0, "seller": "Cheap", "language": "EN", "date": "2026-10-18"}]
+_offs2 += [{"product_id": pid, "price": 30.2 + 0.3 * i, "seller": f"y{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "mn" for i in range(12)]
+assert abs(_sel.sell_refs(_offs2)[("m", None)] - (30.2 + 0.3 * 8 + 1)) < 1e-9, "10e goedkoopste (verkoper Cheap is de 1e) + EUR 1"
+assert _sel.groups(_offs2, {"m": 273.0, "n": 273.0}, {}, today=_t, fee_pct=3) == [], "30 tegen 10e goedkoopste 32.60+1: geen 10% korting, ook al zegt het gemiddelde 273"
 print("verkopers: ok")
