@@ -3249,7 +3249,7 @@ assert _sel.groups(_gen, {"g": {"normal": 241.0}, "h": {"normal": 241.0}}, {}, t
 # grillige verkoopcijfers: geen prijs
 assert _sel.consistent([10.0, 30.0]) is None and _sel.consistent([10.0, 12.0]) == 10.0
 _rai = {"avg30": 137.16, "avg7": 149.73, "trend": 156.21, "avg30-holo": 39.71, "avg7-holo": 53.12, "trend-holo": 54.93}
-assert _sel.guide_price(_rai, "Normal") == 137.16 and _sel.guide_price(_rai, "Reverse Holofoil") is None, "holo: 39,71 tegen 53,12 is grillig"
+assert _sel.guide_price(_rai, "Normal") == 137.16 and _sel.guide_price(_rai, "Reverse Holofoil") == 39.71, "gewoon en reverse apart"
 _rai_offs = [{"product_id": pid, "price": 45.0, "seller": "R", "language": "EN", "variant": "Normal", "date": "2026-10-18"} for pid in "uv"] + _lad("u", 45.0, step=5, var="Normal") + _lad("v", 45.0, step=5, var="Normal")
 assert _sel.groups(_rai_offs, {"u": {"normal": 137.16}, "v": {"normal": 137.16}}, {}, today=_t, fee_pct=3) == [], "Raichu: verkocht 137 tegen gevraagd ~55: niet vertrouwen"
 _mod = {"avg30": 10.0, "avg7": 11.0, "trend": 10.5, "avg30-holo": 14.0, "avg7-holo": 15.0, "trend-holo": 14.5}
