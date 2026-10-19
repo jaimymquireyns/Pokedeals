@@ -3246,4 +3246,8 @@ _offs2 = [{"product_id": "m", "price": 30.0, "seller": "Cheap", "language": "EN"
 _offs2 += [{"product_id": pid, "price": 30.2 + 0.3 * i, "seller": f"y{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "mn" for i in range(12)]
 assert abs(_sel.sell_refs(_offs2)[("m", None)] - (30.2 + 0.3 * 8 + 1)) < 1e-9, "10e goedkoopste (verkoper Cheap is de 1e) + EUR 1"
 assert _sel.groups(_offs2, {"m": 273.0, "n": 273.0}, {}, today=_t, fee_pct=3) == [], "30 tegen 10e goedkoopste 32.60+1: geen 10% korting, ook al zegt het gemiddelde 273"
+# meer dan 50% onder de verkoopprijs: verdacht (andere uitvoering), telt niet
+_offs3 = [{"product_id": pid, "price": 4.0, "seller": "Z", "language": "EN", "date": "2026-10-18"} for pid in "pq"]
+_offs3 += [{"product_id": pid, "price": 10.0 + 0.1 * i, "seller": f"z{pid}{i}", "language": "EN", "date": "2026-10-18"} for pid in "pq" for i in range(12)]
+assert _sel.groups(_offs3, {"p": 11.0, "q": 11.0}, {}, today=_t, fee_pct=3) == [], "60% goedkoper: niet als koopje tellen"
 print("verkopers: ok")

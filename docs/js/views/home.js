@@ -15,6 +15,7 @@ const DEAL_MIN_ABS = 25;          // ...óf, als dat percentage niet gehaald wor
  * de winst niet opblaast. Aanbiedingen ouder dan DEAL_MAX_AGE_DAYS vallen weg: die zijn vaak al verkocht. */
 export const DEAL_MAX_AGE_DAYS = 7;
 export const DEAL_MIN_BELOW_SOLD = 0.10;   // minstens zoveel onder het verkoopgemiddelde van 30 dagen
+export const DEAL_SUSPECT_BELOW = 0.50;   // meer dan zoveel goedkoper: vaak een andere uitvoering of conditie -> 'Check' erbij
 
 /** Laatste verkoopgemiddelde per kaart (Cardmarket via TCGdex; sealed via de Cardmarket-prijslijst). */
 async function soldPrices(ids) {
@@ -155,7 +156,8 @@ function marketRow(d, watchId, onHeart) {
       h("div", { class: "body" },
         h("span", { class: "nm" }, h("span", { class: "name", text: d.name })),
         h("span", { class: "set", text: setLine(d) }),
-        d.variant && d.variant !== "Normal" ? h("span", {}, h("span", { class: "tag", text: d.variant })) : null),
+        d.variant && d.variant !== "Normal" ? h("span", {}, h("span", { class: "tag", text: d.variant })) : null,
+        (d.belowSold ?? 0) > DEAL_SUSPECT_BELOW ? h("span", {}, h("span", { class: "tag warn", title: "Over half price: often a different version (holo / non-holo, 1st edition) or condition. Check the listing.", text: "Check version" })) : null),
       h("span", { class: "mv" }, h("span", { class: "v num", text: eur(d.cheapest) }),
         d.sold
           ? h("span", { class: "arw up", "aria-label": `${Math.round(d.belowSold * 100)}% below what it sold for (30 days)` }, `−${Math.round(d.belowSold * 100)}%`)
