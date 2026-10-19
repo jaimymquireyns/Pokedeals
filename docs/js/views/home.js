@@ -210,8 +210,9 @@ function sellerSection() {
     }));
   }
   box.append(h("div", { class: "sech" }, title, infoBtn("Sellers",
-    "Sellers with two or more cheap listings (each at least 10% below what the card really sold for in the last 30 days).",
-    "Green: what you keep if you buy them all in one order, so you pay shipping once, and resell at the next cheapest listing or the sales price, whichever is lower, after fees and packaging.",
+    "Sellers with two or more cheap listings: each at least 10% below the resale price, which is the lower of what the card really sold for on Cardmarket and what the 5 cheapest other sellers ask.",
+    "Left out to avoid steered prices: cards with fewer than 6 English sellers, jumpy sales figures, sales that don't match the asking prices, and anything over half price.",
+    "Green: what you keep if you buy them all in one order (shipping once) and resell at that price, after fees and packaging.",
     "Best return: most profit for every euro you spend (cards plus shipping). The percentage under the profit is that return.",
     "Every stored listing counts, not only the cheapest one. Only the cards the app tracks (about 2,000) are checked; the seller may have more. Always check on Cardmarket.")), segEl, list, moreBtn);
   box.hidden = true;
