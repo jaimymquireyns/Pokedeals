@@ -31,7 +31,6 @@ jobs:
           rm -rf reports   # eerst opzij: anders weigert git over te schakelen naar de branch waar dit bestand al staat
           git fetch -q origin reports || true
           git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
-          git rm -rq --cached . >/dev/null 2>&1 || true
           mkdir -p reports && cp /tmp/cal.md reports/calibration.md
           git add reports/calibration.md
           git commit -qm "Kloppen de kansen $(date -u +%F)" || exit 0

@@ -31,7 +31,6 @@ jobs:
           rm -rf reports
           git fetch -q origin reports || true
           git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
-          git rm -rq --cached . >/dev/null 2>&1 || true
           mkdir -p reports && cp /tmp/lab.md reports/lab.md && cp /tmp/lab_top.json reports/lab_top.json
           git add reports/lab.md reports/lab_top.json
           git commit -qm "Testlab kansen $(date -u +%F)" || exit 0
