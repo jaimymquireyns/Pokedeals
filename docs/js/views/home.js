@@ -177,17 +177,20 @@ function sellerSection() {
   const title = h("h3", { text: "Sellers" });
   const moreBtn = h("button", { class: "linkbtn", type: "button", hidden: true });
   const open = new Set();
-  let groups = [], showAll = false;
+  let groups = [], showAll = false, lastF = null;
   const SHOWN = 5;
+  let sort = store.get("pd:sellsort", "return");
+  const segEl = segment(SELLER_SORTS, sort, (v) => { sort = v; store.set("pd:sellsort", v); if (lastF) draw(lastF); }, "small sellersort");
   const cardLine = (c) => h("li", {}, h("button", { type: "button", class: "rowc sellercard", onclick: () => go(detailHash(c.product_id)) },
     thumb(c.image, "ph", c.kind === "sealed"),
     h("div", { class: "body" }, h("span", { class: "nm" }, h("span", { class: "name", text: c.name || c.product_id })), h("span", { class: "set", text: setLine(c) })),
     h("span", { class: "mv" }, h("span", { class: "v num", text: eur(c.price) }),
       h("span", { class: "arw up", "aria-label": `${Math.round(c.below * 100)}% below what it sold for (30 days)` }, `−${Math.round(c.below * 100)}%`))));
   function draw(f) {
+    lastF = f;
     const shown = groups.map((g) => regroup(g, g.cards.filter((c) => (!f.max || c.price <= f.max) && (f.kind === "alles" || (c.kind || "card") === f.kind))))
       .filter((g) => g.cards.length >= 2 && g.gain >= DEAL_MIN_GAIN)
-      .sort((a, b) => b.cards.length - a.cards.length || b.gain - a.gain);
+      .sort(SELLER_ORDER[sort] || SELLER_ORDER.return);
     title.replaceChildren("Sellers ", h("span", { class: "cnt", text: String(shown.length) }));
     if (!shown.length) { box.hidden = true; return; }
     box.hidden = false;
@@ -199,7 +202,8 @@ function sellerSection() {
       const head = h("button", { type: "button", class: "sellerhead", "aria-expanded": String(isOpen), onclick: () => { isOpen ? open.delete(k) : open.add(k); draw(f); } },
         h("span", { class: "body" }, h("span", { class: "name", text: g.seller }),
           h("span", { class: "set", text: `${g.cards.length} cheap listings · ${eur(g.total)} + ${eur(g.ship)} shipping` })),
-        h("span", { class: "gain num", "aria-label": "profit after costs, one order", text: "+" + eur(g.gain) }));
+        h("span", { class: "sellerfig" }, h("span", { class: "gain num", "aria-label": "profit after costs, one order", text: "+" + eur(g.gain) }),
+          h("span", { class: "ret num", "aria-label": "profit per euro you spend", text: `+${Math.round(g.ret * 100)}%` })));
       return h("li", { class: "sellergrp" + (isOpen ? " open" : "") }, head,
         isOpen ? h("div", { class: "sellerbody" }, h("ul", { class: "list" }, ...g.cards.map(cardLine)),
           h("a", { class: "linkbtn", href: sellerUrl(g.seller), target: "_blank", rel: "noopener", text: "Open seller on Cardmarket" })) : null);
@@ -208,7 +212,8 @@ function sellerSection() {
   box.append(h("div", { class: "sech" }, title, infoBtn("Sellers",
     "Sellers with two or more cheap listings (each at least 10% below what the card really sold for in the last 30 days).",
     "Green: what you keep if you buy them all in one order, so you pay shipping once, and resell at the next cheapest listing or the sales price, whichever is lower, after fees and packaging.",
-    "Every stored listing counts, not only the cheapest one. Only the cards the app tracks (about 2,000) are checked; the seller may have more. Always check on Cardmarket.")), list, moreBtn);
+    "Best return: most profit for every euro you spend (cards plus shipping). The percentage under the profit is that return.",
+    "Every stored listing counts, not only the cheapest one. Only the cards the app tracks (about 2,000) are checked; the seller may have more. Always check on Cardmarket.")), segEl, list, moreBtn);
   box.hidden = true;
   return { box, set: (gs, f) => { groups = gs; draw(f); }, draw };
 }
@@ -217,8 +222,18 @@ function sellerSection() {
 export function regroup(g, cards) {
   const total = cards.reduce((a, c) => a + c.price, 0);
   const ship = cards.length ? shipCost(total) : 0;
-  return { ...g, cards, total, ship, gain: cards.reduce((a, c) => a + c.net, 0) - ship };
+  const gain = cards.reduce((a, c) => a + c.net, 0) - ship;
+  return { ...g, cards, total, ship, gain, ret: total + ship ? gain / (total + ship) : 0 };
 }
+
+/** Sorteren van de verkopers: beste rendement (winst per euro die je uitgeeft), meeste winst, meeste koopjes, laagste bedrag. */
+export const SELLER_SORTS = [["return", "Best return"], ["profit", "Most profit"], ["count", "Most deals"], ["cheap", "Lowest cost"]];
+export const SELLER_ORDER = {
+  return: (a, b) => b.ret - a.ret || b.gain - a.gain,
+  profit: (a, b) => b.gain - a.gain,
+  count: (a, b) => b.cards.length - a.cards.length || b.gain - a.gain,
+  cheap: (a, b) => (a.total + a.ship) - (b.total + b.ship),
+};
 
 const SELLERS_URL = "https://raw.githubusercontent.com/jaimymquireyns/pokedeals/reports/reports/sellers.json";
 
