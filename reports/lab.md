@@ -28,6 +28,16 @@ Toplijst = de 5% kaarten met de hoogste kans. 'Stegen echt' is hoeveel daarvan n
 
 **Winnaar: boom.** In de toets stegen 60% van de toplijst minstens 10% (basis 21%).
 
+Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)
+
+| groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |
+|---|---|---|---|---|---|---|---|---|
+| alle testkaarten | 2804 | 21% | EUR 29.00 | 27 | 62% | x1.01 | x1.50 | 42% |
+| alle vloeibare | 54 | 24% | EUR 29.00 | 43 | 0% | x1.00 | x1.14 | 37% |
+| toplijst | 140 | 60% | EUR 10.00 | 29 | 89% | x0.93 | x1.16 | 70% |
+| toplijst, vloeibaar | 1 | 100% | EUR 10.00 | 40 | 0% | x0.87 | x1.00 | 0% |
+| toplijst, dun | 139 | 60% | EUR 10.00 | 29 | 89% | x0.93 | x1.17 | 71% |
+
 Toplijst van vandaag (eerste 15):
 
 | kaart | prijs | kans |
@@ -86,6 +96,16 @@ Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 | boom | +15.1% | 56% | 56% (81) | +32.4% |
 
 **Winnaar: logistisch.** In de toets stegen 50% van de toplijst minstens 20% (basis 14%).
+
+Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)
+
+| groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |
+|---|---|---|---|---|---|---|---|---|
+| alle testkaarten | 2804 | 14% | EUR 29.00 | 27 | 62% | x1.01 | x1.50 | 42% |
+| alle vloeibare | 54 | 19% | EUR 29.00 | 43 | 0% | x1.00 | x1.14 | 37% |
+| toplijst | 140 | 50% | EUR 12.99 | 28 | 99% | x0.96 | x1.23 | 87% |
+| toplijst, vloeibaar | 1 | 0% | EUR 4.00 | 43 | 0% | x1.00 | x1.00 | 100% |
+| toplijst, dun | 139 | 50% | EUR 12.99 | 28 | 99% | x0.96 | x1.23 | 87% |
 
 Toplijst van vandaag (eerste 15):
 
