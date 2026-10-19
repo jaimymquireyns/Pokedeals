@@ -1,0 +1,36 @@
+name: Diagnose prijzen (los starten)
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "kaart-id's, met spaties"
+        default: "ecard3-27"
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Diagnose
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python diag_prices.py ${{ github.event.inputs.ids }}
+      - name: Verslag bewaren (branch reports)
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          cp reports/diag_prices.md /tmp/diag_prices.md
+          rm -rf reports
+          git fetch -q origin reports || true
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          mkdir -p reports && cp /tmp/diag_prices.md reports/diag_prices.md
+          git add reports/diag_prices.md
+          git commit -qm "Diagnose prijzen $(date -u +%F)" || exit 0
+          git push -q origin reports
