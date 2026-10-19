@@ -1,0 +1,38 @@
+name: Kloppen de kansen (meetlat)
+on:
+  schedule:
+    - cron: "20 0 * * *"   # elke nacht, na de dagelijkse controle van de vorige dag
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: pokedeals-calibration
+  cancel-in-progress: false
+jobs:
+  calibration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Meten
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python calibration.py --out ../reports/calibration.md
+      - name: Verslag bewaren (branch reports)
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          cp reports/calibration.md /tmp/cal.md
+          rm -rf reports   # eerst opzij: anders weigert git over te schakelen naar de branch waar dit bestand al staat
+          git fetch -q origin reports || true
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          git rm -rq --cached . >/dev/null 2>&1 || true
+          mkdir -p reports && cp /tmp/cal.md reports/calibration.md
+          git add reports/calibration.md
+          git commit -qm "Kloppen de kansen $(date -u +%F)" || exit 0
+          git push -q origin reports
