@@ -510,3 +510,18 @@ body{background:linear-gradient(rgba(0,0,0,.74),rgba(0,0,0,.74)),url(img/bg.jpg)
 .dcheck .dchead,.dcheck .dcrow3{display:grid;grid-template-columns:minmax(0,1fr) 64px 84px;gap:8px;align-items:baseline;padding:6px 0}
 .dcheck .dcrow3{border-top:1px solid var(--line)}.dcheck .dcrow3 b{text-align:right;font-variant-numeric:tabular-nums}.dcheck .dchead small{text-align:right;color:var(--muted)}
 .dcheck .ok2{color:var(--up)}.dcheck .no2{color:var(--amber)}
+/* Verkopers met meerdere goedkope aanbiedingen (Home, bovenaan) */
+.sellersec{margin:16px 16px 0}
+.sellergrp{border-bottom:1px solid var(--line)}
+.sellergrp:last-child{border-bottom:0}
+.sellerhead{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 16px;min-height:60px;background:none;border:0;color:inherit;text-align:left;cursor:pointer}
+.sellerhead .body{display:flex;flex-direction:column;min-width:0}
+.sellerhead .name{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sellerhead .set{font-size:13px;color:var(--muted)}
+.sellerhead .gain{font-weight:800;color:var(--up,#22c55e);white-space:nowrap}
+.sellerhead::after{content:"▾";margin-left:6px;color:var(--muted);transition:transform .15s}
+.sellergrp.open .sellerhead::after{transform:rotate(180deg)}
+.sellerbody{padding:0 0 10px}
+.sellerbody .list{margin:0}
+.sellerbody .linkbtn{display:block;margin:8px 16px 0}
+.sellercard{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 16px;width:100%}
