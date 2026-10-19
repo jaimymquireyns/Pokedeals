@@ -529,3 +529,15 @@ body{background:linear-gradient(rgba(0,0,0,.74),rgba(0,0,0,.74)),url(img/bg.jpg)
 .sellersort{margin:0 16px 8px}
 .sellerfig{display:flex;flex-direction:column;align-items:flex-end;flex:none}
 .sellerfig .ret{font-size:12px;color:var(--muted);font-weight:700}
+/* Home met tabbladen (20 okt) */
+.homesum{margin:2px 16px 10px;color:var(--muted);font-size:14px;font-weight:600}
+.hometabs{display:flex;gap:6px;margin:0 16px 10px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.hometab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border:0;border-radius:10px;background:none;color:var(--muted);font-weight:800;font-size:14px;cursor:pointer}
+.hometab .cnt{font-size:12px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.hometab .cnt:empty{display:none}
+.hometab[aria-selected=true]{background:var(--gold,#E8B54A);color:#111}
+.hometab[aria-selected=true] .cnt{background:rgba(0,0,0,.18);color:#111}
+.tabbed .pane>.sec{margin-top:6px}
+.tabbed .pane .sech h3{font-size:0}
+.tabbed .pane .sech h3 .cnt{display:none}
+.tabbed .pane .sech{justify-content:flex-end;margin-bottom:0}

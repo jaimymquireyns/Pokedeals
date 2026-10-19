@@ -171,14 +171,14 @@ let state = { kind: "alles", shown: 60 };
 const sellerUrl = (name) => `https://www.cardmarket.com/en/Pokemon/Users/${encodeURIComponent(name)}`;
 
 /** Bovenaan Home: verkopers met meerdere goedkope aanbiedingen, met de winst als je alles in één bestelling koopt. */
-function sellerSection() {
+function sellerSection(onCount = () => {}) {
   const box = h("div", { class: "sec sellersec" });
   const list = h("ul", { class: "list sellerlist" });
   const title = h("h3", { text: "Sellers" });
   const moreBtn = h("button", { class: "linkbtn", type: "button", hidden: true });
   const open = new Set();
   let groups = [], showAll = false, lastF = null;
-  const SHOWN = 5;
+  const SHOWN = 20;
   let sort = store.get("pd:sellsort", "return");
   const segEl = segment(SELLER_SORTS, sort, (v) => { sort = v; store.set("pd:sellsort", v); if (lastF) draw(lastF); }, "small sellersort");
   const cardLine = (c) => h("li", {}, h("button", { type: "button", class: "rowc sellercard", onclick: () => go(detailHash(c.product_id)) },
@@ -192,8 +192,8 @@ function sellerSection() {
       .filter((g) => g.cards.length >= 2 && g.gain >= DEAL_MIN_GAIN)
       .sort(SELLER_ORDER[sort] || SELLER_ORDER.return);
     title.replaceChildren("Sellers ", h("span", { class: "cnt", text: String(shown.length) }));
-    if (!shown.length) { box.hidden = true; return; }
-    box.hidden = false;
+    onCount(shown.length);
+    if (!shown.length) { moreBtn.hidden = true; list.replaceChildren(emptyNote("No seller has two or more trustworthy deals right now. More cards are scouted every day.")); return; }
     moreBtn.hidden = showAll || shown.length <= SHOWN;
     moreBtn.textContent = `Show all ${shown.length}`;
     moreBtn.onclick = () => { showAll = true; draw(f); };
@@ -215,7 +215,7 @@ function sellerSection() {
     "Green: what you keep if you buy them all in one order (shipping once) and resell at that price, after fees and packaging.",
     "Best return: most profit for every euro you spend (cards plus shipping). The percentage under the profit is that return.",
     "Every stored listing counts, not only the cheapest one. Only the cards the app tracks (about 2,000) are checked; the seller may have more. Always check on Cardmarket.")), segEl, list, moreBtn);
-  box.hidden = true;
+  list.replaceChildren(emptyNote("Loading…"));
   return { box, set: (gs, f) => { groups = gs; draw(f); }, draw };
 }
 
@@ -267,7 +267,7 @@ async function fetchRows(s) {
 /** Deals: kaarten die al een week ruim onder hun normale prijs staan, bevestigd door echte verkopen, zonder tekenen van
  * een gestuurde prijs en zonder aanwijsbare reden voor de daling, en waarbij na kosten genoeg overblijft als ze herstellen
  * (zie collector/advice.py en model.adviceFor). Per kaart: prijs en een balkje met de verwachte stijging en de kans erop. */
-function buySection(f, hook, reset) {
+function buySection(f, hook, reset, onCount = () => {}) {
   const box = h("div", { class: "sec buysec" });
   (async () => {
     let rows, stats;
@@ -277,7 +277,7 @@ function buySection(f, hook, reset) {
     const s = getSettings();
     const all = rows.map((r) => ({ r, a: adviceFor(r, { s }), o: outlook(r, stats), price: Number(r.price), normal: Number(r.normal), gain: recoveryGain(Number(r.price), Number(r.normal), s) }))
       .filter((x) => x.a.tone === "buy");
-    const SHOWN = 5;
+    const SHOWN = 20;
     let showAll = false;
     const row = ({ r, o }) => h("li", {}, h("button", { type: "button", class: "rowc", onclick: () => go(detailHash(r.product_id)) },
       thumb(r.image, "ph", r.kind === "sealed"),
@@ -289,6 +289,7 @@ function buySection(f, hook, reset) {
     function draw() {
       const picks = filterBuys(all, f);
       title.replaceChildren("Deals ", h("span", { class: "cnt", text: String(picks.length) }));
+      onCount(picks.length);
       list.replaceChildren(...(picks.length ? (showAll ? picks : picks.slice(0, SHOWN)).map(row)
         : [all.length ? h("li", { class: "emptyfilter" }, emptyNote("No deals match these filters."), h("button", { class: "linkbtn", type: "button", text: "Clear filters", onclick: reset }))
             : emptyNote("No deals today. Better none than a bad one.")]));
@@ -320,7 +321,7 @@ async function dealsHome(root) {
   let deals = [];
   const buyHook = { draw: () => {} };
   const title = h("h3", { text: "Cheap listings" });
-  const SHOWN = 5;
+  const SHOWN = 20;
   let showAll = false;
   const moreBtn = h("button", { class: "linkbtn", type: "button", hidden: true, onclick: () => { showAll = true; draw(); } });
 
@@ -330,19 +331,50 @@ async function dealsHome(root) {
       "Red: how far below the 30-day sales price. Green: what you keep if you buy and resell at the next cheapest listing or the sales price, whichever is lower, after shipping, fees and packaging.",
       "Listings older than a week are left out. Near Mint only. Always check the listing on Cardmarket yourself.")),
     list, moreBtn);
-  const sellers = sellerSection();
+  // tabbladen: één lijst tegelijk (20 okt: Home werd te druk met drie lijsten onder elkaar)
+  const counts = { cheap: null, sellers: null, deals: null };
+  const TABS = [["cheap", "Cheap"], ["sellers", "Sellers"], ["deals", "Deals β"]];
+  let tab = store.get("pd:hometab", "cheap");
+  if (!TABS.some(([k]) => k === tab)) tab = "cheap";
+  const summary = h("p", { class: "homesum" });
+  const tabBtns = {};
+  const tabBar = h("div", { class: "hometabs", role: "tablist" }, ...TABS.map(([k, label]) => {
+    tabBtns[k] = h("button", { type: "button", role: "tab", class: "hometab", onclick: () => { tab = k; store.set("pd:hometab", k); showTab(); } },
+      h("span", { class: "lbl", text: label }), h("span", { class: "cnt" }));
+    return tabBtns[k];
+  }));
+  const setCount = (k) => (n) => { counts[k] = n; paintTabs(); };
+  function paintTabs() {
+    for (const [k] of TABS) {
+      tabBtns[k].setAttribute("aria-selected", String(k === tab));
+      tabBtns[k].querySelector(".cnt").textContent = counts[k] == null ? "" : String(counts[k]);
+    }
+    const parts = [];
+    if (counts.cheap != null) parts.push(`${counts.cheap} cheap listing${counts.cheap === 1 ? "" : "s"}`);
+    if (counts.sellers != null) parts.push(`${counts.sellers} seller${counts.sellers === 1 ? "" : "s"} with 2+`);
+    summary.textContent = parts.length ? "Today: " + parts.join(" · ") : "";
+  }
+  const sellers = sellerSection(setCount("sellers"));
+  const panes = { cheap: h("div", { class: "pane" }, dealSec), sellers: h("div", { class: "pane" }, sellers.box) };
   const fbar = filterBar(f, () => { buyHook.draw(); draw(); sellers.draw(f); });
-  root.replaceChildren(h("div", { class: "page" },
+  panes.deals = h("div", { class: "pane" }, buySection(f, buyHook, () => fbar.reset(), setCount("deals")));
+  function showTab() {
+    for (const [k] of TABS) panes[k].hidden = k !== tab;
+    paintTabs();
+  }
+  root.replaceChildren(h("div", { class: "page tabbed" },
     brandmark(),
     h("div", { class: "head" }, h("h1", { text: "Home" }), status),
+    summary,
+    tabBar,
     fbar,
-    sellers.box,
-    buySection(f, buyHook, () => fbar.reset()),
-    dealSec));
+    panes.cheap, panes.sellers, panes.deals));
+  showTab();
 
   function draw() {
     const shown = filterDeals(deals, f);
     title.replaceChildren("Cheap listings ", h("span", { class: "cnt", text: String(shown.length) }));
+    counts.cheap = shown.length; paintTabs();
     if (!deals.length) return;
     moreBtn.hidden = showAll || shown.length <= SHOWN;
     moreBtn.textContent = `Show all ${shown.length}`;
@@ -364,6 +396,7 @@ async function dealsHome(root) {
   fetchSellers(lastCands, getSettings()).then((gs) => sellers.set(gs, f));
   if (!deals.length) {
     title.textContent = "Cheap listings";
+    counts.cheap = 0; paintTabs();
     list.replaceChildren(emptyNote("No cheap listings yet. They update every night."));
     return;
   }
