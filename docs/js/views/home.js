@@ -177,12 +177,13 @@ function sellerSection() {
   const SHOWN = 5;
   const cardLine = (c) => h("li", {}, h("button", { type: "button", class: "rowc sellercard", onclick: () => go(detailHash(c.product_id)) },
     thumb(c.image, "ph", c.kind === "sealed"),
-    h("div", { class: "body" }, h("span", { class: "nm" }, h("span", { class: "name", text: c.name })), h("span", { class: "set", text: setLine(c) })),
-    h("span", { class: "mv" }, h("span", { class: "v num", text: eur(c.cheapest) }),
-      h("span", { class: "arw up", "aria-label": `${Math.round(c.belowSold * 100)}% below what it sold for (30 days)` }, `−${Math.round(c.belowSold * 100)}%`))));
+    h("div", { class: "body" }, h("span", { class: "nm" }, h("span", { class: "name", text: c.name || c.product_id })), h("span", { class: "set", text: setLine(c) })),
+    h("span", { class: "mv" }, h("span", { class: "v num", text: eur(c.price) }),
+      h("span", { class: "arw up", "aria-label": `${Math.round(c.below * 100)}% below what it sold for (30 days)` }, `−${Math.round(c.below * 100)}%`))));
   function draw(f) {
-    const shown = groups.map((g) => ({ ...g, cards: g.cards.filter((c) => (!f.max || c.cheapest <= f.max) && (f.kind === "alles" || c.kind === f.kind)) }))
-      .filter((g) => g.cards.length >= 2);
+    const shown = groups.map((g) => regroup(g, g.cards.filter((c) => (!f.max || c.price <= f.max) && (f.kind === "alles" || (c.kind || "card") === f.kind))))
+      .filter((g) => g.cards.length >= 2 && g.gain >= DEAL_MIN_GAIN)
+      .sort((a, b) => b.cards.length - a.cards.length || b.gain - a.gain);
     title.replaceChildren("Sellers ", h("span", { class: "cnt", text: String(shown.length) }));
     if (!shown.length) { box.hidden = true; return; }
     box.hidden = false;
@@ -203,9 +204,30 @@ function sellerSection() {
   box.append(h("div", { class: "sech" }, title, infoBtn("Sellers",
     "Sellers with two or more cheap listings (each at least 10% below what the card really sold for in the last 30 days).",
     "Green: what you keep if you buy them all in one order, so you pay shipping once, and resell at the next cheapest listing or the sales price, whichever is lower, after fees and packaging.",
-    "Only the cards the app tracks are counted; the seller may have more. Always check on Cardmarket.")), list, moreBtn);
+    "Every stored listing counts, not only the cheapest one. Only the cards the app tracks (about 2,000) are checked; the seller may have more. Always check on Cardmarket.")), list, moreBtn);
   box.hidden = true;
-  return { box, set: (cands, s, f) => { groups = sellerGroups(cands, s); draw(f); }, draw };
+  return { box, set: (gs, f) => { groups = gs; draw(f); }, draw };
+}
+
+/** Totaal, verzending en winst van een verkoper opnieuw uitrekenen na filteren (verzending één keer, naar de totale waarde). */
+export function regroup(g, cards) {
+  const total = cards.reduce((a, c) => a + c.price, 0);
+  const ship = cards.length ? shipCost(total) : 0;
+  return { ...g, cards, total, ship, gain: cards.reduce((a, c) => a + c.net, 0) - ship };
+}
+
+const SELLERS_URL = "https://raw.githubusercontent.com/jaimymquireyns/pokedeals/reports/reports/sellers.json";
+
+/** Verkopers uit het nachtelijke bestand (collector/sellers.py: alle bewaarde aanbiedingen); lukt dat niet, dan uit Cheap listings. */
+async function fetchSellers(cands, s) {
+  try {
+    const r = await fetch(SELLERS_URL, { cache: "no-cache" });
+    if (r.ok) {
+      const doc = await r.json();
+      if (Array.isArray(doc.sellers)) return doc.sellers;
+    }
+  } catch {}
+  return sellerGroups(cands, s).map((g) => ({ ...g, cards: g.cards.map((c) => ({ ...c, price: c.cheapest, net: c.unitNet, below: c.belowSold })) }));
 }
 
 async function fetchRows(s) {
@@ -319,7 +341,7 @@ async function dealsHome(root) {
 
   list.replaceChildren(emptyNote("Loading…"));
   deals = await fetchDeals();
-  sellers.set(lastCands, getSettings(), f);
+  fetchSellers(lastCands, getSettings()).then((gs) => sellers.set(gs, f));
   if (!deals.length) {
     title.textContent = "Cheap listings";
     list.replaceChildren(emptyNote("No cheap listings yet. They update every night."));

@@ -3219,3 +3219,24 @@ _cut = [r for r in _rows["c0"] if r["date"] <= "2026-10-19"]
 assert _ls.card_moments(_cut, _inf["c0"], today=_dt(2026, 10, 19))[0]["a30"] == _ls.card_moments(_rows["c0"], _inf["c0"], today=_dt(2026, 10, 19))[0]["a30"]
 assert _ls.run({k: [r for r in v if r["date"] < "2026-10-19"] for k, v in _rows.items()}, _inf, _dt(2026, 10, 19))["moments"] == 0, "nog geen 30 dagen: geen testmomenten"
 print("testlab verkopen: ok")
+
+# -- verkopers: alle aanbiedingen tellen, niet alleen de allergoedkoopste; één verzending per bestelling --
+import sellers as _sel
+_t = _dt(2026, 10, 19)
+_offs = [
+    {"product_id": "a", "price": 5.0, "seller": "Ann", "language": "EN", "date": "2026-10-18"},   # goedkoopste
+    {"product_id": "a", "price": 6.0, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # niet de goedkoopste, wel een koopje
+    {"product_id": "b", "price": 7.0, "seller": "bob", "language": "EN", "date": "2026-10-18"},
+    {"product_id": "b", "price": 6.5, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # zelfde kaart: de goedkoopste telt
+    {"product_id": "c", "price": 7.0, "seller": "Bob", "language": "DE", "date": "2026-10-18"},   # niet Engels
+    {"product_id": "d", "price": 7.0, "seller": "Bob", "language": "EN", "date": "2026-10-01"},   # te oud
+    {"product_id": "e", "price": 9.5, "seller": "Bob", "language": "EN", "date": "2026-10-18"},   # niet 10% onder de verkopen
+    {"product_id": "a", "price": 5.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},    # eigen aanbieding
+    {"product_id": "b", "price": 5.5, "seller": "Me", "language": "EN", "date": "2026-10-18"},
+]
+_sold = {"a": 10.0, "b": 10.0, "c": 10.0, "d": 10.0, "e": 10.0}
+_g = _sel.groups(_offs, _sold, {}, own=["me"], today=_t, fee_pct=3)
+assert [x["seller"] for x in _g] == ["Bob"], _g
+assert _g[0]["n"] == 2 and _g[0]["total"] == 12.5 and _g[0]["ship"] == 3.0, _g[0]
+assert abs(_g[0]["gain"] - ((10 * 0.97 - 0.5 - 6.0) + (10 * 0.97 - 0.5 - 6.5) - 3.0)) < 0.02, _g[0]["gain"]
+print("verkopers: ok")

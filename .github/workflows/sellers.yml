@@ -1,0 +1,40 @@
+name: Verkopers met koopjes
+on:
+  workflow_run:
+    workflows: ["Dagelijkse update", "Credits opmaken (laat op de dag)"]
+    types: [completed]
+  schedule:
+    - cron: "45 11 * * *"   # vangnet als de dagelijkse update niet afloopt
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: pokedeals-sellers
+  cancel-in-progress: false
+jobs:
+  sellers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Verkopers
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python sellers.py --out ../reports/sellers.json
+      - name: Bestand bewaren (branch reports)
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          cp reports/sellers.json /tmp/sellers.json
+          rm -rf reports
+          git fetch -q origin reports || true
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          mkdir -p reports && cp /tmp/sellers.json reports/sellers.json
+          git add reports/sellers.json
+          git commit -qm "Verkopers $(date -u +%F)" || exit 0
+          git push -q origin reports
