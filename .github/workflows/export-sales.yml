@@ -1,0 +1,33 @@
+name: Export verkopen (versleuteld)
+on:
+  push:
+    branches: [analysis/sets]
+    paths: [collector/export_sales.py, collector/export_pub.pem, .github/workflows/export-sales.yml, import/export_start]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Export
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python export_sales.py
+      - name: Versleuteld bewaren
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          mkdir -p reports
+          openssl rand -out /tmp/k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -in /tmp/sales.json -out reports/sales_export.enc -pass file:/tmp/k.bin
+          openssl pkeyutl -encrypt -pubin -inkey collector/export_pub.pem -pkeyopt rsa_padding_mode:oaep -in /tmp/k.bin -out reports/sales_export.key.enc
+          rm -f /tmp/k.bin /tmp/sales.json
+          git add reports/sales_export.enc reports/sales_export.key.enc && git commit -m "Versleutelde export verkopen" && git pull --rebase -q && git push
