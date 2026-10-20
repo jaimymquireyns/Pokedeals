@@ -6,10 +6,12 @@ st = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"]
 q = {"user_id": f"eq.{UID}", "select": "*"}
 sales = st.select("sales", dict(q, order="created_at.desc"))
 items = st.select("sale_items", q)
-pids = sorted({i["product_id"] for i in items if i.get("product_id")})
+coll = st.select("collection", dict(q, order="created_at.desc"))
+settings = st.select("user_settings", q)
+pids = sorted({i["product_id"] for i in items if i.get("product_id")} | {c["product_id"] for c in coll})
 names = {}
 for i in range(0, len(pids), 100):
     for p in st.select("products", {"select": "product_id,name,set_name,number", "product_id": "in.(" + ",".join(f'"{x}"' for x in pids[i:i+100]) + ")"}):
         names[p["product_id"]] = p
-json.dump({"sales": sales, "items": items, "products": names}, open("/tmp/sales.json", "w"), default=str)
-print("verkopen:", len(sales), "regels:", len(items))
+json.dump({"sales": sales, "items": items, "products": names, "collection": coll, "settings": settings}, open("/tmp/sales.json", "w"), default=str)
+print("verkopen:", len(sales), "regels:", len(items), "collectie:", len(coll))
