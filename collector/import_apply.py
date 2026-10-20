@@ -60,6 +60,8 @@ try:
     if sales: st.insert("sales", sales)
     say("verkopen erbij:", len(sales))
     items += plan.get("insert_items", [])
+    keys = sorted({k for i in items for k in i})   # PostgREST wil in één verzoek rijen met dezelfde velden (Japanse regels hebben item_name/item_language)
+    items = [{k: i.get(k) for k in keys} for i in items]
     if items: st.insert("sale_items", items)
     say("verkoopregels erbij:", len(items))
     after = {"collection": len(st.select("collection", q)), "sales": len(st.select("sales", q)), "sale_items": len(st.select("sale_items", q))}
