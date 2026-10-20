@@ -13,5 +13,10 @@ names = {}
 for i in range(0, len(pids), 100):
     for p in st.select("products", {"select": "product_id,name,set_name,number", "product_id": "in.(" + ",".join(f'"{x}"' for x in pids[i:i+100]) + ")"}):
         names[p["product_id"]] = p
+extra = {}
+for pre in ("30th-", "mep-", "swshp-SWSH2", "swshp-SWSH1"):
+    for p in st.select("products", {"select": "product_id,name,set_name,number", "product_id": f"like.{pre}*"}):
+        extra[p["product_id"]] = p
+names.update(extra)
 json.dump({"sales": sales, "items": items, "products": names, "collection": coll, "settings": settings}, open("/tmp/sales.json", "w"), default=str)
 print("verkopen:", len(sales), "regels:", len(items), "collectie:", len(coll))
