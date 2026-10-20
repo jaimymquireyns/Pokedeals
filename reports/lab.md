@@ -1,6 +1,6 @@
-# Testlab kansen (2026-10-19)
+# Testlab kansen (2026-10-20)
 
-5616 testmomenten van 1782 kaarten, op 30 data (2026-08-10 t/m 2026-09-14). Vandaag te beoordelen: 1152 kaarten.
+5616 testmomenten van 1782 kaarten, op 30 data (2026-08-10 t/m 2026-09-14). Vandaag te beoordelen: 1131 kaarten.
 
 Toplijst = de 5% kaarten met de hoogste kans. 'Stegen echt' is hoeveel daarvan na 30 dagen echt minstens zoveel hoger stonden. Vaardigheid boven 0 = de methode weet iets dat 'voor elke kaart hetzelfde percentage' niet weet.
 
@@ -44,33 +44,33 @@ Toplijst van vandaag (eerste 15):
 |---|---|---|
 | Team Aqua's Crawdaunt (ex4 2) | EUR 10.00 | 78% |
 | Cradily δ (ex13 2) | EUR 13.90 | 76% |
+| Mewtwo (dp5 9) | EUR 75.00 | 75% |
 | Kabutops (pl4 4) | EUR 8.98 | 75% |
 | Gardevoir ex (ex2 96) | EUR 75.00 | 74% |
 | Dark Ampharos (ex7 2) | EUR 35.00 | 73% |
-| Grumpig (ex3 6) | EUR 6.25 | 71% |
 | Latias δ (ex13 11) | EUR 45.00 | 70% |
 | Medicham (ex5 10) | EUR 6.00 | 70% |
-| Slowking (si1 14) | EUR 250.00 | 69% |
 | Ursaring (ex10 18) | EUR 12.00 | 68% |
-| Umbreon (bw9 64) | EUR 45.00 | 67% |
+| Slowking (si1 14) | EUR 250.00 | 67% |
 | Salamence (pl4 8) | EUR 9.00 | 66% |
+| Gardevoir δ (ex11 6) | EUR 65.00 | 66% |
 | Claydol (ex5 2) | EUR 8.75 | 66% |
-| Mewtwo (dp5 9) | EUR 75.00 | 66% |
 | Tyranitar (ecard2 40) | EUR 100.00 | 66% |
+| Jirachi (xyp XY195) | EUR 8.00 | 65% |
 
 Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
 | ex5 | 7 | 58% |
-| ecard1 | 6 | 55% |
-| xyp | 6 | 54% |
-| ex13 | 5 | 62% |
+| ecard1 | 6 | 54% |
+| ex13 | 5 | 61% |
 | ex10 | 5 | 59% |
-| ecard2 | 5 | 58% |
-| ex15 | 5 | 57% |
+| ex15 | 5 | 58% |
+| ecard2 | 5 | 57% |
 | hgss4 | 5 | 57% |
 | ex12 | 5 | 55% |
+| xyp | 5 | 54% |
 | ex7 | 4 | 58% |
 
 ## Kans op +20% in 30 dagen
@@ -118,14 +118,14 @@ Toplijst van vandaag (eerste 15):
 | Meganium (ex10 9) | EUR 5.00 | 70% |
 | Team Aqua's Crawdaunt (ex4 2) | EUR 10.00 | 70% |
 | Holon Energy FF (ex11 104) | EUR 3.00 | 67% |
+| Mewtwo (dp5 9) | EUR 75.00 | 66% |
 | Cradily δ (ex13 2) | EUR 13.90 | 65% |
 | Feraligatr (ecard1 47) | EUR 22.50 | 65% |
-| Espeon (ecard2 11) | EUR 63.00 | 64% |
 | Ursaring (ex10 18) | EUR 12.00 | 64% |
 | Banette (ex16 4) | EUR 5.00 | 64% |
+| Espeon (ecard2 11) | EUR 63.00 | 63% |
 | Wailord (ex12 14) | EUR 39.99 | 62% |
 | Pikachu (ex6 74) | EUR 3.00 | 61% |
-| Latias δ (ex13 11) | EUR 45.00 | 61% |
 
 Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
@@ -137,8 +137,8 @@ Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 | ex13 | 6 | 52% |
 | ecard3 | 6 | 49% |
 | ex10 | 5 | 54% |
+| ex7 | 4 | 55% |
 | ex12 | 4 | 54% |
 | ex11 | 4 | 50% |
 | ex15 | 4 | 49% |
-| ex7 | 3 | 62% |
 
