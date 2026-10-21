@@ -1,6 +1,6 @@
-# Testlab op echte verkopen (2026-10-20)
+# Testlab op echte verkopen (2026-10-21)
 
-Cardmarket-verkoopgemiddelden van 20257 kaarten, van 2026-09-21 t/m 2026-10-19. Testmomenten met een uitkomst na 30 dagen: 0 (0 kaarten, 0 data). Vandaag te beoordelen: 5934 kaarten.
+Cardmarket-verkoopgemiddelden van 20287 kaarten, van 2026-09-21 t/m 2026-10-20. Testmomenten met een uitkomst na 30 dagen: 0 (0 kaarten, 0 data). Vandaag te beoordelen: 5973 kaarten.
 
 Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te sturen met een vraagprijs). Handel = kopen tegen de goedkoopste aanbieding plus verzending, na 30 dagen verkopen tegen het verkoopgemiddelde min commissie en verpakking.
 
