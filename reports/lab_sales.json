@@ -1,32 +1,72 @@
 {
- "today": "2026-10-22",
- "moments": 5678,
+ "today": "2026-10-23",
+ "moments": 5694,
  "up10": {
   "winner": "boom",
   "proof": {
-   "n": 2839,
-   "brier": 0.15152911376919806,
-   "base": 0.26452976400140893,
-   "top_n": 141,
-   "top_hit": 0.723404255319149,
-   "top_p": 0.7530407373523061,
-   "top_ret": 0.3001678017964662,
-   "top_trade": 4.719530408006158,
+   "n": 2847,
+   "brier": 0.14988296048182967,
+   "base": 0.2536002809975413,
+   "top_n": 142,
+   "top_hit": 0.6549295774647887,
+   "top_p": 0.7818705776769544,
+   "top_ret": 0.1804481461195684,
+   "top_trade": 5.22250668896321,
    "top_trade_win": 1.0,
-   "all_trade": 0.453116883116883,
-   "all_trade_win": 0.7301866854526242,
-   "skill": 0.22219489558060723
+   "all_trade": 0.45896666666666636,
+   "all_trade_win": 0.7393747804706708,
+   "skill": 0.20827275978687654
   },
   "top": [
    {
-    "product_id": "ex10-104",
-    "name": "Ho-Oh ex",
-    "set_id": "ex10",
-    "set_name": "Unseen Forces",
-    "number": "104",
-    "sales_avg30": 192.24,
-    "low": 25.0,
-    "chance": 0.856
+    "product_id": "ecard1-1",
+    "name": "Alakazam",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "1",
+    "sales_avg30": 138.51,
+    "low": 10.0,
+    "chance": 0.878
+   },
+   {
+    "product_id": "ecard1-33",
+    "name": "Alakazam",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "33",
+    "sales_avg30": 138.51,
+    "low": 10.0,
+    "chance": 0.878
+   },
+   {
+    "product_id": "neo2-25",
+    "name": "Kabutops",
+    "set_id": "neo2",
+    "set_name": "Neo Discovery",
+    "number": "25",
+    "sales_avg30": 92.65,
+    "low": 5.99,
+    "chance": 0.857
+   },
+   {
+    "product_id": "neo2-6",
+    "name": "Kabutops",
+    "set_id": "neo2",
+    "set_name": "Neo Discovery",
+    "number": "6",
+    "sales_avg30": 92.65,
+    "low": 5.99,
+    "chance": 0.857
+   },
+   {
+    "product_id": "ex12-93",
+    "name": "Pikachu \u03b4",
+    "set_id": "ex12",
+    "set_name": "Legend Maker",
+    "number": "93",
+    "sales_avg30": 249.57,
+    "low": 29.5,
+    "chance": 0.854
    },
    {
     "product_id": "ecard3-10",
@@ -36,57 +76,47 @@
     "number": "10",
     "sales_avg30": 2369.63,
     "low": 450.0,
-    "chance": 0.852
+    "chance": 0.854
    },
    {
-    "product_id": "ex12-88",
-    "name": "Mew ex",
-    "set_id": "ex12",
-    "set_name": "Legend Maker",
-    "number": "88",
-    "sales_avg30": 240.13,
-    "low": 30.0,
+    "product_id": "ecard1-29",
+    "name": "Tyranitar",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "29",
+    "sales_avg30": 305.16,
+    "low": 10.0,
     "chance": 0.85
    },
    {
-    "product_id": "ecard1-12",
-    "name": "Feraligatr",
+    "product_id": "ecard1-66",
+    "name": "Tyranitar",
     "set_id": "ecard1",
     "set_name": "Expedition Base Set",
-    "number": "12",
-    "sales_avg30": 251.31,
-    "low": 9.94,
-    "chance": 0.848
+    "number": "66",
+    "sales_avg30": 305.16,
+    "low": 10.0,
+    "chance": 0.85
    },
    {
-    "product_id": "ecard1-46",
-    "name": "Feraligatr",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "46",
-    "sales_avg30": 251.31,
-    "low": 9.94,
-    "chance": 0.848
+    "product_id": "col1-9",
+    "name": "Ho-Oh",
+    "set_id": "col1",
+    "set_name": "Call of Legends",
+    "number": "9",
+    "sales_avg30": 320.65,
+    "low": 99.9,
+    "chance": 0.849
    },
    {
-    "product_id": "ecard1-47",
-    "name": "Feraligatr",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "47",
-    "sales_avg30": 251.31,
-    "low": 9.94,
-    "chance": 0.848
-   },
-   {
-    "product_id": "ex2-6",
-    "name": "Jolteon",
-    "set_id": "ex2",
-    "set_name": "Sandstorm",
-    "number": "6",
-    "sales_avg30": 61.23,
-    "low": 15.0,
-    "chance": 0.844
+    "product_id": "ex10-104",
+    "name": "Ho-Oh ex",
+    "set_id": "ex10",
+    "set_name": "Unseen Forces",
+    "number": "104",
+    "sales_avg30": 192.24,
+    "low": 25.0,
+    "chance": 0.847
    },
    {
     "product_id": "ex16-6",
@@ -96,37 +126,7 @@
     "number": "6",
     "sales_avg30": 191.05,
     "low": 19.0,
-    "chance": 0.841
-   },
-   {
-    "product_id": "ex13-16",
-    "name": "Rayquaza \u03b4",
-    "set_id": "ex13",
-    "set_name": "Holon Phantoms",
-    "number": "16",
-    "sales_avg30": 257.01,
-    "low": 25.9,
-    "chance": 0.841
-   },
-   {
-    "product_id": "ex13-26",
-    "name": "Rayquaza \u03b4",
-    "set_id": "ex13",
-    "set_name": "Holon Phantoms",
-    "number": "26",
-    "sales_avg30": 257.01,
-    "low": 25.9,
-    "chance": 0.841
-   },
-   {
-    "product_id": "ex15-91",
-    "name": "Dragonite ex \u03b4",
-    "set_id": "ex15",
-    "set_name": "Dragon Frontiers",
-    "number": "91",
-    "sales_avg30": 154.28,
-    "low": 55.0,
-    "chance": 0.838
+    "chance": 0.842
    },
    {
     "product_id": "ecard1-13",
@@ -134,9 +134,9 @@
     "set_id": "ecard1",
     "set_name": "Expedition Base Set",
     "number": "13",
-    "sales_avg30": 596.62,
+    "sales_avg30": 599.32,
     "low": 60.0,
-    "chance": 0.838
+    "chance": 0.842
    },
    {
     "product_id": "ecard1-48",
@@ -144,9 +144,9 @@
     "set_id": "ecard1",
     "set_name": "Expedition Base Set",
     "number": "48",
-    "sales_avg30": 596.62,
+    "sales_avg30": 599.32,
     "low": 60.0,
-    "chance": 0.838
+    "chance": 0.842
    },
    {
     "product_id": "ecard1-21",
@@ -156,7 +156,7 @@
     "number": "21",
     "sales_avg30": 65.35,
     "low": 3.99,
-    "chance": 0.837
+    "chance": 0.841
    },
    {
     "product_id": "ecard1-57",
@@ -166,27 +166,37 @@
     "number": "57",
     "sales_avg30": 65.35,
     "low": 3.99,
-    "chance": 0.837
+    "chance": 0.841
    },
    {
-    "product_id": "pop2-6",
-    "name": "Venusaur",
-    "set_id": "pop2",
-    "set_name": "POP Series 2",
-    "number": "6",
-    "sales_avg30": 93.65,
-    "low": 24.99,
-    "chance": 0.837
+    "product_id": "neo1-17",
+    "name": "Typhlosion",
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
+    "number": "17",
+    "sales_avg30": 320.94,
+    "low": 16.0,
+    "chance": 0.838
    },
    {
-    "product_id": "dp5-98",
-    "name": "Glaceon",
-    "set_id": "dp5",
-    "set_name": "Majestic Dawn",
-    "number": "98",
-    "sales_avg30": 394.48,
-    "low": 39.0,
-    "chance": 0.835
+    "product_id": "neo1-18",
+    "name": "Typhlosion",
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
+    "number": "18",
+    "sales_avg30": 320.94,
+    "low": 16.0,
+    "chance": 0.838
+   },
+   {
+    "product_id": "ex3-19",
+    "name": "Salamence",
+    "set_id": "ex3",
+    "set_name": "Dragon",
+    "number": "19",
+    "sales_avg30": 80.21,
+    "low": 2.99,
+    "chance": 0.832
    },
    {
     "product_id": "ex9-93",
@@ -196,157 +206,7 @@
     "number": "93",
     "sales_avg30": 151.35,
     "low": 30.0,
-    "chance": 0.832
-   },
-   {
-    "product_id": "pop4-13",
-    "name": "Pikachu",
-    "set_id": "pop4",
-    "set_name": "POP Series 4",
-    "number": "13",
-    "sales_avg30": 46.78,
-    "low": 5.0,
-    "chance": 0.832
-   },
-   {
-    "product_id": "ex2-5",
-    "name": "Flareon",
-    "set_id": "ex2",
-    "set_name": "Sandstorm",
-    "number": "5",
-    "sales_avg30": 78.06,
-    "low": 11.0,
     "chance": 0.831
-   },
-   {
-    "product_id": "ecard1-30",
-    "name": "Venusaur",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "30",
-    "sales_avg30": 97.83,
-    "low": 10.0,
-    "chance": 0.831
-   },
-   {
-    "product_id": "ecard1-67",
-    "name": "Venusaur",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "67",
-    "sales_avg30": 97.83,
-    "low": 10.0,
-    "chance": 0.831
-   },
-   {
-    "product_id": "ecard1-68",
-    "name": "Venusaur",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "68",
-    "sales_avg30": 97.83,
-    "low": 10.0,
-    "chance": 0.831
-   },
-   {
-    "product_id": "neo3-18",
-    "name": "Ho-oh",
-    "set_id": "neo3",
-    "set_name": "Neo Revelation",
-    "number": "18",
-    "sales_avg30": 160.05,
-    "low": 29.94,
-    "chance": 0.83
-   },
-   {
-    "product_id": "neo3-7",
-    "name": "Ho-oh",
-    "set_id": "neo3",
-    "set_name": "Neo Revelation",
-    "number": "7",
-    "sales_avg30": 160.05,
-    "low": 29.94,
-    "chance": 0.83
-   },
-   {
-    "product_id": "ex13-100",
-    "name": "Mew ex",
-    "set_id": "ex13",
-    "set_name": "Holon Phantoms",
-    "number": "100",
-    "sales_avg30": 320.6,
-    "low": 50.0,
-    "chance": 0.83
-   },
-   {
-    "product_id": "ex14-95",
-    "name": "Kyogre ex",
-    "set_id": "ex14",
-    "set_name": "Crystal Guardians",
-    "number": "95",
-    "sales_avg30": 149.04,
-    "low": 18.0,
-    "chance": 0.829
-   },
-   {
-    "product_id": "dp4-106",
-    "name": "Palkia",
-    "set_id": "dp4",
-    "set_name": "Great Encounters",
-    "number": "106",
-    "sales_avg30": 79.52,
-    "low": 10.99,
-    "chance": 0.829
-   },
-   {
-    "product_id": "dp3-3",
-    "name": "Charizard",
-    "set_id": "dp3",
-    "set_name": "Secret Wonders",
-    "number": "3",
-    "sales_avg30": 110.15,
-    "low": 3.0,
-    "chance": 0.828
-   },
-   {
-    "product_id": "neo1-4",
-    "name": "Feraligatr",
-    "set_id": "neo1",
-    "set_name": "Neo Genesis",
-    "number": "4",
-    "sales_avg30": 61.82,
-    "low": 10.0,
-    "chance": 0.827
-   },
-   {
-    "product_id": "neo1-5",
-    "name": "Feraligatr",
-    "set_id": "neo1",
-    "set_name": "Neo Genesis",
-    "number": "5",
-    "sales_avg30": 61.82,
-    "low": 10.0,
-    "chance": 0.827
-   },
-   {
-    "product_id": "pop4-4",
-    "name": "Mew",
-    "set_id": "pop4",
-    "set_name": "POP Series 4",
-    "number": "4",
-    "sales_avg30": 89.93,
-    "low": 14.99,
-    "chance": 0.826
-   },
-   {
-    "product_id": "ex15-97",
-    "name": "Rayquaza ex \u03b4",
-    "set_id": "ex15",
-    "set_name": "Dragon Frontiers",
-    "number": "97",
-    "sales_avg30": 205.87,
-    "low": 54.95,
-    "chance": 0.826
    },
    {
     "product_id": "ecard2-19",
@@ -356,137 +216,77 @@
     "number": "19",
     "sales_avg30": 147.18,
     "low": 12.0,
-    "chance": 0.825
+    "chance": 0.83
    },
    {
-    "product_id": "ecard1-22",
-    "name": "Pichu",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "22",
-    "sales_avg30": 108.11,
-    "low": 16.99,
-    "chance": 0.823
+    "product_id": "ex13-100",
+    "name": "Mew ex",
+    "set_id": "ex13",
+    "set_name": "Holon Phantoms",
+    "number": "100",
+    "sales_avg30": 357.44,
+    "low": 50.0,
+    "chance": 0.829
    },
    {
-    "product_id": "ecard1-58",
-    "name": "Pichu",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "58",
-    "sales_avg30": 108.11,
-    "low": 16.99,
-    "chance": 0.823
+    "product_id": "ex15-97",
+    "name": "Rayquaza ex \u03b4",
+    "set_id": "ex15",
+    "set_name": "Dragon Frontiers",
+    "number": "97",
+    "sales_avg30": 198.72,
+    "low": 54.95,
+    "chance": 0.828
    },
    {
-    "product_id": "ex9-2",
-    "name": "Deoxys",
-    "set_id": "ex9",
-    "set_name": "Emerald",
-    "number": "2",
-    "sales_avg30": 70.55,
-    "low": 6.9,
-    "chance": 0.823
-   },
-   {
-    "product_id": "ex16-94",
-    "name": "Flygon ex",
-    "set_id": "ex16",
-    "set_name": "Power Keepers",
-    "number": "94",
-    "sales_avg30": 73.13,
+    "product_id": "pop4-13",
+    "name": "Pikachu",
+    "set_id": "pop4",
+    "set_name": "POP Series 4",
+    "number": "13",
+    "sales_avg30": 46.78,
     "low": 5.0,
-    "chance": 0.822
+    "chance": 0.827
    },
    {
-    "product_id": "gym2-4",
-    "name": "Erika's Venusaur",
-    "set_id": "gym2",
-    "set_name": "Gym Challenge",
-    "number": "4",
-    "sales_avg30": 154.76,
-    "low": 43.9,
-    "chance": 0.822
+    "product_id": "lc-1",
+    "name": "Alakazam",
+    "set_id": "lc",
+    "set_name": "Legendary Collection",
+    "number": "1",
+    "sales_avg30": 76.17,
+    "low": 12.0,
+    "chance": 0.827
    },
    {
-    "product_id": "ex12-89",
-    "name": "Walrein ex",
-    "set_id": "ex12",
-    "set_name": "Legend Maker",
-    "number": "89",
-    "sales_avg30": 71.45,
-    "low": 10.99,
-    "chance": 0.822
-   },
-   {
-    "product_id": "base2-11",
-    "name": "Snorlax",
-    "set_id": "base2",
-    "set_name": "Jungle",
-    "number": "11",
-    "sales_avg30": 74.1,
-    "low": 10.0,
-    "chance": 0.822
-   },
-   {
-    "product_id": "base2-27",
-    "name": "Snorlax",
-    "set_id": "base2",
-    "set_name": "Jungle",
-    "number": "27",
-    "sales_avg30": 74.1,
-    "low": 10.0,
-    "chance": 0.822
-   },
-   {
-    "product_id": "ex14-4",
-    "name": "Charizard \u03b4",
+    "product_id": "ex14-95",
+    "name": "Kyogre ex",
     "set_id": "ex14",
     "set_name": "Crystal Guardians",
+    "number": "95",
+    "sales_avg30": 149.04,
+    "low": 18.0,
+    "chance": 0.826
+   },
+   {
+    "product_id": "ex2-5",
+    "name": "Flareon",
+    "set_id": "ex2",
+    "set_name": "Sandstorm",
+    "number": "5",
+    "sales_avg30": 78.06,
+    "low": 11.0,
+    "chance": 0.824
+   },
+   {
+    "product_id": "pop4-4",
+    "name": "Mew",
+    "set_id": "pop4",
+    "set_name": "POP Series 4",
     "number": "4",
-    "sales_avg30": 286.14,
-    "low": 44.99,
-    "chance": 0.822
-   },
-   {
-    "product_id": "ecard1-18",
-    "name": "Meganium",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "18",
-    "sales_avg30": 105.56,
-    "low": 9.95,
-    "chance": 0.821
-   },
-   {
-    "product_id": "ecard1-53",
-    "name": "Meganium",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "53",
-    "sales_avg30": 105.56,
-    "low": 9.95,
-    "chance": 0.821
-   },
-   {
-    "product_id": "ecard1-54",
-    "name": "Meganium",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "54",
-    "sales_avg30": 105.56,
-    "low": 9.95,
-    "chance": 0.821
-   },
-   {
-    "product_id": "dp1-121",
-    "name": "Infernape",
-    "set_id": "dp1",
-    "set_name": "Diamond & Pearl",
-    "number": "121",
-    "sales_avg30": 49.96,
-    "low": 5.5,
-    "chance": 0.821
+    "sales_avg30": 89.93,
+    "low": 14.99,
+    "chance": 0.824
    },
    {
     "product_id": "ex6-105",
@@ -496,17 +296,87 @@
     "number": "105",
     "sales_avg30": 785.57,
     "low": 80.0,
-    "chance": 0.821
+    "chance": 0.823
    },
    {
-    "product_id": "lc-3",
-    "name": "Charizard",
-    "set_id": "lc",
-    "set_name": "Legendary Collection",
-    "number": "3",
-    "sales_avg30": 266.49,
-    "low": 79.9,
-    "chance": 0.82
+    "product_id": "gym2-2",
+    "name": "Blaine's Charizard",
+    "set_id": "gym2",
+    "set_name": "Gym Challenge",
+    "number": "2",
+    "sales_avg30": 622.75,
+    "low": 109.9,
+    "chance": 0.823
+   },
+   {
+    "product_id": "pop3-2",
+    "name": "Flareon",
+    "set_id": "pop3",
+    "set_name": "POP Series 3",
+    "number": "2",
+    "sales_avg30": 122.01,
+    "low": 8.5,
+    "chance": 0.823
+   },
+   {
+    "product_id": "ecard1-30",
+    "name": "Venusaur",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "30",
+    "sales_avg30": 97.83,
+    "low": 10.0,
+    "chance": 0.822
+   },
+   {
+    "product_id": "ecard1-67",
+    "name": "Venusaur",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "67",
+    "sales_avg30": 97.83,
+    "low": 10.0,
+    "chance": 0.822
+   },
+   {
+    "product_id": "ecard1-68",
+    "name": "Venusaur",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "68",
+    "sales_avg30": 97.83,
+    "low": 10.0,
+    "chance": 0.822
+   },
+   {
+    "product_id": "ecard2-24",
+    "name": "Nidoking",
+    "set_id": "ecard2",
+    "set_name": "Aquapolis",
+    "number": "24",
+    "sales_avg30": 121.44,
+    "low": 12.0,
+    "chance": 0.822
+   },
+   {
+    "product_id": "neo1-10",
+    "name": "Meganium",
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
+    "number": "10",
+    "sales_avg30": 92.75,
+    "low": 11.11,
+    "chance": 0.822
+   },
+   {
+    "product_id": "neo1-11",
+    "name": "Meganium",
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
+    "number": "11",
+    "sales_avg30": 92.75,
+    "low": 11.11,
+    "chance": 0.822
    },
    {
     "product_id": "pop3-6",
@@ -517,146 +387,276 @@
     "sales_avg30": 146.41,
     "low": 6.99,
     "chance": 0.82
+   },
+   {
+    "product_id": "dp4-106",
+    "name": "Palkia",
+    "set_id": "dp4",
+    "set_name": "Great Encounters",
+    "number": "106",
+    "sales_avg30": 79.52,
+    "low": 10.99,
+    "chance": 0.82
+   },
+   {
+    "product_id": "gym2-4",
+    "name": "Erika's Venusaur",
+    "set_id": "gym2",
+    "set_name": "Gym Challenge",
+    "number": "4",
+    "sales_avg30": 154.76,
+    "low": 43.9,
+    "chance": 0.819
+   },
+   {
+    "product_id": "ecard1-39",
+    "name": "Charizard",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "39",
+    "sales_avg30": 553.2,
+    "low": 27.0,
+    "chance": 0.817
+   },
+   {
+    "product_id": "ecard1-40",
+    "name": "Charizard",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "40",
+    "sales_avg30": 553.2,
+    "low": 27.0,
+    "chance": 0.817
+   },
+   {
+    "product_id": "ecard1-6",
+    "name": "Charizard",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "6",
+    "sales_avg30": 553.2,
+    "low": 27.0,
+    "chance": 0.817
+   },
+   {
+    "product_id": "ecard3-14",
+    "name": "Kabutops",
+    "set_id": "ecard3",
+    "set_name": "Skyridge",
+    "number": "14",
+    "sales_avg30": 229.67,
+    "low": 40.0,
+    "chance": 0.816
+   },
+   {
+    "product_id": "dp5-98",
+    "name": "Glaceon",
+    "set_id": "dp5",
+    "set_name": "Majestic Dawn",
+    "number": "98",
+    "sales_avg30": 393.13,
+    "low": 39.0,
+    "chance": 0.815
+   },
+   {
+    "product_id": "dp3-3",
+    "name": "Charizard",
+    "set_id": "dp3",
+    "set_name": "Secret Wonders",
+    "number": "3",
+    "sales_avg30": 108.28,
+    "low": 3.0,
+    "chance": 0.814
+   },
+   {
+    "product_id": "pop2-6",
+    "name": "Venusaur",
+    "set_id": "pop2",
+    "set_name": "POP Series 2",
+    "number": "6",
+    "sales_avg30": 93.65,
+    "low": 24.99,
+    "chance": 0.814
+   },
+   {
+    "product_id": "ex12-89",
+    "name": "Walrein ex",
+    "set_id": "ex12",
+    "set_name": "Legend Maker",
+    "number": "89",
+    "sales_avg30": 71.45,
+    "low": 10.99,
+    "chance": 0.812
+   },
+   {
+    "product_id": "ex3-98",
+    "name": "Charmander",
+    "set_id": "ex3",
+    "set_name": "Dragon",
+    "number": "98",
+    "sales_avg30": 132.7,
+    "low": 25.0,
+    "chance": 0.812
+   },
+   {
+    "product_id": "ecard1-3",
+    "name": "Arbok",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "3",
+    "sales_avg30": 84.88,
+    "low": 2.5,
+    "chance": 0.812
+   },
+   {
+    "product_id": "ecard1-35",
+    "name": "Arbok",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "35",
+    "sales_avg30": 84.88,
+    "low": 2.5,
+    "chance": 0.812
    }
   ],
   "sets": [
    {
     "set_id": "ecard1",
     "set_name": "Expedition Base Set",
-    "cards": 60,
-    "avg_chance": 0.771
+    "cards": 58,
+    "avg_chance": 0.776
    },
    {
     "set_id": "ecard3",
     "set_name": "Skyridge",
-    "cards": 41,
-    "avg_chance": 0.741
-   },
-   {
-    "set_id": "ecard2",
-    "set_name": "Aquapolis",
-    "cards": 31,
-    "avg_chance": 0.748
+    "cards": 37,
+    "avg_chance": 0.752
    },
    {
     "set_id": "neo2",
     "set_name": "Neo Discovery",
-    "cards": 25,
-    "avg_chance": 0.743
+    "cards": 29,
+    "avg_chance": 0.739
+   },
+   {
+    "set_id": "ecard2",
+    "set_name": "Aquapolis",
+    "cards": 28,
+    "avg_chance": 0.745
    },
    {
     "set_id": "gym2",
     "set_name": "Gym Challenge",
-    "cards": 19,
-    "avg_chance": 0.732
+    "cards": 23,
+    "avg_chance": 0.736
    },
    {
     "set_id": "col1",
     "set_name": "Call of Legends",
-    "cards": 18,
-    "avg_chance": 0.727
-   },
-   {
-    "set_id": "ex12",
-    "set_name": "Legend Maker",
-    "cards": 17,
-    "avg_chance": 0.741
+    "cards": 19,
+    "avg_chance": 0.735
    },
    {
     "set_id": "ex13",
     "set_name": "Holon Phantoms",
     "cards": 17,
+    "avg_chance": 0.719
+   },
+   {
+    "set_id": "ex12",
+    "set_name": "Legend Maker",
+    "cards": 16,
     "avg_chance": 0.731
    },
    {
     "set_id": "neo4",
     "set_name": "Neo Destiny",
     "cards": 16,
-    "avg_chance": 0.735
+    "avg_chance": 0.731
    },
    {
     "set_id": "ex10",
     "set_name": "Unseen Forces",
-    "cards": 15,
-    "avg_chance": 0.725
+    "cards": 16,
+    "avg_chance": 0.724
    },
    {
     "set_id": "ex3",
     "set_name": "Dragon",
-    "cards": 15,
-    "avg_chance": 0.722
-   },
-   {
-    "set_id": "ex7",
-    "set_name": "Team Rocket Returns",
-    "cards": 15,
-    "avg_chance": 0.702
+    "cards": 16,
+    "avg_chance": 0.72
    },
    {
     "set_id": "neo3",
     "set_name": "Neo Revelation",
+    "cards": 15,
+    "avg_chance": 0.723
+   },
+   {
+    "set_id": "ex15",
+    "set_name": "Dragon Frontiers",
     "cards": 14,
-    "avg_chance": 0.732
+    "avg_chance": 0.743
    },
    {
     "set_id": "ex9",
     "set_name": "Emerald",
     "cards": 13,
-    "avg_chance": 0.758
+    "avg_chance": 0.762
    },
    {
     "set_id": "ex14",
     "set_name": "Crystal Guardians",
-    "cards": 12,
-    "avg_chance": 0.77
-   },
-   {
-    "set_id": "ex5",
-    "set_name": "Hidden Legends",
-    "cards": 12,
-    "avg_chance": 0.748
-   },
-   {
-    "set_id": "lc",
-    "set_name": "Legendary Collection",
-    "cards": 12,
-    "avg_chance": 0.738
-   },
-   {
-    "set_id": "ex4",
-    "set_name": "Team Magma vs Team Aqua",
-    "cards": 11,
-    "avg_chance": 0.749
-   },
-   {
-    "set_id": "ex6",
-    "set_name": "FireRed & LeafGreen",
-    "cards": 11,
+    "cards": 13,
     "avg_chance": 0.747
    },
    {
     "set_id": "ex8",
     "set_name": "Deoxys",
+    "cards": 13,
+    "avg_chance": 0.718
+   },
+   {
+    "set_id": "ex5",
+    "set_name": "Hidden Legends",
+    "cards": 12,
+    "avg_chance": 0.737
+   },
+   {
+    "set_id": "ex7",
+    "set_name": "Team Rocket Returns",
+    "cards": 12,
+    "avg_chance": 0.697
+   },
+   {
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
     "cards": 11,
-    "avg_chance": 0.742
+    "avg_chance": 0.785
+   },
+   {
+    "set_id": "ex4",
+    "set_name": "Team Magma vs Team Aqua",
+    "cards": 11,
+    "avg_chance": 0.747
    }
   ]
  },
  "up20": {
   "winner": "boom",
   "proof": {
-   "n": 2839,
-   "brier": 0.11405430499774243,
-   "base": 0.1715392743923917,
-   "top_n": 141,
-   "top_hit": 0.6170212765957447,
-   "top_p": 0.6127747039689381,
-   "top_ret": 0.3370225451835289,
-   "top_trade": 4.859533333333332,
+   "n": 2847,
+   "brier": 0.11459382427440667,
+   "base": 0.16613979627678258,
+   "top_n": 142,
+   "top_hit": 0.5140845070422535,
+   "top_p": 0.6455567678368543,
+   "top_ret": 0.24079280238172351,
+   "top_trade": 5.129518949458655,
    "top_trade_win": 1.0,
-   "all_trade": 0.453116883116883,
-   "all_trade_win": 0.7301866854526242,
-   "skill": 0.19795290158320134
+   "all_trade": 0.45896666666666636,
+   "all_trade_win": 0.7393747804706708,
+   "skill": 0.17283754935324858
   },
   "top": [
    {
@@ -667,7 +667,7 @@
     "number": "105",
     "sales_avg30": 119.87,
     "low": 13.0,
-    "chance": 0.744
+    "chance": 0.765
    },
    {
     "product_id": "neo1-10",
@@ -675,9 +675,9 @@
     "set_id": "neo1",
     "set_name": "Neo Genesis",
     "number": "10",
-    "sales_avg30": 86.32,
+    "sales_avg30": 92.75,
     "low": 11.11,
-    "chance": 0.744
+    "chance": 0.764
    },
    {
     "product_id": "neo1-11",
@@ -685,69 +685,9 @@
     "set_id": "neo1",
     "set_name": "Neo Genesis",
     "number": "11",
-    "sales_avg30": 86.32,
+    "sales_avg30": 92.75,
     "low": 11.11,
-    "chance": 0.744
-   },
-   {
-    "product_id": "lc-1",
-    "name": "Alakazam",
-    "set_id": "lc",
-    "set_name": "Legendary Collection",
-    "number": "1",
-    "sales_avg30": 53.99,
-    "low": 12.0,
-    "chance": 0.74
-   },
-   {
-    "product_id": "ecard1-22",
-    "name": "Pichu",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "22",
-    "sales_avg30": 108.11,
-    "low": 16.99,
-    "chance": 0.738
-   },
-   {
-    "product_id": "ecard1-58",
-    "name": "Pichu",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "58",
-    "sales_avg30": 108.11,
-    "low": 16.99,
-    "chance": 0.738
-   },
-   {
-    "product_id": "dp4-104",
-    "name": "Darkrai",
-    "set_id": "dp4",
-    "set_name": "Great Encounters",
-    "number": "104",
-    "sales_avg30": 51.84,
-    "low": 9.7,
-    "chance": 0.734
-   },
-   {
-    "product_id": "ex10-104",
-    "name": "Ho-Oh ex",
-    "set_id": "ex10",
-    "set_name": "Unseen Forces",
-    "number": "104",
-    "sales_avg30": 192.24,
-    "low": 25.0,
-    "chance": 0.733
-   },
-   {
-    "product_id": "dp4-103",
-    "name": "Cresselia",
-    "set_id": "dp4",
-    "set_name": "Great Encounters",
-    "number": "103",
-    "sales_avg30": 67.73,
-    "low": 4.89,
-    "chance": 0.73
+    "chance": 0.764
    },
    {
     "product_id": "ecard1-18",
@@ -757,7 +697,7 @@
     "number": "18",
     "sales_avg30": 105.56,
     "low": 9.95,
-    "chance": 0.728
+    "chance": 0.748
    },
    {
     "product_id": "ecard1-53",
@@ -767,7 +707,7 @@
     "number": "53",
     "sales_avg30": 105.56,
     "low": 9.95,
-    "chance": 0.728
+    "chance": 0.748
    },
    {
     "product_id": "ecard1-54",
@@ -777,7 +717,27 @@
     "number": "54",
     "sales_avg30": 105.56,
     "low": 9.95,
-    "chance": 0.728
+    "chance": 0.748
+   },
+   {
+    "product_id": "dp4-103",
+    "name": "Cresselia",
+    "set_id": "dp4",
+    "set_name": "Great Encounters",
+    "number": "103",
+    "sales_avg30": 68.41,
+    "low": 4.89,
+    "chance": 0.736
+   },
+   {
+    "product_id": "dp5-97",
+    "name": "Garchomp",
+    "set_id": "dp5",
+    "set_name": "Majestic Dawn",
+    "number": "97",
+    "sales_avg30": 121.0,
+    "low": 15.0,
+    "chance": 0.731
    },
    {
     "product_id": "dp4-106",
@@ -787,87 +747,57 @@
     "number": "106",
     "sales_avg30": 79.52,
     "low": 10.99,
+    "chance": 0.73
+   },
+   {
+    "product_id": "ecard1-22",
+    "name": "Pichu",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "22",
+    "sales_avg30": 108.11,
+    "low": 16.99,
+    "chance": 0.729
+   },
+   {
+    "product_id": "ecard1-58",
+    "name": "Pichu",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "58",
+    "sales_avg30": 108.11,
+    "low": 16.99,
+    "chance": 0.729
+   },
+   {
+    "product_id": "dp4-2",
+    "name": "Cresselia",
+    "set_id": "dp4",
+    "set_name": "Great Encounters",
+    "number": "2",
+    "sales_avg30": 103.08,
+    "low": 0.5,
     "chance": 0.726
    },
    {
-    "product_id": "ecard1-12",
-    "name": "Feraligatr",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "12",
-    "sales_avg30": 251.31,
-    "low": 9.94,
-    "chance": 0.724
-   },
-   {
-    "product_id": "ecard1-46",
-    "name": "Feraligatr",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "46",
-    "sales_avg30": 251.31,
-    "low": 9.94,
-    "chance": 0.724
-   },
-   {
-    "product_id": "ecard1-47",
-    "name": "Feraligatr",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "47",
-    "sales_avg30": 251.31,
-    "low": 9.94,
-    "chance": 0.724
-   },
-   {
-    "product_id": "dp3-3",
-    "name": "Charizard",
-    "set_id": "dp3",
-    "set_name": "Secret Wonders",
-    "number": "3",
-    "sales_avg30": 110.15,
-    "low": 3.0,
+    "product_id": "ex10-104",
+    "name": "Ho-Oh ex",
+    "set_id": "ex10",
+    "set_name": "Unseen Forces",
+    "number": "104",
+    "sales_avg30": 192.24,
+    "low": 25.0,
     "chance": 0.721
    },
    {
-    "product_id": "ecard1-20",
-    "name": "Mewtwo",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "20",
-    "sales_avg30": 547.88,
-    "low": 19.95,
-    "chance": 0.721
-   },
-   {
-    "product_id": "ecard1-1",
-    "name": "Alakazam",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "1",
-    "sales_avg30": 133.25,
-    "low": 10.0,
-    "chance": 0.72
-   },
-   {
-    "product_id": "ecard1-33",
-    "name": "Alakazam",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "33",
-    "sales_avg30": 133.25,
-    "low": 10.0,
-    "chance": 0.72
-   },
-   {
-    "product_id": "ex12-88",
-    "name": "Mew ex",
-    "set_id": "ex12",
-    "set_name": "Legend Maker",
-    "number": "88",
-    "sales_avg30": 240.13,
-    "low": 30.0,
-    "chance": 0.719
+    "product_id": "dp1-121",
+    "name": "Infernape",
+    "set_id": "dp1",
+    "set_name": "Diamond & Pearl",
+    "number": "121",
+    "sales_avg30": 49.96,
+    "low": 5.5,
+    "chance": 0.718
    },
    {
     "product_id": "ex12-10",
@@ -877,67 +807,47 @@
     "number": "10",
     "sales_avg30": 65.08,
     "low": 12.0,
-    "chance": 0.719
-   },
-   {
-    "product_id": "ex12-87",
-    "name": "Flygon ex",
-    "set_id": "ex12",
-    "set_name": "Legend Maker",
-    "number": "87",
-    "sales_avg30": 92.61,
-    "low": 15.0,
-    "chance": 0.716
-   },
-   {
-    "product_id": "ecard1-42",
-    "name": "Cloyster",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "42",
-    "sales_avg30": 64.02,
-    "low": 6.0,
     "chance": 0.715
    },
    {
-    "product_id": "ecard1-8",
-    "name": "Cloyster",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "8",
-    "sales_avg30": 64.02,
-    "low": 6.0,
+    "product_id": "ex5-93",
+    "name": "Groudon ex",
+    "set_id": "ex5",
+    "set_name": "Hidden Legends",
+    "number": "93",
+    "sales_avg30": 101.3,
+    "low": 10.5,
     "chance": 0.715
    },
    {
-    "product_id": "neo4-11",
-    "name": "Dark Tyranitar",
-    "set_id": "neo4",
-    "set_name": "Neo Destiny",
-    "number": "11",
-    "sales_avg30": 118.73,
-    "low": 15.0,
+    "product_id": "ecard1-1",
+    "name": "Alakazam",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "1",
+    "sales_avg30": 138.51,
+    "low": 10.0,
     "chance": 0.711
    },
    {
-    "product_id": "dp4-2",
-    "name": "Cresselia",
-    "set_id": "dp4",
-    "set_name": "Great Encounters",
-    "number": "2",
-    "sales_avg30": 103.15,
-    "low": 0.5,
-    "chance": 0.71
+    "product_id": "ecard1-33",
+    "name": "Alakazam",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "33",
+    "sales_avg30": 138.51,
+    "low": 10.0,
+    "chance": 0.711
    },
    {
-    "product_id": "neo4-106",
-    "name": "Shining Celebi",
-    "set_id": "neo4",
-    "set_name": "Neo Destiny",
-    "number": "106",
-    "sales_avg30": 446.36,
-    "low": 129.99,
-    "chance": 0.708
+    "product_id": "col1-3",
+    "name": "Dialga",
+    "set_id": "col1",
+    "set_name": "Call of Legends",
+    "number": "3",
+    "sales_avg30": 156.01,
+    "low": 30.0,
+    "chance": 0.711
    },
    {
     "product_id": "ex16-6",
@@ -947,57 +857,107 @@
     "number": "6",
     "sales_avg30": 191.05,
     "low": 19.0,
+    "chance": 0.711
+   },
+   {
+    "product_id": "ex9-96",
+    "name": "Milotic ex",
+    "set_id": "ex9",
+    "set_name": "Emerald",
+    "number": "96",
+    "sales_avg30": 255.15,
+    "low": 24.0,
+    "chance": 0.71
+   },
+   {
+    "product_id": "ex13-100",
+    "name": "Mew ex",
+    "set_id": "ex13",
+    "set_name": "Holon Phantoms",
+    "number": "100",
+    "sales_avg30": 357.44,
+    "low": 50.0,
+    "chance": 0.709
+   },
+   {
+    "product_id": "ecard1-20",
+    "name": "Mewtwo",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "20",
+    "sales_avg30": 547.88,
+    "low": 19.99,
+    "chance": 0.708
+   },
+   {
+    "product_id": "ex13-111",
+    "name": "Mew",
+    "set_id": "ex13",
+    "set_name": "Holon Phantoms",
+    "number": "111",
+    "sales_avg30": 115.91,
+    "low": 9.99,
+    "chance": 0.708
+   },
+   {
+    "product_id": "neo3-9",
+    "name": "Jumpluff",
+    "set_id": "neo3",
+    "set_name": "Neo Revelation",
+    "number": "9",
+    "sales_avg30": 40.22,
+    "low": 5.0,
     "chance": 0.707
    },
    {
-    "product_id": "neo1-4",
-    "name": "Feraligatr",
-    "set_id": "neo1",
-    "set_name": "Neo Genesis",
-    "number": "4",
-    "sales_avg30": 61.82,
-    "low": 10.0,
+    "product_id": "ecard1-13",
+    "name": "Gengar",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "13",
+    "sales_avg30": 599.32,
+    "low": 60.0,
     "chance": 0.705
    },
    {
-    "product_id": "neo1-5",
-    "name": "Feraligatr",
-    "set_id": "neo1",
-    "set_name": "Neo Genesis",
-    "number": "5",
-    "sales_avg30": 61.82,
-    "low": 10.0,
+    "product_id": "ecard1-48",
+    "name": "Gengar",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "48",
+    "sales_avg30": 599.32,
+    "low": 60.0,
     "chance": 0.705
    },
    {
-    "product_id": "ex5-93",
-    "name": "Groudon ex",
-    "set_id": "ex5",
-    "set_name": "Hidden Legends",
-    "number": "93",
-    "sales_avg30": 101.3,
-    "low": 10.0,
+    "product_id": "dp3-3",
+    "name": "Charizard",
+    "set_id": "dp3",
+    "set_name": "Secret Wonders",
+    "number": "3",
+    "sales_avg30": 108.28,
+    "low": 3.0,
     "chance": 0.705
    },
    {
-    "product_id": "ex13-16",
-    "name": "Rayquaza \u03b4",
-    "set_id": "ex13",
-    "set_name": "Holon Phantoms",
-    "number": "16",
-    "sales_avg30": 257.01,
-    "low": 25.9,
-    "chance": 0.703
+    "product_id": "dp4-104",
+    "name": "Darkrai",
+    "set_id": "dp4",
+    "set_name": "Great Encounters",
+    "number": "104",
+    "sales_avg30": 51.79,
+    "low": 9.89,
+    "chance": 0.704
    },
    {
-    "product_id": "ex13-26",
-    "name": "Rayquaza \u03b4",
-    "set_id": "ex13",
-    "set_name": "Holon Phantoms",
-    "number": "26",
-    "sales_avg30": 257.01,
-    "low": 25.9,
-    "chance": 0.703
+    "product_id": "ex8-102",
+    "name": "Rayquaza ex",
+    "set_id": "ex8",
+    "set_name": "Deoxys",
+    "number": "102",
+    "sales_avg30": 418.96,
+    "low": 49.99,
+    "chance": 0.702
    },
    {
     "product_id": "ecard1-25",
@@ -1020,34 +980,24 @@
     "chance": 0.702
    },
    {
-    "product_id": "ecard1-13",
-    "name": "Gengar",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "13",
-    "sales_avg30": 596.62,
-    "low": 60.0,
+    "product_id": "ex12-85",
+    "name": "Banette ex",
+    "set_id": "ex12",
+    "set_name": "Legend Maker",
+    "number": "85",
+    "sales_avg30": 83.41,
+    "low": 17.0,
     "chance": 0.702
    },
    {
-    "product_id": "ecard1-48",
-    "name": "Gengar",
-    "set_id": "ecard1",
-    "set_name": "Expedition Base Set",
-    "number": "48",
-    "sales_avg30": 596.62,
-    "low": 60.0,
+    "product_id": "col1-9",
+    "name": "Ho-Oh",
+    "set_id": "col1",
+    "set_name": "Call of Legends",
+    "number": "9",
+    "sales_avg30": 320.65,
+    "low": 99.9,
     "chance": 0.702
-   },
-   {
-    "product_id": "ex8-104",
-    "name": "Sharpedo ex",
-    "set_id": "ex8",
-    "set_name": "Deoxys",
-    "number": "104",
-    "sales_avg30": 66.79,
-    "low": 16.99,
-    "chance": 0.701
    },
    {
     "product_id": "ex14-98",
@@ -1057,67 +1007,7 @@
     "number": "98",
     "sales_avg30": 124.65,
     "low": 24.95,
-    "chance": 0.697
-   },
-   {
-    "product_id": "dp2-122",
-    "name": "Lucario",
-    "set_id": "dp2",
-    "set_name": "Mysterious Treasures",
-    "number": "122",
-    "sales_avg30": 101.08,
-    "low": 18.0,
-    "chance": 0.697
-   },
-   {
-    "product_id": "neo3-18",
-    "name": "Ho-oh",
-    "set_id": "neo3",
-    "set_name": "Neo Revelation",
-    "number": "18",
-    "sales_avg30": 160.05,
-    "low": 29.94,
-    "chance": 0.697
-   },
-   {
-    "product_id": "neo3-7",
-    "name": "Ho-oh",
-    "set_id": "neo3",
-    "set_name": "Neo Revelation",
-    "number": "7",
-    "sales_avg30": 160.05,
-    "low": 29.94,
-    "chance": 0.697
-   },
-   {
-    "product_id": "dp1-121",
-    "name": "Infernape",
-    "set_id": "dp1",
-    "set_name": "Diamond & Pearl",
-    "number": "121",
-    "sales_avg30": 49.96,
-    "low": 5.5,
-    "chance": 0.696
-   },
-   {
-    "product_id": "ex9-96",
-    "name": "Milotic ex",
-    "set_id": "ex9",
-    "set_name": "Emerald",
-    "number": "96",
-    "sales_avg30": 255.15,
-    "low": 24.0,
-    "chance": 0.695
-   },
-   {
-    "product_id": "ex14-89",
-    "name": "Aggron ex",
-    "set_id": "ex14",
-    "set_name": "Crystal Guardians",
-    "number": "89",
-    "sales_avg30": 68.97,
-    "low": 8.0,
-    "chance": 0.694
+    "chance": 0.701
    },
    {
     "product_id": "pop4-4",
@@ -1127,17 +1017,17 @@
     "number": "4",
     "sales_avg30": 89.93,
     "low": 14.99,
-    "chance": 0.694
+    "chance": 0.701
    },
    {
-    "product_id": "ex10-111",
-    "name": "Tyranitar ex",
-    "set_id": "ex10",
-    "set_name": "Unseen Forces",
-    "number": "111",
-    "sales_avg30": 191.99,
-    "low": 35.0,
-    "chance": 0.693
+    "product_id": "ex9-2",
+    "name": "Deoxys",
+    "set_id": "ex9",
+    "set_name": "Emerald",
+    "number": "2",
+    "sales_avg30": 69.14,
+    "low": 6.9,
+    "chance": 0.701
    },
    {
     "product_id": "ecard1-30",
@@ -1147,7 +1037,7 @@
     "number": "30",
     "sales_avg30": 97.83,
     "low": 10.0,
-    "chance": 0.692
+    "chance": 0.701
    },
    {
     "product_id": "ecard1-67",
@@ -1157,129 +1047,239 @@
     "number": "67",
     "sales_avg30": 97.83,
     "low": 10.0,
+    "chance": 0.701
+   },
+   {
+    "product_id": "ecard1-68",
+    "name": "Venusaur",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "68",
+    "sales_avg30": 97.83,
+    "low": 10.0,
+    "chance": 0.701
+   },
+   {
+    "product_id": "ex5-102",
+    "name": "Groudon",
+    "set_id": "ex5",
+    "set_name": "Hidden Legends",
+    "number": "102",
+    "sales_avg30": 53.11,
+    "low": 4.69,
+    "chance": 0.7
+   },
+   {
+    "product_id": "ecard1-42",
+    "name": "Cloyster",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "42",
+    "sales_avg30": 64.82,
+    "low": 6.0,
+    "chance": 0.7
+   },
+   {
+    "product_id": "ecard1-8",
+    "name": "Cloyster",
+    "set_id": "ecard1",
+    "set_name": "Expedition Base Set",
+    "number": "8",
+    "sales_avg30": 64.82,
+    "low": 6.0,
+    "chance": 0.7
+   },
+   {
+    "product_id": "ex2-94",
+    "name": "Aerodactyl ex",
+    "set_id": "ex2",
+    "set_name": "Sandstorm",
+    "number": "94",
+    "sales_avg30": 81.92,
+    "low": 9.24,
+    "chance": 0.695
+   },
+   {
+    "product_id": "gym2-15",
+    "name": "Rocket's Zapdos",
+    "set_id": "gym2",
+    "set_name": "Gym Challenge",
+    "number": "15",
+    "sales_avg30": 201.06,
+    "low": 20.0,
+    "chance": 0.695
+   },
+   {
+    "product_id": "ex2-100",
+    "name": "Wailord ex",
+    "set_id": "ex2",
+    "set_name": "Sandstorm",
+    "number": "100",
+    "sales_avg30": 60.45,
+    "low": 5.0,
     "chance": 0.692
+   },
+   {
+    "product_id": "ex12-93",
+    "name": "Pikachu \u03b4",
+    "set_id": "ex12",
+    "set_name": "Legend Maker",
+    "number": "93",
+    "sales_avg30": 249.57,
+    "low": 29.5,
+    "chance": 0.692
+   },
+   {
+    "product_id": "neo1-4",
+    "name": "Feraligatr",
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
+    "number": "4",
+    "sales_avg30": 61.82,
+    "low": 10.0,
+    "chance": 0.69
+   },
+   {
+    "product_id": "neo1-5",
+    "name": "Feraligatr",
+    "set_id": "neo1",
+    "set_name": "Neo Genesis",
+    "number": "5",
+    "sales_avg30": 61.82,
+    "low": 10.0,
+    "chance": 0.69
+   },
+   {
+    "product_id": "ex16-92",
+    "name": "Absol ex",
+    "set_id": "ex16",
+    "set_name": "Power Keepers",
+    "number": "92",
+    "sales_avg30": 55.36,
+    "low": 17.95,
+    "chance": 0.687
    }
   ],
   "sets": [
    {
     "set_id": "ecard1",
     "set_name": "Expedition Base Set",
-    "cards": 66,
-    "avg_chance": 0.637
-   },
-   {
-    "set_id": "ecard2",
-    "set_name": "Aquapolis",
-    "cards": 29,
-    "avg_chance": 0.559
-   },
-   {
-    "set_id": "ecard3",
-    "set_name": "Skyridge",
-    "cards": 28,
-    "avg_chance": 0.557
+    "cards": 64,
+    "avg_chance": 0.635
    },
    {
     "set_id": "neo2",
     "set_name": "Neo Discovery",
-    "cards": 25,
-    "avg_chance": 0.598
+    "cards": 29,
+    "avg_chance": 0.589
    },
    {
-    "set_id": "neo4",
-    "set_name": "Neo Destiny",
-    "cards": 20,
-    "avg_chance": 0.563
+    "set_id": "ecard3",
+    "set_name": "Skyridge",
+    "cards": 29,
+    "avg_chance": 0.552
    },
    {
-    "set_id": "neo3",
-    "set_name": "Neo Revelation",
-    "cards": 19,
-    "avg_chance": 0.581
+    "set_id": "ecard2",
+    "set_name": "Aquapolis",
+    "cards": 27,
+    "avg_chance": 0.561
+   },
+   {
+    "set_id": "gym2",
+    "set_name": "Gym Challenge",
+    "cards": 24,
+    "avg_chance": 0.593
    },
    {
     "set_id": "col1",
     "set_name": "Call of Legends",
-    "cards": 19,
-    "avg_chance": 0.572
+    "cards": 21,
+    "avg_chance": 0.595
    },
    {
     "set_id": "ex13",
     "set_name": "Holon Phantoms",
     "cards": 18,
-    "avg_chance": 0.606
+    "avg_chance": 0.615
    },
    {
-    "set_id": "gym2",
-    "set_name": "Gym Challenge",
+    "set_id": "neo3",
+    "set_name": "Neo Revelation",
     "cards": 18,
-    "avg_chance": 0.594
+    "avg_chance": 0.58
    },
    {
-    "set_id": "ex12",
-    "set_name": "Legend Maker",
-    "cards": 17,
-    "avg_chance": 0.604
-   },
-   {
-    "set_id": "ex5",
-    "set_name": "Hidden Legends",
-    "cards": 15,
-    "avg_chance": 0.583
-   },
-   {
-    "set_id": "ex6",
-    "set_name": "FireRed & LeafGreen",
-    "cards": 15,
-    "avg_chance": 0.575
+    "set_id": "neo4",
+    "set_name": "Neo Destiny",
+    "cards": 18,
+    "avg_chance": 0.572
    },
    {
     "set_id": "ex3",
     "set_name": "Dragon",
+    "cards": 16,
+    "avg_chance": 0.569
+   },
+   {
+    "set_id": "ex12",
+    "set_name": "Legend Maker",
+    "cards": 15,
+    "avg_chance": 0.615
+   },
+   {
+    "set_id": "ex10",
+    "set_name": "Unseen Forces",
+    "cards": 15,
+    "avg_chance": 0.596
+   },
+   {
+    "set_id": "ex8",
+    "set_name": "Deoxys",
     "cards": 14,
-    "avg_chance": 0.571
+    "avg_chance": 0.588
+   },
+   {
+    "set_id": "ex15",
+    "set_name": "Dragon Frontiers",
+    "cards": 14,
+    "avg_chance": 0.566
    },
    {
     "set_id": "ex9",
     "set_name": "Emerald",
     "cards": 13,
-    "avg_chance": 0.611
-   },
-   {
-    "set_id": "ex14",
-    "set_name": "Crystal Guardians",
-    "cards": 13,
-    "avg_chance": 0.609
+    "avg_chance": 0.628
    },
    {
     "set_id": "lc",
     "set_name": "Legendary Collection",
     "cards": 13,
-    "avg_chance": 0.608
+    "avg_chance": 0.596
    },
    {
-    "set_id": "ex7",
-    "set_name": "Team Rocket Returns",
+    "set_id": "ex6",
+    "set_name": "FireRed & LeafGreen",
     "cards": 13,
-    "avg_chance": 0.518
+    "avg_chance": 0.57
    },
    {
     "set_id": "neo1",
     "set_name": "Neo Genesis",
     "cards": 12,
-    "avg_chance": 0.626
+    "avg_chance": 0.647
    },
    {
-    "set_id": "ex10",
-    "set_name": "Unseen Forces",
+    "set_id": "ex5",
+    "set_name": "Hidden Legends",
     "cards": 12,
-    "avg_chance": 0.607
+    "avg_chance": 0.61
    },
    {
-    "set_id": "ex8",
-    "set_name": "Deoxys",
+    "set_id": "ex14",
+    "set_name": "Crystal Guardians",
     "cards": 11,
-    "avg_chance": 0.607
+    "avg_chance": 0.623
    }
   ]
  }
