@@ -1,61 +1,61 @@
-# Testlab op echte verkopen (2026-10-23)
+# Testlab op echte verkopen (2026-10-24)
 
-Cardmarket-verkoopgemiddelden van 20315 kaarten, van 2026-09-21 t/m 2026-10-22. Testmomenten met een uitkomst na 30 dagen: 5694 (5694 kaarten, 2 data, 2026-09-21 t/m 2026-09-22). Vandaag te beoordelen: 5998 kaarten.
+Cardmarket-verkoopgemiddelden van 20328 kaarten, van 2026-09-21 t/m 2026-10-23. Testmomenten met een uitkomst na 30 dagen: 11367 (5703 kaarten, 3 data, 2026-09-21 t/m 2026-09-23). Vandaag te beoordelen: 6031 kaarten.
 
 Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te sturen met een vraagprijs). Handel = kopen tegen de goedkoopste aanbieding plus verzending, na 30 dagen verkopen tegen het verkoopgemiddelde min commissie en verpakking.
 
 ## Kans dat de verkoopprijs +10% stijgt in 30 dagen
 
-**Toets op kaarten** (basis: 25% steeg zoveel)
+**Toets op kaarten** (basis: 26% steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans | stegen echt | mediaan stijging | handel: mediaan | handel: met winst |
 |---|---|---|---|---|---|---|
-| basis | +0.0% | 26% | 36% (142) | +4.9% | +168.5% | 89% |
-| verkopen | +6.6% | 49% | 58% (142) | +16.6% | +444.6% | 97% |
-| aanbod | +3.7% | 36% | 42% (142) | +6.8% | +91.9% | 85% |
-| logistisch | +20.2% | 73% | 63% (142) | +23.5% | +537.4% | 100% |
-| boom | +20.8% | 78% | 65% (142) | +18.0% | +522.3% | 100% |
+| basis | +0.0% | 26% | 33% (284) | +3.3% | +166.5% | 87% |
+| verkopen | +7.9% | 54% | 61% (284) | +17.2% | +339.8% | 98% |
+| aanbod | +4.3% | 37% | 47% (284) | +8.1% | +106.3% | 83% |
+| logistisch | +20.1% | 72% | 69% (284) | +23.5% | +555.0% | 99% |
+| boom | +21.7% | 75% | 68% (284) | +22.3% | +473.4% | 100% |
 
-Ter vergelijking, alle testkaarten: handel mediaan +45.9%, met winst 74%.
+Ter vergelijking, alle testkaarten: handel mediaan +46.7%, met winst 73%.
 
 Toets op tijd: nog te weinig metingen (vanaf 6 data).
 
-**Winnaar: boom.** Toplijst in de toets: 65% steeg minstens 10% (basis 25%); handel met winst 100%.
+**Winnaar: logistisch.** Toplijst in de toets: 69% steeg minstens 10% (basis 26%); handel met winst 99%.
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | verkoopgemiddelde 30d | goedkoopste | kans |
 |---|---|---|---|
-| Alakazam (Expedition Base Set 1) | EUR 138.51 | EUR 10.00 | 88% |
-| Alakazam (Expedition Base Set 33) | EUR 138.51 | EUR 10.00 | 88% |
-| Kabutops (Neo Discovery 25) | EUR 92.65 | EUR 5.99 | 86% |
-| Kabutops (Neo Discovery 6) | EUR 92.65 | EUR 5.99 | 86% |
-| Pikachu δ (Legend Maker 93) | EUR 249.57 | EUR 29.50 | 85% |
-| Gengar (Skyridge 10) | EUR 2369.63 | EUR 450.00 | 85% |
-| Tyranitar (Expedition Base Set 29) | EUR 305.16 | EUR 10.00 | 85% |
-| Tyranitar (Expedition Base Set 66) | EUR 305.16 | EUR 10.00 | 85% |
-| Ho-Oh (Call of Legends 9) | EUR 320.65 | EUR 99.90 | 85% |
-| Ho-Oh ex (Unseen Forces 104) | EUR 192.24 | EUR 25.00 | 85% |
-| Charizard (Power Keepers 6) | EUR 191.05 | EUR 19.00 | 84% |
-| Gengar (Expedition Base Set 13) | EUR 599.32 | EUR 60.00 | 84% |
-| Gengar (Expedition Base Set 48) | EUR 599.32 | EUR 60.00 | 84% |
-| Ninetales (Expedition Base Set 21) | EUR 65.35 | EUR 3.99 | 84% |
-| Ninetales (Expedition Base Set 57) | EUR 65.35 | EUR 3.99 | 84% |
+| Tyranitar δ (Delta Species 16) | EUR 344.05 | EUR 11.99 | 99% |
+| Voltorb (Legendary Collection 97) | EUR 3.39 | EUR 0.10 | 99% |
+| Kyogre ex (Hidden Legends 94) | EUR 611.34 | EUR 9.99 | 98% |
+| Steelix (Aquapolis 35) | EUR 351.52 | EUR 40.00 | 98% |
+| Houndour (Neo Discovery 24) | EUR 175.94 | EUR 8.90 | 97% |
+| Houndour (Neo Discovery 39) | EUR 175.94 | EUR 8.90 | 97% |
+| Houndour (Neo Discovery 5) | EUR 175.94 | EUR 8.90 | 97% |
+| Rayquaza (POP Series 1 3) | EUR 143.37 | EUR 74.99 | 97% |
+| Mew (Fates Collide 29) | EUR 52.60 | EUR 3.00 | 97% |
+| Rattata (Pokémon Rumble 15) | EUR 79.26 | EUR 30.00 | 97% |
+| Cloyster (Expedition Base Set 42) | EUR 101.79 | EUR 6.00 | 97% |
+| Cloyster (Expedition Base Set 8) | EUR 101.79 | EUR 6.00 | 97% |
+| Cherrim (Pokémon Rumble 2) | EUR 45.48 | EUR 19.99 | 97% |
+| Rayquaza (Legendary Treasures 93) | EUR 70.14 | EUR 29.00 | 97% |
+| Flareon (POP Series 3 2) | EUR 122.01 | EUR 8.50 | 97% |
 
 Sets met de meeste kansrijke kaarten:
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| Expedition Base Set | 58 | 78% |
-| Skyridge | 37 | 75% |
-| Neo Discovery | 29 | 74% |
-| Aquapolis | 28 | 74% |
-| Gym Challenge | 23 | 74% |
-| Call of Legends | 19 | 74% |
-| Holon Phantoms | 17 | 72% |
-| Legend Maker | 16 | 73% |
-| Neo Destiny | 16 | 73% |
-| Unseen Forces | 16 | 72% |
+| Expedition Base Set | 63 | 92% |
+| Skyridge | 35 | 92% |
+| Aquapolis | 32 | 91% |
+| Neo Discovery | 27 | 90% |
+| Gym Challenge | 24 | 88% |
+| Legendary Collection | 20 | 91% |
+| Neo Destiny | 20 | 90% |
+| Fossil | 20 | 87% |
+| Dragon | 19 | 89% |
+| Team Rocket | 17 | 88% |
 
 ## Kans dat de verkoopprijs +20% stijgt in 30 dagen
 
@@ -63,50 +63,50 @@ Sets met de meeste kansrijke kaarten:
 
 | methode | vaardigheid | toplijst: kans | stegen echt | mediaan stijging | handel: mediaan | handel: met winst |
 |---|---|---|---|---|---|---|
-| basis | +0.0% | 17% | 26% (142) | +4.9% | +168.5% | 89% |
-| verkopen | +5.9% | 37% | 45% (142) | +14.8% | +369.3% | 99% |
-| aanbod | +2.7% | 24% | 28% (142) | +6.8% | +91.9% | 85% |
-| logistisch | +16.1% | 60% | 51% (142) | +23.5% | +604.2% | 100% |
-| boom | +17.3% | 65% | 51% (142) | +24.1% | +513.0% | 100% |
+| basis | +0.0% | 17% | 24% (284) | +3.3% | +166.5% | 87% |
+| verkopen | +7.3% | 38% | 48% (284) | +17.2% | +339.8% | 98% |
+| aanbod | +2.9% | 24% | 36% (284) | +8.1% | +106.3% | 83% |
+| logistisch | +16.1% | 57% | 54% (284) | +22.8% | +560.5% | 99% |
+| boom | +19.8% | 62% | 57% (284) | +25.9% | +456.8% | 100% |
 
-Ter vergelijking, alle testkaarten: handel mediaan +45.9%, met winst 74%.
+Ter vergelijking, alle testkaarten: handel mediaan +46.7%, met winst 73%.
 
 Toets op tijd: nog te weinig metingen (vanaf 6 data).
 
-**Winnaar: boom.** Toplijst in de toets: 51% steeg minstens 20% (basis 17%); handel met winst 100%.
+**Winnaar: boom.** Toplijst in de toets: 57% steeg minstens 20% (basis 17%); handel met winst 100%.
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | verkoopgemiddelde 30d | goedkoopste | kans |
 |---|---|---|---|
-| Dialga (Great Encounters 105) | EUR 119.87 | EUR 13.00 | 76% |
-| Meganium (Neo Genesis 10) | EUR 92.75 | EUR 11.11 | 76% |
-| Meganium (Neo Genesis 11) | EUR 92.75 | EUR 11.11 | 76% |
+| Dialga (Great Encounters 105) | EUR 119.87 | EUR 13.00 | 80% |
+| Charizard (Secret Wonders 3) | EUR 108.28 | EUR 3.00 | 78% |
+| Pikachu (POP Series 6 9) | EUR 38.09 | EUR 7.50 | 78% |
+| Palkia (Great Encounters 106) | EUR 79.52 | EUR 13.00 | 77% |
+| Dialga (Call of Legends 3) | EUR 152.60 | EUR 30.00 | 76% |
+| Ho-Oh (Secret Wonders 10) | EUR 52.71 | EUR 1.99 | 76% |
+| Alakazam (Expedition Base Set 1) | EUR 138.51 | EUR 10.00 | 76% |
+| Alakazam (Expedition Base Set 33) | EUR 138.51 | EUR 10.00 | 76% |
+| Garchomp (Majestic Dawn 97) | EUR 128.07 | EUR 15.00 | 76% |
+| Absol ex (Power Keepers 92) | EUR 55.36 | EUR 17.95 | 75% |
+| Bellossom (Aquapolis 5) | EUR 60.45 | EUR 18.89 | 75% |
 | Meganium (Expedition Base Set 18) | EUR 105.56 | EUR 9.95 | 75% |
 | Meganium (Expedition Base Set 53) | EUR 105.56 | EUR 9.95 | 75% |
 | Meganium (Expedition Base Set 54) | EUR 105.56 | EUR 9.95 | 75% |
-| Cresselia (Great Encounters 103) | EUR 68.41 | EUR 4.89 | 74% |
-| Garchomp (Majestic Dawn 97) | EUR 121.00 | EUR 15.00 | 73% |
-| Palkia (Great Encounters 106) | EUR 79.52 | EUR 10.99 | 73% |
-| Pichu (Expedition Base Set 22) | EUR 108.11 | EUR 16.99 | 73% |
-| Pichu (Expedition Base Set 58) | EUR 108.11 | EUR 16.99 | 73% |
-| Cresselia (Great Encounters 2) | EUR 103.08 | EUR 0.50 | 73% |
-| Ho-Oh ex (Unseen Forces 104) | EUR 192.24 | EUR 25.00 | 72% |
-| Infernape (Diamond & Pearl 121) | EUR 49.96 | EUR 5.50 | 72% |
-| Mew (Legend Maker 10) | EUR 65.08 | EUR 12.00 | 72% |
+| Hypno (Aquapolis 16) | EUR 90.07 | EUR 14.49 | 75% |
 
 Sets met de meeste kansrijke kaarten:
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
 | Expedition Base Set | 64 | 64% |
-| Neo Discovery | 29 | 59% |
-| Skyridge | 29 | 55% |
-| Aquapolis | 27 | 56% |
-| Gym Challenge | 24 | 59% |
-| Call of Legends | 21 | 60% |
-| Holon Phantoms | 18 | 62% |
-| Neo Revelation | 18 | 58% |
-| Neo Destiny | 18 | 57% |
-| Dragon | 16 | 57% |
+| Aquapolis | 34 | 64% |
+| Neo Discovery | 31 | 60% |
+| Skyridge | 29 | 56% |
+| Holon Phantoms | 19 | 60% |
+| Unseen Forces | 19 | 58% |
+| Call of Legends | 18 | 59% |
+| Neo Revelation | 17 | 59% |
+| Gym Challenge | 17 | 57% |
+| Deoxys | 16 | 57% |
 
