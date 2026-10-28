@@ -1,144 +1,144 @@
-# Testlab kansen (2026-10-27)
+# Testlab kansen (2026-10-28)
 
-10567 testmomenten van 3750 kaarten, op 39 data (2026-08-10 t/m 2026-09-22). Vandaag te beoordelen: 4454 kaarten.
+11100 testmomenten van 4127 kaarten, op 40 data (2026-08-10 t/m 2026-09-23). Vandaag te beoordelen: 4444 kaarten.
 
 Toplijst = de 5% kaarten met de hoogste kans. 'Stegen echt' is hoeveel daarvan na 30 dagen echt minstens zoveel hoger stonden. Vaardigheid boven 0 = de methode weet iets dat 'voor elke kaart hetzelfde percentage' niet weet.
 
 ## Kans op +10% in 30 dagen
 
-**Toets op kaarten** (basis: 19% van alle kaarten steeg zoveel)
+**Toets op kaarten** (basis: 20% van alle kaarten steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 22% | 26% (262) | +0.0% |
-| tabel | +1.1% | 32% | 34% (262) | +0.0% |
-| afstand | +1.9% | 37% | 32% (262) | +0.2% |
-| logistisch | +7.1% | 49% | 42% (262) | +0.0% |
-| boom | +10.2% | 60% | 52% (262) | +12.0% |
+| basis | +0.0% | 20% | 26% (282) | +0.0% |
+| tabel | +1.1% | 31% | 35% (282) | +0.0% |
+| afstand | +1.8% | 35% | 32% (282) | +0.0% |
+| logistisch | +7.0% | 47% | 45% (282) | +3.1% |
+| boom | +11.5% | 60% | 58% (282) | +17.2% |
 
 **Toets op tijd** (basis: 20% van alle kaarten steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 20% | 16% (237) | +0.0% |
-| tabel | +0.5% | 29% | 20% (237) | +0.0% |
-| afstand | +2.1% | 31% | 39% (237) | +0.8% |
-| logistisch | +2.5% | 49% | 33% (237) | +0.0% |
-| boom | +6.7% | 57% | 39% (237) | +0.0% |
+| basis | +0.0% | 20% | 17% (263) | +0.0% |
+| tabel | +0.5% | 29% | 20% (263) | +0.0% |
+| afstand | +2.0% | 31% | 38% (263) | +0.3% |
+| logistisch | +2.5% | 48% | 33% (263) | +0.0% |
+| boom | +6.3% | 56% | 35% (263) | +0.0% |
 
-**Winnaar: boom.** In de toets stegen 52% van de toplijst minstens 10% (basis 19%).
+**Winnaar: boom.** In de toets stegen 58% van de toplijst minstens 10% (basis 20%).
 
 Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)
 
 | groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |
 |---|---|---|---|---|---|---|---|---|
-| alle testkaarten | 5246 | 19% | EUR 21.54 | 31 | 55% | x1.00 | x1.39 | 39% |
-| alle vloeibare | 843 | 16% | EUR 13.50 | 48 | 0% | x1.00 | x1.12 | 23% |
-| toplijst | 262 | 52% | EUR 15.00 | 33 | 71% | x0.86 | x1.14 | 66% |
-| toplijst, vloeibaar | 30 | 57% | EUR 15.21 | 49 | 0% | x0.84 | x1.00 | 50% |
-| toplijst, dun | 232 | 52% | EUR 15.00 | 31 | 81% | x0.86 | x1.21 | 68% |
+| alle testkaarten | 5642 | 20% | EUR 20.00 | 31 | 54% | x1.00 | x1.36 | 38% |
+| alle vloeibare | 991 | 18% | EUR 11.90 | 48 | 0% | x1.00 | x1.11 | 21% |
+| toplijst | 282 | 58% | EUR 14.00 | 31 | 66% | x0.80 | x1.00 | 52% |
+| toplijst, vloeibaar | 30 | 70% | EUR 13.21 | 48 | 0% | x0.78 | x1.00 | 30% |
+| toplijst, dun | 252 | 57% | EUR 14.00 | 30 | 74% | x0.81 | x1.05 | 55% |
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | prijs | kans |
 |---|---|---|
-| Fisherman (hgss1 92) | EUR 4.99 | 85% |
-| Plusle (dp3 36) | EUR 4.99 | 82% |
-| Krookodile EX (xyp XY25) | EUR 8.00 | 82% |
-| Lickitung (ex6 37) | EUR 6.00 | 81% |
-| Groudon ex (np 2) | EUR 60.00 | 80% |
-| Castaway (ex14 72) | EUR 5.00 | 80% |
-| Team Aqua's Great Ball (dc1 27) | EUR 3.85 | 80% |
-| Empoleon FB (pl3 27) | EUR 3.95 | 80% |
-| Sudowoodo (neo3 26) | EUR 3.50 | 79% |
-| Nidoking (bw9 58) | EUR 7.00 | 79% |
-| Blastoise (bw10 16) | EUR 6.23 | 79% |
-| Meganium (col1 27) | EUR 5.99 | 79% |
-| Pidgeot δ (ex13 14) | EUR 7.00 | 78% |
-| Cessation Crystal (ex14 74) | EUR 5.99 | 78% |
-| Serperior (bw11 8) | EUR 4.00 | 78% |
+| Plusle (dp3 36) | EUR 4.99 | 79% |
+| Blastoise (bw10 16) | EUR 6.23 | 78% |
+| Muk (ex12 11) | EUR 7.50 | 77% |
+| Kadabra (ecard3 69) | EUR 8.00 | 75% |
+| Froslass (dp6 3) | EUR 4.50 | 75% |
+| Groudon ex (np 2) | EUR 60.00 | 74% |
+| Liepard (bw8 84) | EUR 3.00 | 74% |
+| Alolan Marowak GX (smp SM187) | EUR 18.45 | 74% |
+| Spinda (pl3 46) | EUR 3.69 | 73% |
+| Trevenant (xy1 55) | EUR 4.00 | 73% |
+| Doublade (mep 067) | EUR 8.00 | 72% |
+| Meganium (sm8 8) | EUR 4.50 | 72% |
+| Arcanine (sm10 22) | EUR 8.00 | 71% |
+| Moltres (30th 130) | EUR 4.00 | 71% |
+| Pachirisu (sv01 208) | EUR 5.00 | 70% |
 
 Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| bw11 | 18 | 57% |
-| ex6 | 12 | 54% |
-| ex5 | 12 | 53% |
-| ex10 | 12 | 51% |
-| ex11 | 12 | 51% |
-| ecard3 | 12 | 51% |
-| pl4 | 11 | 51% |
-| bw8 | 10 | 61% |
-| pl3 | 9 | 57% |
-| ex13 | 9 | 57% |
+| bw11 | 17 | 54% |
+| xyp | 14 | 53% |
+| ecard3 | 12 | 54% |
+| hgss1 | 12 | 49% |
+| ecard2 | 12 | 46% |
+| hgss3 | 11 | 50% |
+| pl3 | 10 | 54% |
+| ex10 | 10 | 51% |
+| ex11 | 10 | 50% |
+| ex6 | 9 | 50% |
 
 ## Kans op +20% in 30 dagen
 
-**Toets op kaarten** (basis: 12% van alle kaarten steeg zoveel)
+**Toets op kaarten** (basis: 13% van alle kaarten steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 13% | 15% (262) | +0.0% |
-| tabel | +1.7% | 24% | 27% (262) | +0.0% |
-| afstand | +2.5% | 27% | 29% (262) | +1.8% |
-| logistisch | +8.3% | 47% | 36% (262) | +0.0% |
-| boom | +11.0% | 52% | 42% (262) | +12.4% |
+| basis | +0.0% | 12% | 17% (282) | +0.0% |
+| tabel | +1.4% | 25% | 23% (282) | +0.0% |
+| afstand | +2.5% | 26% | 33% (282) | +2.4% |
+| logistisch | +9.4% | 42% | 40% (282) | +3.9% |
+| boom | +13.1% | 52% | 47% (282) | +16.0% |
 
 **Toets op tijd** (basis: 13% van alle kaarten steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 13% | 8% (237) | +0.0% |
-| tabel | +1.0% | 22% | 13% (237) | +0.0% |
-| afstand | +2.9% | 22% | 35% (237) | +1.8% |
-| logistisch | +2.3% | 42% | 27% (237) | +0.0% |
-| boom | +7.4% | 51% | 32% (237) | +0.0% |
+| basis | +0.0% | 13% | 10% (263) | +0.0% |
+| tabel | +1.0% | 22% | 13% (263) | +0.0% |
+| afstand | +2.8% | 22% | 35% (263) | +1.8% |
+| logistisch | +2.4% | 41% | 28% (263) | +0.0% |
+| boom | +7.5% | 50% | 33% (263) | +0.0% |
 
-**Winnaar: boom.** In de toets stegen 42% van de toplijst minstens 20% (basis 12%).
+**Winnaar: boom.** In de toets stegen 47% van de toplijst minstens 20% (basis 13%).
 
 Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)
 
 | groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |
 |---|---|---|---|---|---|---|---|---|
-| alle testkaarten | 5246 | 12% | EUR 21.54 | 31 | 55% | x1.00 | x1.39 | 39% |
-| alle vloeibare | 843 | 9% | EUR 13.50 | 48 | 0% | x1.00 | x1.12 | 23% |
-| toplijst | 262 | 42% | EUR 14.99 | 29 | 78% | x0.86 | x1.14 | 73% |
-| toplijst, vloeibaar | 17 | 53% | EUR 16.00 | 46 | 0% | x0.79 | x1.00 | 71% |
-| toplijst, dun | 245 | 41% | EUR 14.95 | 28 | 83% | x0.86 | x1.16 | 73% |
+| alle testkaarten | 5642 | 13% | EUR 20.00 | 31 | 54% | x1.00 | x1.36 | 38% |
+| alle vloeibare | 991 | 10% | EUR 11.90 | 48 | 0% | x1.00 | x1.11 | 21% |
+| toplijst | 282 | 47% | EUR 15.00 | 30 | 79% | x0.83 | x1.12 | 68% |
+| toplijst, vloeibaar | 16 | 56% | EUR 15.21 | 47 | 0% | x0.72 | x1.00 | 50% |
+| toplijst, dun | 266 | 47% | EUR 15.00 | 29 | 84% | x0.88 | x1.13 | 69% |
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | prijs | kans |
 |---|---|---|
-| Pachirisu (sv01 208) | EUR 5.00 | 85% |
-| Mimikyu (sv04.5 160) | EUR 14.99 | 81% |
-| Lickitung (ex6 37) | EUR 6.00 | 79% |
-| Fisherman (hgss1 92) | EUR 4.99 | 79% |
-| Groudon ex (np 2) | EUR 60.00 | 78% |
-| Empoleon FB (pl3 27) | EUR 3.95 | 78% |
+| Pachirisu (sv01 208) | EUR 5.00 | 86% |
+| Mimikyu (sv04.5 160) | EUR 14.99 | 83% |
+| Spinda (pl3 46) | EUR 3.69 | 83% |
+| Doublade (mep 067) | EUR 8.00 | 81% |
+| Moltres (30th 130) | EUR 4.00 | 80% |
 | Zapdos (30th 133) | EUR 3.50 | 78% |
-| Team Aqua's Great Ball (dc1 27) | EUR 3.85 | 74% |
-| Meganium (col1 27) | EUR 5.99 | 73% |
-| Igglybuff (dp4 70) | EUR 7.15 | 73% |
-| Vileplume (hgss3 24) | EUR 3.00 | 73% |
-| Plusle (dp3 36) | EUR 4.99 | 72% |
-| Mew (pop4 4) | EUR 59.99 | 71% |
-| Nidoking (bw9 58) | EUR 7.00 | 71% |
-| Arcanine (sm10 22) | EUR 8.00 | 71% |
+| Gardevoir δ (ex11 6) | EUR 40.00 | 77% |
+| Lapras (30th 131) | EUR 3.30 | 76% |
+| Groudon ex (np 2) | EUR 60.00 | 75% |
+| Rayquaza δ (ex11 13) | EUR 250.00 | 75% |
+| Maushold (30th 146) | EUR 3.99 | 74% |
+| Machoke (sv03.5 177) | EUR 15.00 | 74% |
+| Salamence (pl4 8) | EUR 9.00 | 74% |
+| Cinccino (sv05 183) | EUR 13.96 | 74% |
+| Team Aqua's Kyogre (ex4 3) | EUR 11.95 | 74% |
 
 Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| bw11 | 17 | 44% |
-| ecard2 | 15 | 40% |
-| ex5 | 14 | 46% |
-| ex6 | 13 | 51% |
-| ex10 | 13 | 43% |
-| ecard3 | 13 | 42% |
-| ex11 | 12 | 43% |
-| ex14 | 11 | 46% |
-| pl4 | 11 | 46% |
-| ex13 | 10 | 51% |
+| bw11 | 18 | 41% |
+| ecard3 | 14 | 45% |
+| xyp | 13 | 40% |
+| hgss1 | 12 | 48% |
+| ex11 | 11 | 50% |
+| ex6 | 11 | 50% |
+| ex10 | 11 | 48% |
+| pl4 | 11 | 47% |
+| pl3 | 10 | 56% |
+| ex14 | 10 | 47% |
 
