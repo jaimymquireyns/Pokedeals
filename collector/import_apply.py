@@ -45,7 +45,8 @@ try:
         st.upsert("user_settings", [dict(plan["settings"], user_id=UID)], "user_id")
         say("instellingen:", plan["settings"])
     cols = ("product_id", "quantity", "condition", "purchase_price", "purchase_shipping", "purchase_costs", "purchase_date", "purchase_seller", "purchase_order")
-    rows = [dict({k: r[k] for k in cols}, user_id=UID) for r in plan["insert_collection"]]
+    cols = cols + ("language", "variant")   # optioneel (bv. Reverse Holofoil); elke rij krijgt dezelfde velden
+    rows = [dict({k: r.get(k) for k in cols}, user_id=UID) for r in plan["insert_collection"]]
     if rows: st.insert("collection", rows)
     say("collectie-rijen erbij:", len(rows))
     sales, items = [], []
