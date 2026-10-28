@@ -1,0 +1,36 @@
+name: Verkoper bekijken (los starten)
+on:
+  workflow_dispatch:
+    inputs:
+      seller:
+        description: "naam van de verkoper op Cardmarket"
+        required: true
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r collector/requirements.txt
+      - name: Verkoper
+        working-directory: collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python sellers.py --seller "${{ github.event.inputs.seller }}"
+      - name: Verslag bewaren (branch reports)
+        run: |
+          git config user.name "pokedeals-bot"; git config user.email "bot@users.noreply.github.com"
+          cp reports/seller_check.md /tmp/seller_check.md
+          rm -rf reports
+          git fetch -q origin reports || true
+          git checkout -q -f -B reports origin/reports 2>/dev/null || git checkout -q --orphan reports
+          mkdir -p reports && cp /tmp/seller_check.md reports/seller_check.md
+          git add reports/seller_check.md
+          git commit -qm "Verkoper bekijken $(date -u +%F)" || exit 0
+          git push -q origin reports

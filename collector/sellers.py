@@ -210,10 +210,66 @@ def load(store, today):
     return offers, sold, products, own
 
 
+def seller_report(name, offers, sold, products, own, today, fee_pct=None):
+    """Alle bewaarde aanbiedingen van één verkoper, met de voorzichtige verkoopprijs en of het een koopje is (zelfde regels als groups)."""
+    fee = config.DEFAULT_FEE_PCT if fee_pct is None else fee_pct
+    lad = ladders(offers, own)
+    rows = []
+    for o in offers:
+        if (o.get("seller") or "").strip().lower() != name.lower():
+            continue
+        pid, price, var = o["product_id"], float(o["price"]), o.get("variant")
+        sv = sold.get(pid)
+        if isinstance(sv, dict):
+            sv = sv.get("reverse") if (var or "").lower().startswith("reverse") else sv.get("normal")
+        mk = market_price(lad.get((pid, var), {}), name.lower())
+        n_sellers = len(lad.get((pid, var), {}))
+        why, s, net = "", None, None
+        if (o.get("language") or "EN") != "EN":
+            why = f"taal {o.get('language')}"
+        elif not sv:
+            why = "geen betrouwbare verkoopprijs"
+        elif not mk:
+            why = f"dunne markt ({n_sellers} verkopers)"
+        elif max(sv, mk) > MAX_SPREAD * min(sv, mk):
+            why = f"verkocht {sv:.2f} en gevraagd {mk:.2f} kloppen niet"
+        else:
+            s = min(sv, mk)
+            net = s * (1 - fee / 100) - config.PACKAGING - price
+            below = 1 - price / s
+            why = "KOOPJE" if MIN_BELOW_SOLD <= below <= MAX_BELOW and net > 0 else f"{below:+.0%} t.o.v. verkoopprijs"
+        p = products.get(pid, {})
+        rows.append({"name": p.get("name"), "set": p.get("set_name"), "number": p.get("number"), "variant": var, "price": price,
+                     "resale": round(s, 2) if s else None, "net": round(net, 2) if net is not None else None, "why": why, "date": o.get("date")})
+    rows.sort(key=lambda r: (r["why"] != "KOOPJE", -(r["net"] or -99)))
+    deals = [r for r in rows if r["why"] == "KOOPJE"]
+    total = sum(r["price"] for r in deals)
+    L = [f"# Verkoper {name} ({today})", "", f"{len(rows)} aanbiedingen bij de kaarten die we volgen, waarvan {len(deals)} koopje(s)."]
+    if deals:
+        ship = config.ship_cost(total)
+        L.append(f"Alle koopjes samen: EUR {total:.2f} + EUR {ship:.2f} verzending, winst na kosten ongeveer EUR {sum(r['net'] for r in deals) - ship:.2f}.")
+    L += ["", "| kaart | uitvoering | vraagprijs | verkoopprijs | winst per stuk | oordeel |", "|---|---|---|---|---|---|"]
+    for r in rows:
+        L.append(f"| {r['name']} ({r['set']} {r['number']}) | {r['variant'] or ''} | {r['price']:.2f} | {r['resale'] if r['resale'] else '–'} | "
+                 f"{r['net'] if r['net'] is not None else '–'} | {r['why']} |")
+    return "\n".join(L) + "\n"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="../reports/sellers.json")
+    ap.add_argument("--seller", help="alleen een verslag voor deze verkoper (reports/seller_check.md)")
     args = ap.parse_args()
+    if args.seller:
+        from store import SupabaseStore
+        store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
+        today = date.today()
+        offers, sold, products, own = load(store, today)
+        text = seller_report(args.seller, offers, sold, products, own, today)
+        os.makedirs("../reports", exist_ok=True)
+        open("../reports/seller_check.md", "w").write(text)
+        print(text)
+        return
     from store import SupabaseStore
     store = SupabaseStore(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
     today = date.today()
