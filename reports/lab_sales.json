@@ -1,5 +1,5 @@
 {
- "today": "2026-10-30",
+ "today": "2026-10-31",
  "moments": 28416,
  "up10": {
   "winner": "boom",
@@ -527,16 +527,16 @@
     "avg_chance": 0.771
    },
    {
-    "set_id": "ecard3",
-    "set_name": "Skyridge",
-    "cards": 27,
-    "avg_chance": 0.785
-   },
-   {
     "set_id": "neo2",
     "set_name": "Neo Discovery",
     "cards": 26,
     "avg_chance": 0.815
+   },
+   {
+    "set_id": "ecard3",
+    "set_name": "Skyridge",
+    "cards": 26,
+    "avg_chance": 0.789
    },
    {
     "set_id": "ecard2",
@@ -1252,12 +1252,6 @@
     "avg_chance": 0.609
    },
    {
-    "set_id": "ex8",
-    "set_name": "Deoxys",
-    "cards": 13,
-    "avg_chance": 0.667
-   },
-   {
     "set_id": "neo1",
     "set_name": "Neo Genesis",
     "cards": 13,
@@ -1268,6 +1262,12 @@
     "set_name": "Team Magma vs Team Aqua",
     "cards": 13,
     "avg_chance": 0.644
+   },
+   {
+    "set_id": "ex8",
+    "set_name": "Deoxys",
+    "cards": 12,
+    "avg_chance": 0.677
    },
    {
     "set_id": "ex16",

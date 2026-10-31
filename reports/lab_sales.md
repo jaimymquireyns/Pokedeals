@@ -1,6 +1,6 @@
-# Testlab op echte verkopen (2026-10-30)
+# Testlab op echte verkopen (2026-10-31)
 
-Cardmarket-verkoopgemiddelden van 20328 kaarten, van 2026-09-21 t/m 2026-10-29. Testmomenten met een uitkomst na 30 dagen: 28416 (5735 kaarten, 9 data, 2026-09-21 t/m 2026-09-29). Vandaag te beoordelen: 6043 kaarten.
+Cardmarket-verkoopgemiddelden van 20328 kaarten, van 2026-09-21 t/m 2026-10-30. Testmomenten met een uitkomst na 30 dagen: 28416 (5735 kaarten, 9 data, 2026-09-21 t/m 2026-09-29). Vandaag te beoordelen: 6039 kaarten.
 
 Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te sturen met een vraagprijs). Handel = kopen tegen de goedkoopste aanbieding plus verzending, na 30 dagen verkopen tegen het verkoopgemiddelde min commissie en verpakking.
 
@@ -57,8 +57,8 @@ Sets met de meeste kansrijke kaarten:
 | set | kaarten | gemiddelde kans |
 |---|---|---|
 | Expedition Base Set | 49 | 77% |
-| Skyridge | 27 | 78% |
 | Neo Discovery | 26 | 82% |
+| Skyridge | 26 | 79% |
 | Aquapolis | 23 | 77% |
 | Gym Heroes | 20 | 80% |
 | Legendary Collection | 17 | 79% |
