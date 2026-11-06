@@ -1,6 +1,6 @@
-# Testlab kansen (2026-11-05)
+# Testlab kansen (2026-11-06)
 
-15421 testmomenten van 4340 kaarten, op 48 data (2026-08-10 t/m 2026-10-01). Vandaag te beoordelen: 5058 kaarten.
+15992 testmomenten van 4354 kaarten, op 49 data (2026-08-10 t/m 2026-10-02). Vandaag te beoordelen: 5081 kaarten.
 
 Toplijst = de 5% kaarten met de hoogste kans. 'Stegen echt' is hoeveel daarvan na 30 dagen echt minstens zoveel hoger stonden. Vaardigheid boven 0 = de methode weet iets dat 'voor elke kaart hetzelfde percentage' niet weet.
 
@@ -10,68 +10,68 @@ Toplijst = de 5% kaarten met de hoogste kans. 'Stegen echt' is hoeveel daarvan n
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 20% | 24% (382) | +0.0% |
-| tabel | +1.9% | 33% | 38% (382) | +1.6% |
-| afstand | +2.4% | 36% | 42% (382) | +3.4% |
-| logistisch | +5.8% | 49% | 40% (382) | +0.3% |
-| boom | +11.7% | 58% | 55% (382) | +13.7% |
+| basis | +0.0% | 20% | 25% (401) | +0.0% |
+| tabel | +1.8% | 34% | 39% (401) | +0.8% |
+| afstand | +2.6% | 37% | 41% (401) | +2.6% |
+| logistisch | +6.7% | 49% | 41% (401) | +0.0% |
+| boom | +12.3% | 58% | 57% (401) | +16.1% |
 
 **Toets op tijd** (basis: 20% van alle kaarten steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 20% | 17% (440) | +0.0% |
-| tabel | +1.2% | 29% | 38% (440) | +1.6% |
-| afstand | +2.4% | 31% | 40% (440) | +2.2% |
-| logistisch | +3.1% | 50% | 34% (440) | +0.0% |
-| boom | +8.2% | 58% | 41% (440) | +0.1% |
+| basis | +0.0% | 21% | 17% (465) | +0.0% |
+| tabel | +1.3% | 29% | 40% (465) | +2.3% |
+| afstand | +2.5% | 31% | 40% (465) | +2.3% |
+| logistisch | +3.1% | 49% | 35% (465) | +0.0% |
+| boom | +8.4% | 57% | 42% (465) | +0.1% |
 
-**Winnaar: boom.** In de toets stegen 55% van de toplijst minstens 10% (basis 20%).
+**Winnaar: boom.** In de toets stegen 57% van de toplijst minstens 10% (basis 20%).
 
 Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)
 
 | groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |
 |---|---|---|---|---|---|---|---|---|
-| alle testkaarten | 7653 | 20% | EUR 19.95 | 37 | 53% | x1.00 | x1.35 | 41% |
-| alle vloeibare | 1917 | 14% | EUR 11.00 | 48 | 0% | x1.00 | x1.12 | 22% |
-| toplijst | 382 | 55% | EUR 13.00 | 39 | 65% | x0.83 | x1.00 | 67% |
-| toplijst, vloeibaar | 81 | 54% | EUR 9.50 | 49 | 0% | x0.82 | x1.00 | 48% |
-| toplijst, dun | 301 | 55% | EUR 15.00 | 31 | 83% | x0.84 | x1.02 | 72% |
+| alle testkaarten | 8035 | 20% | EUR 18.99 | 38 | 51% | x1.00 | x1.32 | 39% |
+| alle vloeibare | 2174 | 18% | EUR 12.00 | 48 | 0% | x1.00 | x1.11 | 22% |
+| toplijst | 401 | 57% | EUR 14.95 | 34 | 71% | x0.83 | x1.04 | 62% |
+| toplijst, vloeibaar | 54 | 59% | EUR 12.00 | 48 | 0% | x0.80 | x1.00 | 44% |
+| toplijst, dun | 347 | 57% | EUR 15.00 | 31 | 82% | x0.84 | x1.09 | 65% |
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | prijs | kans |
 |---|---|---|
-| Umbreon (swshp SWSH129) | EUR 8.00 | 79% |
 | Kyogre EX (xy5 54) | EUR 9.00 | 78% |
-| Entei GX (sm3.5 71) | EUR 5.00 | 78% |
-| Venusaur EX (xy12 1) | EUR 3.00 | 76% |
-| Pikachu (svp 027) | EUR 14.00 | 76% |
-| Torterra (hgss2 10) | EUR 7.93 | 76% |
-| Jolteon δ (ex11 7) | EUR 70.00 | 76% |
-| Team Aqua's Sharpedo (dc1 21) | EUR 6.00 | 76% |
-| Squirtle (mep 039) | EUR 16.99 | 76% |
-| Team Magma's Camerupt (dc1 2) | EUR 4.00 | 75% |
+| Umbreon (swshp SWSH129) | EUR 8.00 | 77% |
+| Entei GX (sm3.5 71) | EUR 5.00 | 75% |
+| Pawmot (sv01 209) | EUR 3.00 | 75% |
+| Metagross GX (sm2 157) | EUR 20.00 | 75% |
+| Team Aqua's Sharpedo (dc1 21) | EUR 6.00 | 75% |
+| Venusaur EX (xy12 1) | EUR 3.00 | 75% |
+| Swalot (sm7 58) | EUR 4.00 | 74% |
+| Froslass (dp6 3) | EUR 4.50 | 74% |
+| Beautifly (ex8 2) | EUR 8.00 | 74% |
+| Dreepy (me02.5 247) | EUR 3.00 | 74% |
+| Blacephalon GX (sm8 199) | EUR 7.00 | 74% |
+| Pikachu (svp 027) | EUR 14.00 | 74% |
 | Latios EX (xyp XY72) | EUR 8.65 | 73% |
-| Deoxys δ (ex13 5) | EUR 50.00 | 73% |
-| Ho-Oh GX (sm3 131) | EUR 12.45 | 72% |
-| Trevor (xyp XY33) | EUR 7.99 | 72% |
-| Metagross GX (sm2 157) | EUR 20.00 | 72% |
+| Team Magma's Camerupt (dc1 2) | EUR 4.00 | 73% |
 
 Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| bw11 | 18 | 53% |
-| ecard2 | 16 | 52% |
-| ex7 | 14 | 54% |
+| bw11 | 19 | 54% |
+| ecard1 | 15 | 53% |
+| ecard2 | 14 | 52% |
 | ex10 | 13 | 52% |
-| ex14 | 13 | 50% |
-| ex5 | 12 | 51% |
-| xyp | 11 | 57% |
-| ex6 | 11 | 51% |
-| pl3 | 10 | 50% |
-| ex2 | 10 | 50% |
+| dp6 | 12 | 56% |
+| pl3 | 12 | 51% |
+| ex7 | 11 | 54% |
+| ex6 | 11 | 52% |
+| ex14 | 11 | 49% |
+| sm8 | 10 | 56% |
 
 ## Kans op +20% in 30 dagen
 
@@ -79,66 +79,66 @@ Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 13% | 16% (382) | +0.0% |
-| tabel | +2.3% | 26% | 31% (382) | +1.9% |
-| afstand | +3.1% | 27% | 35% (382) | +3.4% |
-| logistisch | +7.3% | 45% | 37% (382) | +2.1% |
-| boom | +12.2% | 51% | 45% (382) | +13.7% |
+| basis | +0.0% | 13% | 16% (401) | +0.0% |
+| tabel | +2.1% | 26% | 31% (401) | +0.8% |
+| afstand | +3.0% | 28% | 35% (401) | +3.4% |
+| logistisch | +8.5% | 43% | 38% (401) | +0.5% |
+| boom | +14.0% | 50% | 47% (401) | +17.6% |
 
 **Toets op tijd** (basis: 13% van alle kaarten steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans gezegd | toplijst: stegen echt | toplijst: mediaan rendement |
 |---|---|---|---|---|
-| basis | +0.0% | 13% | 9% (440) | +0.0% |
-| tabel | +1.1% | 22% | 30% (440) | +2.3% |
-| afstand | +2.5% | 23% | 30% (440) | +2.2% |
-| logistisch | +2.7% | 44% | 29% (440) | +0.0% |
-| boom | +7.9% | 55% | 34% (440) | +0.0% |
+| basis | +0.0% | 13% | 9% (465) | +0.0% |
+| tabel | +1.1% | 21% | 29% (465) | +2.4% |
+| afstand | +2.5% | 23% | 30% (465) | +2.3% |
+| logistisch | +2.9% | 43% | 29% (465) | +0.0% |
+| boom | +8.5% | 52% | 34% (465) | +0.0% |
 
-**Winnaar: boom.** In de toets stegen 45% van de toplijst minstens 20% (basis 13%).
+**Winnaar: boom.** In de toets stegen 47% van de toplijst minstens 20% (basis 13%).
 
 Controle: wat voor kaarten staan in de toplijst van de toets? (vloeibaar = minstens 40 prijspunten in 60 dagen en geen sprongen)
 
 | groep | aantal | stegen echt | mediaanprijs | prijspunten | met sprongen | prijs t.o.v. normaal | t.o.v. 60d-minimum | set ouder dan 10 jaar |
 |---|---|---|---|---|---|---|---|---|
-| alle testkaarten | 7653 | 13% | EUR 19.95 | 37 | 53% | x1.00 | x1.35 | 41% |
-| alle vloeibare | 1917 | 8% | EUR 11.00 | 48 | 0% | x1.00 | x1.12 | 22% |
-| toplijst | 382 | 45% | EUR 14.38 | 33 | 77% | x0.90 | x1.00 | 73% |
-| toplijst, vloeibaar | 54 | 35% | EUR 7.50 | 49 | 0% | x0.84 | x1.00 | 50% |
-| toplijst, dun | 328 | 46% | EUR 16.40 | 31 | 90% | x0.91 | x1.08 | 77% |
+| alle testkaarten | 8035 | 13% | EUR 18.99 | 38 | 51% | x1.00 | x1.32 | 39% |
+| alle vloeibare | 2174 | 11% | EUR 12.00 | 48 | 0% | x1.00 | x1.11 | 22% |
+| toplijst | 401 | 47% | EUR 14.00 | 31 | 84% | x0.83 | x1.14 | 73% |
+| toplijst, vloeibaar | 29 | 48% | EUR 12.00 | 48 | 0% | x0.75 | x1.00 | 55% |
+| toplijst, dun | 372 | 47% | EUR 14.00 | 31 | 90% | x0.86 | x1.18 | 75% |
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | prijs | kans |
 |---|---|---|
-| Pawmot (sv01 209) | EUR 3.00 | 73% |
-| Entei GX (sm3.5 71) | EUR 5.00 | 71% |
-| Team Aqua's Sharpedo (dc1 21) | EUR 6.00 | 71% |
-| Jolteon δ (ex11 7) | EUR 70.00 | 71% |
-| Kyogre EX (xy5 54) | EUR 9.00 | 70% |
 | Torterra (hgss2 10) | EUR 7.93 | 68% |
-| Shining Magikarp (cel25cc CC010) | EUR 46.89 | 67% |
-| Zapdos (30th 133) | EUR 3.65 | 67% |
-| Regice (dp6 36) | EUR 3.75 | 66% |
-| Typhlosion (ecard1 64) | EUR 20.00 | 66% |
+| Swalot (sm7 58) | EUR 4.00 | 67% |
+| Pawmot (sv01 209) | EUR 3.00 | 66% |
+| Pikachu (svp 027) | EUR 14.00 | 66% |
+| Entei GX (sm3.5 71) | EUR 5.00 | 66% |
+| Blacephalon GX (sm8 199) | EUR 7.00 | 66% |
+| Rapidash (ex6 13) | EUR 6.50 | 66% |
+| Kyogre EX (xy5 54) | EUR 9.00 | 66% |
+| Dark Hypno (ex7 6) | EUR 44.90 | 66% |
 | Milotic (swsh12tg TG02) | EUR 3.90 | 65% |
-| Blacephalon GX (sm8 199) | EUR 7.00 | 65% |
-| Team Aqua's Kyogre (ex4 3) | EUR 10.95 | 64% |
-| Squirtle (mep 039) | EUR 16.99 | 64% |
-| Swalot (sm7 58) | EUR 4.00 | 63% |
+| Beautifly (ex8 2) | EUR 8.00 | 64% |
+| Ampharos δ (ex15 1) | EUR 49.00 | 63% |
+| Venusaur EX (xy12 1) | EUR 3.00 | 63% |
+| Team Aqua's Sharpedo (dc1 21) | EUR 6.00 | 62% |
+| Deoxys δ (ex13 5) | EUR 50.00 | 62% |
 
 Sets met de meeste kansrijke kaarten (bij de 10% hoogste kansen van vandaag):
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| ecard1 | 17 | 42% |
-| ex6 | 14 | 46% |
-| xyp | 13 | 45% |
-| ex5 | 13 | 44% |
-| pl3 | 13 | 43% |
-| ecard3 | 13 | 42% |
-| ex7 | 12 | 47% |
-| ex10 | 12 | 46% |
-| ex14 | 12 | 41% |
-| bw11 | 11 | 47% |
+| ex6 | 22 | 44% |
+| ecard1 | 18 | 39% |
+| bw11 | 16 | 44% |
+| ex5 | 16 | 43% |
+| ex3 | 15 | 44% |
+| pl3 | 14 | 41% |
+| ex10 | 13 | 45% |
+| ecard2 | 13 | 42% |
+| ex2 | 13 | 40% |
+| ex7 | 11 | 47% |
 
