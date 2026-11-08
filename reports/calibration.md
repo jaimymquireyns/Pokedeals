@@ -1,4 +1,4 @@
-# Kloppen de kansen? (2026-11-07)
+# Kloppen de kansen? (2026-11-08)
 
 Kon de kansen niet lezen: HTTPError: 400 Client Error: Bad Request for url: https://blvikvqbnxfssrlydzof.supabase.co/rest/v1/model_checks?select=check_date%2Cproduct_id%2Cbasis%2Cp_up%2Cp_down%2Cup10%2Cdown10&order=check_date.asc&limit=1000&offset=0
 
