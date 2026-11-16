@@ -1,6 +1,6 @@
-# Testlab op echte verkopen (2026-11-15)
+# Testlab op echte verkopen (2026-11-16)
 
-Cardmarket-verkoopgemiddelden van 20548 kaarten, van 2026-09-21 t/m 2026-11-14. Testmomenten met een uitkomst na 30 dagen: 74070 (5956 kaarten, 25 data, 2026-09-21 t/m 2026-10-15). Vandaag te beoordelen: 6002 kaarten.
+Cardmarket-verkoopgemiddelden van 20542 kaarten, van 2026-09-21 t/m 2026-11-15. Testmomenten met een uitkomst na 30 dagen: 74124 (5960 kaarten, 26 data, 2026-09-21 t/m 2026-10-16). Vandaag te beoordelen: 5996 kaarten.
 
 Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te sturen met een vraagprijs). Handel = kopen tegen de goedkoopste aanbieding plus verzending, na 30 dagen verkopen tegen het verkoopgemiddelde min commissie en verpakking.
 
@@ -10,62 +10,62 @@ Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te stur
 
 | methode | vaardigheid | toplijst: kans | stegen echt | mediaan stijging | handel: mediaan | handel: met winst |
 |---|---|---|---|---|---|---|
-| basis | +0.0% | 28% | 31% (1852) | +2.6% | +117.9% | 82% |
-| verkopen | +7.1% | 53% | 53% (1852) | +11.9% | +440.7% | 96% |
-| aanbod | +4.4% | 40% | 43% (1852) | +7.7% | +129.0% | 83% |
-| logistisch | +18.7% | 79% | 71% (1852) | +26.6% | +433.1% | 99% |
-| boom | +22.9% | 77% | 82% (1852) | +34.2% | +356.2% | 99% |
+| basis | +0.0% | 27% | 32% (1863) | +3.2% | +105.7% | 83% |
+| verkopen | +7.1% | 54% | 58% (1863) | +15.4% | +337.2% | 98% |
+| aanbod | +4.9% | 39% | 42% (1863) | +6.8% | +88.2% | 86% |
+| logistisch | +19.5% | 76% | 72% (1863) | +26.5% | +460.4% | 99% |
+| boom | +23.9% | 76% | 82% (1863) | +32.6% | +368.4% | 98% |
 
-Ter vergelijking, alle testkaarten: handel mediaan +47.7%, met winst 75%.
+Ter vergelijking, alle testkaarten: handel mediaan +46.4%, met winst 74%.
 
 **Toets op tijd** (basis: 25% steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans | stegen echt | mediaan stijging | handel: mediaan | handel: met winst |
 |---|---|---|---|---|---|---|
-| basis | +0.0% | 28% | 24% (1436) | -0.7% | +48.9% | 73% |
-| verkopen | +5.9% | 59% | 54% (1436) | +11.6% | +355.2% | 96% |
-| aanbod | +5.6% | 40% | 36% (1436) | +5.2% | +74.1% | 81% |
-| logistisch | +11.1% | 82% | 55% (1436) | +12.5% | +456.2% | 96% |
-| boom | +16.3% | 82% | 66% (1436) | +17.3% | +371.0% | 99% |
+| basis | +0.0% | 28% | 24% (1439) | -0.7% | +47.6% | 72% |
+| verkopen | +6.0% | 59% | 54% (1439) | +11.7% | +355.2% | 96% |
+| aanbod | +5.6% | 40% | 36% (1439) | +5.2% | +73.0% | 80% |
+| logistisch | +10.9% | 82% | 55% (1439) | +12.6% | +455.7% | 96% |
+| boom | +16.2% | 82% | 65% (1439) | +17.2% | +365.9% | 99% |
 
-Ter vergelijking, alle testkaarten: handel mediaan +46.4%, met winst 74%.
+Ter vergelijking, alle testkaarten: handel mediaan +46.3%, met winst 74%.
 
-**Winnaar: boom.** Toplijst in de toets: 82% steeg minstens 10% (basis 27%); handel met winst 99%.
+**Winnaar: boom.** Toplijst in de toets: 82% steeg minstens 10% (basis 27%); handel met winst 98%.
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | verkoopgemiddelde 30d | goedkoopste | kans |
 |---|---|---|---|
-| Manectric ex (Deoxys 101) | EUR 76.56 | EUR 10.00 | 87% |
 | Honchkrow (Secret Wonders 132) | EUR 34.84 | EUR 2.00 | 87% |
-| Celebi ex (POP Series 2 17) | EUR 44.47 | EUR 4.99 | 86% |
-| Feraligatr (Neo Genesis 4) | EUR 66.57 | EUR 10.00 | 85% |
-| Feraligatr (Neo Genesis 5) | EUR 66.57 | EUR 10.00 | 85% |
-| Kyogre ex (Crystal Guardians 95) | EUR 196.55 | EUR 20.00 | 83% |
-| Registeel ex (Emerald 100) | EUR 96.68 | EUR 12.00 | 82% |
-| Light Togetic (Neo Destiny 15) | EUR 165.81 | EUR 15.00 | 81% |
-| Zapdos (Aquapolis 44) | EUR 229.17 | EUR 32.90 | 81% |
-| Blaziken ex (Crystal Guardians 90) | EUR 81.24 | EUR 10.94 | 80% |
-| Dustox ex (Legend Maker 86) | EUR 44.97 | EUR 6.50 | 80% |
-| Blastoise (Secret Wonders 2) | EUR 22.20 | EUR 2.50 | 80% |
-| Entei (Aquapolis 10) | EUR 252.38 | EUR 29.99 | 79% |
-| Blastoise δ (Crystal Guardians 2) | EUR 102.60 | EUR 14.50 | 78% |
-| Poliwrath (Skyridge 26) | EUR 213.03 | EUR 69.99 | 78% |
+| Feraligatr (Neo Genesis 4) | EUR 66.57 | EUR 10.00 | 86% |
+| Feraligatr (Neo Genesis 5) | EUR 66.57 | EUR 10.00 | 86% |
+| Celebi ex (POP Series 2 17) | EUR 44.47 | EUR 4.99 | 85% |
+| Blastoise (Secret Wonders 2) | EUR 22.20 | EUR 2.50 | 81% |
+| Manectric ex (Deoxys 101) | EUR 76.56 | EUR 10.00 | 81% |
+| Mudkip (POP Series 4 11) | EUR 27.39 | EUR 4.00 | 79% |
+| Dark Weezing (Team Rocket 14) | EUR 12.21 | EUR 0.99 | 79% |
+| Dustox ex (Legend Maker 86) | EUR 44.97 | EUR 6.50 | 79% |
+| N (Noble Victories 101) | EUR 53.78 | EUR 12.00 | 77% |
+| Lugia (POP Series 5 2) | EUR 114.71 | EUR 74.95 | 77% |
+| Ampharos (Unseen Forces 1) | EUR 24.31 | EUR 1.50 | 76% |
+| Tyranitar (Unleashed 26) | EUR 5.98 | EUR 0.02 | 76% |
+| Dark Slowbro (Legendary Collection 8) | EUR 35.08 | EUR 4.99 | 76% |
+| Primeape (Southern Islands 18) | EUR 38.73 | EUR 23.00 | 76% |
 
 Sets met de meeste kansrijke kaarten:
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| Expedition Base Set | 53 | 64% |
-| Aquapolis | 49 | 65% |
-| Skyridge | 28 | 63% |
-| Legendary Collection | 21 | 65% |
-| Neo Discovery | 20 | 68% |
-| Neo Destiny | 17 | 64% |
-| Team Rocket Returns | 17 | 62% |
-| FireRed & LeafGreen | 17 | 62% |
-| Holon Phantoms | 16 | 67% |
-| Neo Revelation | 16 | 65% |
+| Expedition Base Set | 35 | 57% |
+| Aquapolis | 25 | 56% |
+| Legendary Collection | 24 | 58% |
+| Skyridge | 23 | 58% |
+| Team Rocket Returns | 19 | 58% |
+| FireRed & LeafGreen | 18 | 56% |
+| Holon Phantoms | 17 | 63% |
+| Neo Destiny | 17 | 58% |
+| Neo Discovery | 16 | 65% |
+| Southern Islands | 16 | 64% |
 
 ## Kans dat de verkoopprijs +20% stijgt in 30 dagen
 
@@ -73,60 +73,60 @@ Sets met de meeste kansrijke kaarten:
 
 | methode | vaardigheid | toplijst: kans | stegen echt | mediaan stijging | handel: mediaan | handel: met winst |
 |---|---|---|---|---|---|---|
-| basis | +0.0% | 17% | 22% (1852) | +2.6% | +117.9% | 82% |
-| verkopen | +5.9% | 36% | 46% (1852) | +17.4% | +373.6% | 98% |
-| aanbod | +3.0% | 25% | 28% (1852) | +7.7% | +129.0% | 83% |
-| logistisch | +16.4% | 62% | 58% (1852) | +26.2% | +496.3% | 99% |
-| boom | +21.2% | 64% | 68% (1852) | +34.9% | +382.4% | 99% |
+| basis | +0.0% | 17% | 19% (1863) | +3.2% | +105.7% | 83% |
+| verkopen | +5.3% | 40% | 43% (1863) | +15.4% | +337.2% | 98% |
+| aanbod | +3.0% | 26% | 28% (1863) | +6.8% | +88.2% | 86% |
+| logistisch | +16.1% | 62% | 57% (1863) | +26.2% | +502.1% | 99% |
+| boom | +22.0% | 65% | 70% (1863) | +36.4% | +434.6% | 99% |
 
-Ter vergelijking, alle testkaarten: handel mediaan +47.7%, met winst 75%.
+Ter vergelijking, alle testkaarten: handel mediaan +46.4%, met winst 74%.
 
 **Toets op tijd** (basis: 15% steeg zoveel)
 
 | methode | vaardigheid | toplijst: kans | stegen echt | mediaan stijging | handel: mediaan | handel: met winst |
 |---|---|---|---|---|---|---|
-| basis | +0.0% | 19% | 15% (1436) | -0.7% | +48.9% | 73% |
-| verkopen | +3.0% | 45% | 37% (1436) | +11.6% | +355.2% | 96% |
-| aanbod | +3.3% | 27% | 20% (1436) | +5.0% | +65.6% | 78% |
-| logistisch | +4.2% | 70% | 39% (1436) | +12.6% | +502.1% | 98% |
-| boom | +10.2% | 69% | 46% (1436) | +17.9% | +420.1% | 99% |
+| basis | +0.0% | 19% | 15% (1439) | -0.7% | +47.6% | 72% |
+| verkopen | +3.0% | 45% | 37% (1439) | +11.7% | +355.2% | 96% |
+| aanbod | +3.4% | 27% | 20% (1439) | +5.0% | +65.3% | 78% |
+| logistisch | +3.9% | 70% | 39% (1439) | +12.6% | +502.1% | 97% |
+| boom | +10.4% | 69% | 46% (1439) | +17.7% | +422.9% | 99% |
 
-Ter vergelijking, alle testkaarten: handel mediaan +46.4%, met winst 74%.
+Ter vergelijking, alle testkaarten: handel mediaan +46.3%, met winst 74%.
 
-**Winnaar: boom.** Toplijst in de toets: 68% steeg minstens 20% (basis 17%); handel met winst 99%.
+**Winnaar: boom.** Toplijst in de toets: 70% steeg minstens 20% (basis 17%); handel met winst 99%.
 
 Toplijst van vandaag (eerste 15):
 
 | kaart | verkoopgemiddelde 30d | goedkoopste | kans |
 |---|---|---|---|
-| Manectric ex (Deoxys 101) | EUR 76.56 | EUR 10.00 | 81% |
-| Honchkrow (Secret Wonders 132) | EUR 34.84 | EUR 2.00 | 81% |
-| Feraligatr (Neo Genesis 4) | EUR 66.57 | EUR 10.00 | 78% |
-| Feraligatr (Neo Genesis 5) | EUR 66.57 | EUR 10.00 | 78% |
-| Celebi ex (POP Series 2 17) | EUR 44.47 | EUR 4.99 | 77% |
-| Raichu (Holon Phantoms 51) | EUR 3.62 | EUR 0.48 | 76% |
-| Kyogre ex (Crystal Guardians 95) | EUR 196.55 | EUR 20.00 | 72% |
-| Tyranitar (Unleashed 26) | EUR 5.98 | EUR 0.02 | 71% |
-| Ecogym (Neo Genesis 84) | EUR 3.13 | EUR 0.20 | 71% |
-| Poliwrath (Skyridge 26) | EUR 213.03 | EUR 69.99 | 70% |
-| Mudkip (POP Series 4 11) | EUR 27.39 | EUR 4.00 | 69% |
-| Victini (Noble Victories 43) | EUR 24.31 | EUR 0.10 | 69% |
-| Magikarp (Expedition Base Set 118) | EUR 30.11 | EUR 2.00 | 69% |
-| Raichu (Power Keepers 12) | EUR 28.00 | EUR 1.49 | 68% |
-| Steelix (Aquapolis 35) | EUR 357.80 | EUR 40.00 | 68% |
+| Honchkrow (Secret Wonders 132) | EUR 34.84 | EUR 2.00 | 73% |
+| Manectric ex (Deoxys 101) | EUR 76.56 | EUR 10.00 | 73% |
+| Raichu (Holon Phantoms 51) | EUR 3.62 | EUR 0.48 | 73% |
+| Feraligatr (Neo Genesis 4) | EUR 66.57 | EUR 10.00 | 72% |
+| Feraligatr (Neo Genesis 5) | EUR 66.57 | EUR 10.00 | 72% |
+| Celebi ex (POP Series 2 17) | EUR 44.47 | EUR 4.99 | 70% |
+| Ecogym (Neo Genesis 84) | EUR 3.13 | EUR 0.20 | 69% |
+| Tyranitar (Unleashed 26) | EUR 5.98 | EUR 0.02 | 66% |
+| Mudkip (POP Series 4 11) | EUR 27.39 | EUR 4.00 | 63% |
+| Manaphy (Diamond & Pearl 9) | EUR 5.62 | EUR 0.40 | 62% |
+| Dark Houndoom (Team Rocket Returns 37) | EUR 27.71 | EUR 3.00 | 61% |
+| Shaymin (Unleashed 8) | EUR 4.90 | EUR 0.20 | 61% |
+| Blastoise (Secret Wonders 2) | EUR 22.20 | EUR 2.50 | 61% |
+| Regice (Holon Phantoms 27) | EUR 3.77 | EUR 0.30 | 59% |
+| Dark Weezing (Team Rocket 14) | EUR 12.21 | EUR 0.99 | 59% |
 
 Sets met de meeste kansrijke kaarten:
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| Expedition Base Set | 60 | 50% |
-| Aquapolis | 30 | 50% |
-| Skyridge | 29 | 50% |
-| Neo Discovery | 24 | 56% |
-| Legendary Collection | 24 | 50% |
-| Holon Phantoms | 19 | 54% |
-| Neo Genesis | 18 | 56% |
-| Crystal Guardians | 17 | 52% |
-| FireRed & LeafGreen | 16 | 47% |
-| Dragon Frontiers | 15 | 53% |
+| Expedition Base Set | 46 | 38% |
+| Legendary Collection | 25 | 40% |
+| Neo Discovery | 22 | 44% |
+| Holon Phantoms | 21 | 44% |
+| Aquapolis | 20 | 36% |
+| Neo Genesis | 19 | 46% |
+| Crystal Guardians | 18 | 41% |
+| FireRed & LeafGreen | 17 | 35% |
+| Dragon Frontiers | 14 | 42% |
+| Power Keepers | 14 | 41% |
 
