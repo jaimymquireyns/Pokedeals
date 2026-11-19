@@ -1,16 +1,16 @@
-# Terugtest advies op Near Mint-geschiedenis (2026-11-17)
+# Terugtest advies op Near Mint-geschiedenis (2026-11-19)
 
-7127 kaarten met genoeg geschiedenis, 1825 daarvan gaven minstens één signaal. Uitkomst na 30 dagen, Verkoop gerekend op EUR 1 boven de 10e goedkoopste aanbieding (de 10e ligt nu gemiddeld x1.40 boven de goedkoopste), min commissie en verpakking; aankoop plus verzending.
+7312 kaarten met genoeg geschiedenis, 1864 daarvan gaven minstens één signaal. Uitkomst na 30 dagen, Verkoop gerekend op EUR 1 boven de 10e goedkoopste aanbieding (de 10e ligt nu gemiddeld x1.40 boven de goedkoopste), min commissie en verpakking; aankoop plus verzending.
 
 | advies | aantal | klopte | gemiddeld rendement |
 |---|---|---|---|
-| Good buy (ver onder normaal) | 152 | 82% | +51.7% |
-|   waarvan diep (35%+ onder normaal) | 81 | 79% | +59.6% |
-|   waarvan mild (20-35% onder) | 71 | 85% | +42.7% |
+| Good buy (ver onder normaal) | 162 | 82% | +55.1% |
+|   waarvan diep (35%+ onder normaal) | 91 | 82% | +61.4% |
+|   waarvan mild (20-35% onder) | 71 | 82% | +47.0% |
 |   waarvan set jonger dan 6 maanden | 0 | – | – |
-|   waarvan set ouder dan 6 maanden | 152 | 82% | +51.7% |
-| Sell now (ver boven normaal: zakte daarna) | 834 | 51% | -4.6% |
-| Toeval: willekeurige kaarten gekocht | 1489 | 66% | +30.5% |
+|   waarvan set ouder dan 6 maanden | 162 | 82% | +55.1% |
+| Sell now (ver boven normaal: zakte daarna) | 873 | 50% | -4.4% |
+| Toeval: willekeurige kaarten gekocht | 1533 | 65% | +30.8% |
 
 ## Per prijsklasse (prijs op het moment van het signaal)
 
@@ -18,9 +18,9 @@ Kale verandering = de vraagprijs 30 dagen later tegen die van toen, zonder koste
 
 | prijsklasse | Good buy: aantal | klopte | kaal | na kosten | Toeval: aantal | klopte | kaal | na kosten | Sell now: aantal | klopte | kaal |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| onder EUR 10 | 0 | – | – | – | 0 | – | – | – | 182 | 54% | -10.5% |
-| EUR 10-25 | 59 | 76% | +19.5% | +50.5% | 642 | 62% | +1.5% | +28.2% | 240 | 56% | -7.5% |
-| EUR 25-50 | 32 | 84% | +17.6% | +41.9% | 370 | 61% | +2.1% | +22.9% | 130 | 56% | -6.9% |
-| EUR 50-100 | 25 | 84% | +22.1% | +54.9% | 212 | 71% | +4.9% | +33.1% | 106 | 49% | +0.3% |
-| EUR 100-250 | 24 | 83% | +5.4% | +48.1% | 144 | 75% | +4.0% | +39.7% | 88 | 39% | +6.5% |
-| EUR 250+ | 12 | 92% | +34.4% | +84.7% | 121 | 81% | +4.8% | +50.2% | 88 | 40% | +2.2% |
+| onder EUR 10 | 0 | – | – | – | 0 | – | – | – | 190 | 53% | -10.2% |
+| EUR 10-25 | 62 | 79% | +19.1% | +55.0% | 657 | 61% | +1.7% | +27.4% | 246 | 56% | -7.7% |
+| EUR 25-50 | 34 | 85% | +17.5% | +41.0% | 382 | 61% | +1.9% | +23.2% | 135 | 54% | -6.0% |
+| EUR 50-100 | 29 | 86% | +21.2% | +65.1% | 222 | 70% | +6.0% | +34.6% | 107 | 49% | +0.3% |
+| EUR 100-250 | 24 | 83% | +5.4% | +47.1% | 148 | 74% | +3.8% | +41.6% | 97 | 38% | +6.0% |
+| EUR 250+ | 13 | 77% | +36.3% | +84.3% | 124 | 80% | +4.6% | +52.5% | 98 | 41% | +1.9% |
