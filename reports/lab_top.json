@@ -1,16 +1,16 @@
 {
- "today": "2026-11-26",
+ "today": "2026-11-27",
  "up10": {
   "winner": "boom",
   "proof": {
-   "n": 11021,
-   "brier": 0.14744136494119722,
-   "base": 0.21132383631249432,
-   "top_n": 551,
-   "top_hit": 0.5335753176043557,
-   "top_p": 0.6253982644003276,
-   "top_ret": 0.13181818181818183,
-   "skill": 0.11587782124824786
+   "n": 11182,
+   "brier": 0.1510421276087019,
+   "base": 0.22008585226256483,
+   "top_n": 559,
+   "top_hit": 0.5491949910554562,
+   "top_p": 0.5954064040475654,
+   "top_ret": 0.15000000000000013,
+   "skill": 0.12024629869686887
   },
   "top": [
    {
@@ -19,7 +19,7 @@
     "set_id": "sv03",
     "number": "204",
     "price": 3.0,
-    "chance": 0.789
+    "chance": 0.805
    },
    {
     "product_id": "dp3-16",
@@ -27,596 +27,7 @@
     "set_id": "dp3",
     "number": "16",
     "price": 15.0,
-    "chance": 0.781
-   },
-   {
-    "product_id": "xy2-11",
-    "name": "Charizard EX",
-    "set_id": "xy2",
-    "number": "11",
-    "price": 10.0,
-    "chance": 0.766
-   },
-   {
-    "product_id": "pop9-9",
-    "name": "Lopunny",
-    "set_id": "pop9",
-    "number": "9",
-    "price": 3.29,
-    "chance": 0.766
-   },
-   {
-    "product_id": "sv01-205",
-    "name": "Clauncher",
-    "set_id": "sv01",
-    "number": "205",
-    "price": 3.99,
-    "chance": 0.763
-   },
-   {
-    "product_id": "sv03-205",
-    "name": "Scizor",
-    "set_id": "sv03",
-    "number": "205",
-    "price": 5.0,
-    "chance": 0.763
-   },
-   {
-    "product_id": "svp-074",
-    "name": "Charizard ex",
-    "set_id": "svp",
-    "number": "074",
-    "price": 9.99,
-    "chance": 0.761
-   },
-   {
-    "product_id": "dp4-18",
-    "name": "Houndoom",
-    "set_id": "dp4",
-    "number": "18",
-    "price": 3.0,
-    "chance": 0.756
-   },
-   {
-    "product_id": "sm6-90",
-    "name": "Xerneas GX",
-    "set_id": "sm6",
-    "number": "90",
-    "price": 9.0,
-    "chance": 0.753
-   },
-   {
-    "product_id": "swsh9-181",
-    "name": "Galarian Articuno V",
-    "set_id": "swsh9",
-    "number": "181",
-    "price": 5.99,
-    "chance": 0.752
-   },
-   {
-    "product_id": "sv06.5-079",
-    "name": "Bewear",
-    "set_id": "sv06.5",
-    "number": "079",
-    "price": 11.29,
-    "chance": 0.749
-   },
-   {
-    "product_id": "smp-SM17",
-    "name": "Lunala GX",
-    "set_id": "smp",
-    "number": "SM17",
-    "price": 4.07,
-    "chance": 0.749
-   },
-   {
-    "product_id": "hgss2-4",
-    "name": "Metagross",
-    "set_id": "hgss2",
-    "number": "4",
-    "price": 8.0,
-    "chance": 0.748
-   },
-   {
-    "product_id": "neo3-6",
-    "name": "Entei",
-    "set_id": "neo3",
-    "number": "6",
-    "price": 80.0,
-    "chance": 0.743
-   },
-   {
-    "product_id": "swsh11-204",
-    "name": "Arezu",
-    "set_id": "swsh11",
-    "number": "204",
-    "price": 3.0,
-    "chance": 0.742
-   },
-   {
-    "product_id": "sm10-106",
-    "name": "Stakataka",
-    "set_id": "sm10",
-    "number": "106",
-    "price": 6.0,
-    "chance": 0.742
-   },
-   {
-    "product_id": "ex2-95",
-    "name": "Aggron ex",
-    "set_id": "ex2",
-    "number": "95",
-    "price": 125.0,
-    "chance": 0.739
-   },
-   {
-    "product_id": "sv01-199",
-    "name": "Tarountula",
-    "set_id": "sv01",
-    "number": "199",
-    "price": 5.0,
-    "chance": 0.739
-   },
-   {
-    "product_id": "xy6-58",
-    "name": "Latios EX",
-    "set_id": "xy6",
-    "number": "58",
-    "price": 8.0,
-    "chance": 0.739
-   },
-   {
-    "product_id": "sv04.5-237",
-    "name": "Iono",
-    "set_id": "sv04.5",
-    "number": "237",
-    "price": 10.0,
-    "chance": 0.738
-   },
-   {
-    "product_id": "sm3-131",
-    "name": "Ho-Oh GX",
-    "set_id": "sm3",
-    "number": "131",
-    "price": 12.13,
-    "chance": 0.738
-   },
-   {
-    "product_id": "sm6-74",
-    "name": "Diancie \u25c7",
-    "set_id": "sm6",
-    "number": "74",
-    "price": 4.94,
-    "chance": 0.738
-   },
-   {
-    "product_id": "ex4-24",
-    "name": "Team Aqua's Cacnea",
-    "set_id": "ex4",
-    "number": "24",
-    "price": 80.0,
-    "chance": 0.736
-   },
-   {
-    "product_id": "dp6-3",
-    "name": "Froslass",
-    "set_id": "dp6",
-    "number": "3",
-    "price": 4.66,
-    "chance": 0.734
-   },
-   {
-    "product_id": "dp3-1",
-    "name": "Ampharos",
-    "set_id": "dp3",
-    "number": "1",
-    "price": 3.99,
-    "chance": 0.731
-   },
-   {
-    "product_id": "hgss1-118",
-    "name": "Lightning Energy",
-    "set_id": "hgss1",
-    "number": "118",
-    "price": 10.0,
-    "chance": 0.73
-   },
-   {
-    "product_id": "swsh12.5gg-GG26",
-    "name": "Riolu",
-    "set_id": "swsh12.5gg",
-    "number": "GG26",
-    "price": 7.0,
-    "chance": 0.728
-   },
-   {
-    "product_id": "sv10.5b-103",
-    "name": "Tympole",
-    "set_id": "sv10.5b",
-    "number": "103",
-    "price": 5.0,
-    "chance": 0.725
-   },
-   {
-    "product_id": "xy9-18",
-    "name": "Golduck BREAK",
-    "set_id": "xy9",
-    "number": "18",
-    "price": 8.08,
-    "chance": 0.724
-   },
-   {
-    "product_id": "dp2-121",
-    "name": "Electivire",
-    "set_id": "dp2",
-    "number": "121",
-    "price": 61.45,
-    "chance": 0.724
-   },
-   {
-    "product_id": "xyp-XY199",
-    "name": "Camerupt Spirit Link",
-    "set_id": "xyp",
-    "number": "XY199",
-    "price": 4.5,
-    "chance": 0.722
-   },
-   {
-    "product_id": "sv01-207",
-    "name": "Dondozo",
-    "set_id": "sv01",
-    "number": "207",
-    "price": 9.9,
-    "chance": 0.72
-   },
-   {
-    "product_id": "xy7-7",
-    "name": "Sceptile EX",
-    "set_id": "xy7",
-    "number": "7",
-    "price": 3.45,
-    "chance": 0.72
-   },
-   {
-    "product_id": "xyp-XY07",
-    "name": "Xerneas EX",
-    "set_id": "xyp",
-    "number": "XY07",
-    "price": 5.24,
-    "chance": 0.719
-   },
-   {
-    "product_id": "mep-066",
-    "name": "Tyrantrum",
-    "set_id": "mep",
-    "number": "066",
-    "price": 6.0,
-    "chance": 0.718
-   },
-   {
-    "product_id": "ex3-9",
-    "name": "Roselia",
-    "set_id": "ex3",
-    "number": "9",
-    "price": 6.0,
-    "chance": 0.718
-   },
-   {
-    "product_id": "sm9-183",
-    "name": "Magikarp & Wailord GX",
-    "set_id": "sm9",
-    "number": "183",
-    "price": 70.0,
-    "chance": 0.717
-   },
-   {
-    "product_id": "dp7-19",
-    "name": "Gyarados",
-    "set_id": "dp7",
-    "number": "19",
-    "price": 10.0,
-    "chance": 0.714
-   },
-   {
-    "product_id": "dpp-DP38",
-    "name": "Giratina",
-    "set_id": "dpp",
-    "number": "DP38",
-    "price": 29.99,
-    "chance": 0.714
-   },
-   {
-    "product_id": "pl2-105",
-    "name": "Flygon LV.X",
-    "set_id": "pl2",
-    "number": "105",
-    "price": 200.0,
-    "chance": 0.709
-   },
-   {
-    "product_id": "ex1-9",
-    "name": "Manectric",
-    "set_id": "ex1",
-    "number": "9",
-    "price": 9.0,
-    "chance": 0.708
-   },
-   {
-    "product_id": "swsh4.5-72",
-    "name": "Skyla",
-    "set_id": "swsh4.5",
-    "number": "72",
-    "price": 6.0,
-    "chance": 0.701
-   },
-   {
-    "product_id": "dp6-40",
-    "name": "Shedinja",
-    "set_id": "dp6",
-    "number": "40",
-    "price": 6.15,
-    "chance": 0.7
-   },
-   {
-    "product_id": "ex6-3",
-    "name": "Dewgong",
-    "set_id": "ex6",
-    "number": "3",
-    "price": 19.0,
-    "chance": 0.696
-   },
-   {
-    "product_id": "mep-009",
-    "name": "Alakazam",
-    "set_id": "mep",
-    "number": "009",
-    "price": 6.9,
-    "chance": 0.695
-   },
-   {
-    "product_id": "sm12-240",
-    "name": "Wishiwashi",
-    "set_id": "sm12",
-    "number": "240",
-    "price": 10.0,
-    "chance": 0.695
-   },
-   {
-    "product_id": "dp5-6",
-    "name": "Kabutops",
-    "set_id": "dp5",
-    "number": "6",
-    "price": 11.0,
-    "chance": 0.694
-   },
-   {
-    "product_id": "smp-SM193",
-    "name": "Garchomp & Giratina GX",
-    "set_id": "smp",
-    "number": "SM193",
-    "price": 98.31,
-    "chance": 0.689
-   },
-   {
-    "product_id": "swsh5-172",
-    "name": "Bruno",
-    "set_id": "swsh5",
-    "number": "172",
-    "price": 4.0,
-    "chance": 0.686
-   },
-   {
-    "product_id": "swsh12.5gg-GG63",
-    "name": "Irida",
-    "set_id": "swsh12.5gg",
-    "number": "GG63",
-    "price": 5.0,
-    "chance": 0.683
-   }
-  ],
-  "sets": [
-   {
-    "set_id": "ecard3",
-    "cards": 17,
-    "avg_chance": 0.528
-   },
-   {
-    "set_id": "pl4",
-    "cards": 15,
-    "avg_chance": 0.522
-   },
-   {
-    "set_id": "hgss1",
-    "cards": 14,
-    "avg_chance": 0.543
-   },
-   {
-    "set_id": "ex6",
-    "cards": 13,
-    "avg_chance": 0.522
-   },
-   {
-    "set_id": "ex7",
-    "cards": 13,
-    "avg_chance": 0.508
-   },
-   {
-    "set_id": "ex2",
-    "cards": 12,
-    "avg_chance": 0.57
-   },
-   {
-    "set_id": "dp6",
-    "cards": 12,
-    "avg_chance": 0.537
-   },
-   {
-    "set_id": "pl3",
-    "cards": 12,
-    "avg_chance": 0.525
-   },
-   {
-    "set_id": "xyp",
-    "cards": 11,
-    "avg_chance": 0.567
-   },
-   {
-    "set_id": "dp3",
-    "cards": 10,
-    "avg_chance": 0.587
-   },
-   {
-    "set_id": "swshp",
-    "cards": 10,
-    "avg_chance": 0.558
-   },
-   {
-    "set_id": "ex3",
-    "cards": 10,
-    "avg_chance": 0.556
-   },
-   {
-    "set_id": "ex11",
-    "cards": 10,
-    "avg_chance": 0.507
-   },
-   {
-    "set_id": "smp",
-    "cards": 9,
-    "avg_chance": 0.554
-   },
-   {
-    "set_id": "ecard2",
-    "cards": 9,
-    "avg_chance": 0.528
-   },
-   {
-    "set_id": "pl2",
-    "cards": 9,
-    "avg_chance": 0.521
-   },
-   {
-    "set_id": "mep",
-    "cards": 8,
-    "avg_chance": 0.585
-   },
-   {
-    "set_id": "ex5",
-    "cards": 8,
-    "avg_chance": 0.555
-   },
-   {
-    "set_id": "hgss4",
-    "cards": 8,
-    "avg_chance": 0.544
-   },
-   {
-    "set_id": "ex4",
-    "cards": 8,
-    "avg_chance": 0.539
-   }
-  ]
- },
- "up20": {
-  "winner": "boom",
-  "proof": {
-   "n": 11021,
-   "brier": 0.10267318762365506,
-   "base": 0.13628527356864167,
-   "top_n": 551,
-   "top_hit": 0.46098003629764067,
-   "top_p": 0.5009080701397719,
-   "top_ret": 0.13636363636363646,
-   "skill": 0.12817542263950688
-  },
-  "top": [
-   {
-    "product_id": "xyp-XY199",
-    "name": "Camerupt Spirit Link",
-    "set_id": "xyp",
-    "number": "XY199",
-    "price": 4.5,
-    "chance": 0.74
-   },
-   {
-    "product_id": "sv03-204",
-    "name": "Houndour",
-    "set_id": "sv03",
-    "number": "204",
-    "price": 3.0,
-    "chance": 0.729
-   },
-   {
-    "product_id": "sv10.5b-103",
-    "name": "Tympole",
-    "set_id": "sv10.5b",
-    "number": "103",
-    "price": 5.0,
-    "chance": 0.727
-   },
-   {
-    "product_id": "sv03-205",
-    "name": "Scizor",
-    "set_id": "sv03",
-    "number": "205",
-    "price": 5.0,
-    "chance": 0.723
-   },
-   {
-    "product_id": "sm9-183",
-    "name": "Magikarp & Wailord GX",
-    "set_id": "sm9",
-    "number": "183",
-    "price": 70.0,
-    "chance": 0.72
-   },
-   {
-    "product_id": "xy2-11",
-    "name": "Charizard EX",
-    "set_id": "xy2",
-    "number": "11",
-    "price": 10.0,
-    "chance": 0.7
-   },
-   {
-    "product_id": "swsh9-181",
-    "name": "Galarian Articuno V",
-    "set_id": "swsh9",
-    "number": "181",
-    "price": 5.99,
-    "chance": 0.7
-   },
-   {
-    "product_id": "sm6-74",
-    "name": "Diancie \u25c7",
-    "set_id": "sm6",
-    "number": "74",
-    "price": 4.94,
-    "chance": 0.693
-   },
-   {
-    "product_id": "ex4-24",
-    "name": "Team Aqua's Cacnea",
-    "set_id": "ex4",
-    "number": "24",
-    "price": 80.0,
-    "chance": 0.685
-   },
-   {
-    "product_id": "xy7-7",
-    "name": "Sceptile EX",
-    "set_id": "xy7",
-    "number": "7",
-    "price": 3.45,
-    "chance": 0.682
-   },
-   {
-    "product_id": "neo3-6",
-    "name": "Entei",
-    "set_id": "neo3",
-    "number": "6",
-    "price": 80.0,
-    "chance": 0.68
+    "chance": 0.795
    },
    {
     "product_id": "np-2",
@@ -624,39 +35,15 @@
     "set_id": "np",
     "number": "2",
     "price": 60.0,
-    "chance": 0.665
+    "chance": 0.779
    },
    {
-    "product_id": "hgss4-102",
-    "name": "Palkia & Dialga LEGEND",
-    "set_id": "hgss4",
-    "number": "102",
-    "price": 149.95,
-    "chance": 0.651
-   },
-   {
-    "product_id": "dp3-16",
-    "name": "Raikou",
-    "set_id": "dp3",
-    "number": "16",
-    "price": 15.0,
-    "chance": 0.646
-   },
-   {
-    "product_id": "ex3-89",
-    "name": "Ampharos ex",
-    "set_id": "ex3",
-    "number": "89",
-    "price": 150.0,
-    "chance": 0.64
-   },
-   {
-    "product_id": "dp2-121",
-    "name": "Electivire",
-    "set_id": "dp2",
-    "number": "121",
-    "price": 61.45,
-    "chance": 0.636
+    "product_id": "xy2-11",
+    "name": "Charizard EX",
+    "set_id": "xy2",
+    "number": "11",
+    "price": 10.0,
+    "chance": 0.778
    },
    {
     "product_id": "sm3-131",
@@ -664,119 +51,7 @@
     "set_id": "sm3",
     "number": "131",
     "price": 12.13,
-    "chance": 0.635
-   },
-   {
-    "product_id": "xy9-18",
-    "name": "Golduck BREAK",
-    "set_id": "xy9",
-    "number": "18",
-    "price": 8.08,
-    "chance": 0.633
-   },
-   {
-    "product_id": "pl2-105",
-    "name": "Flygon LV.X",
-    "set_id": "pl2",
-    "number": "105",
-    "price": 200.0,
-    "chance": 0.629
-   },
-   {
-    "product_id": "xyp-XY07",
-    "name": "Xerneas EX",
-    "set_id": "xyp",
-    "number": "XY07",
-    "price": 5.24,
-    "chance": 0.627
-   },
-   {
-    "product_id": "sv06.5-079",
-    "name": "Bewear",
-    "set_id": "sv06.5",
-    "number": "079",
-    "price": 11.29,
-    "chance": 0.626
-   },
-   {
-    "product_id": "smp-SM81",
-    "name": "Pikachu",
-    "set_id": "smp",
-    "number": "SM81",
-    "price": 30.65,
-    "chance": 0.623
-   },
-   {
-    "product_id": "svp-074",
-    "name": "Charizard ex",
-    "set_id": "svp",
-    "number": "074",
-    "price": 9.99,
-    "chance": 0.618
-   },
-   {
-    "product_id": "ru1-2",
-    "name": "Cherrim",
-    "set_id": "ru1",
-    "number": "2",
-    "price": 49.99,
-    "chance": 0.615
-   },
-   {
-    "product_id": "ex1-9",
-    "name": "Manectric",
-    "set_id": "ex1",
-    "number": "9",
-    "price": 9.0,
-    "chance": 0.608
-   },
-   {
-    "product_id": "pl3-8",
-    "name": "Rayquaza C",
-    "set_id": "pl3",
-    "number": "8",
-    "price": 300.0,
-    "chance": 0.608
-   },
-   {
-    "product_id": "sv08-244",
-    "name": "Drayton",
-    "set_id": "sv08",
-    "number": "244",
-    "price": 7.0,
-    "chance": 0.607
-   },
-   {
-    "product_id": "ex12-5",
-    "name": "Gengar",
-    "set_id": "ex12",
-    "number": "5",
-    "price": 65.0,
-    "chance": 0.6
-   },
-   {
-    "product_id": "sm8-52",
-    "name": "Blacephalon GX",
-    "set_id": "sm8",
-    "number": "52",
-    "price": 9.94,
-    "chance": 0.6
-   },
-   {
-    "product_id": "xyp-XY73",
-    "name": "Rayquaza EX",
-    "set_id": "xyp",
-    "number": "XY73",
-    "price": 36.87,
-    "chance": 0.599
-   },
-   {
-    "product_id": "sm10-217",
-    "name": "Reshiram & Charizard GX",
-    "set_id": "sm10",
-    "number": "217",
-    "price": 35.0,
-    "chance": 0.597
+    "chance": 0.775
    },
    {
     "product_id": "sv04.5-237",
@@ -784,143 +59,15 @@
     "set_id": "sv04.5",
     "number": "237",
     "price": 10.0,
-    "chance": 0.596
+    "chance": 0.77
    },
    {
-    "product_id": "ecard3-H27",
-    "name": "Rhydon",
-    "set_id": "ecard3",
-    "number": "H27",
-    "price": 65.0,
-    "chance": 0.592
-   },
-   {
-    "product_id": "ex13-5",
-    "name": "Deoxys \u03b4",
-    "set_id": "ex13",
-    "number": "5",
-    "price": 50.0,
-    "chance": 0.59
-   },
-   {
-    "product_id": "pop9-9",
-    "name": "Lopunny",
-    "set_id": "pop9",
-    "number": "9",
-    "price": 3.29,
-    "chance": 0.59
-   },
-   {
-    "product_id": "hgss3-81",
-    "name": "Espeon",
-    "set_id": "hgss3",
-    "number": "81",
-    "price": 380.0,
-    "chance": 0.584
-   },
-   {
-    "product_id": "col1-90",
-    "name": "Water Energy",
-    "set_id": "col1",
-    "number": "90",
-    "price": 64.99,
-    "chance": 0.583
-   },
-   {
-    "product_id": "hgss2-4",
-    "name": "Metagross",
-    "set_id": "hgss2",
-    "number": "4",
-    "price": 8.0,
-    "chance": 0.581
-   },
-   {
-    "product_id": "dpp-DP16",
-    "name": "Pikachu",
-    "set_id": "dpp",
-    "number": "DP16",
-    "price": 40.0,
-    "chance": 0.581
-   },
-   {
-    "product_id": "smp-SM17",
-    "name": "Lunala GX",
-    "set_id": "smp",
-    "number": "SM17",
-    "price": 4.07,
-    "chance": 0.58
-   },
-   {
-    "product_id": "ex5-1",
-    "name": "Banette",
-    "set_id": "ex5",
-    "number": "1",
-    "price": 15.0,
-    "chance": 0.578
-   },
-   {
-    "product_id": "dp5-6",
-    "name": "Kabutops",
-    "set_id": "dp5",
-    "number": "6",
-    "price": 11.0,
-    "chance": 0.577
-   },
-   {
-    "product_id": "sv06.5-074",
-    "name": "Okidogi",
-    "set_id": "sv06.5",
-    "number": "074",
-    "price": 4.5,
-    "chance": 0.576
-   },
-   {
-    "product_id": "ex8-31",
-    "name": "Golbat",
-    "set_id": "ex8",
-    "number": "31",
-    "price": 3.5,
-    "chance": 0.575
-   },
-   {
-    "product_id": "sm2-92",
-    "name": "Sylveon GX",
-    "set_id": "sm2",
-    "number": "92",
-    "price": 5.0,
-    "chance": 0.574
-   },
-   {
-    "product_id": "dp3-1",
-    "name": "Ampharos",
-    "set_id": "dp3",
-    "number": "1",
-    "price": 3.99,
-    "chance": 0.573
-   },
-   {
-    "product_id": "ru1-11",
-    "name": "Diglett",
-    "set_id": "ru1",
-    "number": "11",
-    "price": 89.99,
-    "chance": 0.573
-   },
-   {
-    "product_id": "ex7-110",
-    "name": "Charmeleon",
-    "set_id": "ex7",
-    "number": "110",
-    "price": 35.0,
-    "chance": 0.571
-   },
-   {
-    "product_id": "xy10-20",
-    "name": "Glaceon EX",
-    "set_id": "xy10",
-    "number": "20",
-    "price": 13.0,
-    "chance": 0.571
+    "product_id": "mep-066",
+    "name": "Tyrantrum",
+    "set_id": "mep",
+    "number": "066",
+    "price": 6.0,
+    "chance": 0.766
    },
    {
     "product_id": "swsh11-204",
@@ -928,109 +75,962 @@
     "set_id": "swsh11",
     "number": "204",
     "price": 3.0,
-    "chance": 0.57
+    "chance": 0.757
+   },
+   {
+    "product_id": "sm6-90",
+    "name": "Xerneas GX",
+    "set_id": "sm6",
+    "number": "90",
+    "price": 9.0,
+    "chance": 0.755
+   },
+   {
+    "product_id": "sv01-199",
+    "name": "Tarountula",
+    "set_id": "sv01",
+    "number": "199",
+    "price": 5.0,
+    "chance": 0.752
+   },
+   {
+    "product_id": "smp-SM17",
+    "name": "Lunala GX",
+    "set_id": "smp",
+    "number": "SM17",
+    "price": 4.07,
+    "chance": 0.752
+   },
+   {
+    "product_id": "xyp-XY07",
+    "name": "Xerneas EX",
+    "set_id": "xyp",
+    "number": "XY07",
+    "price": 5.24,
+    "chance": 0.751
+   },
+   {
+    "product_id": "sv06.5-079",
+    "name": "Bewear",
+    "set_id": "sv06.5",
+    "number": "079",
+    "price": 11.29,
+    "chance": 0.75
+   },
+   {
+    "product_id": "pop9-9",
+    "name": "Lopunny",
+    "set_id": "pop9",
+    "number": "9",
+    "price": 3.29,
+    "chance": 0.743
+   },
+   {
+    "product_id": "hgss1-118",
+    "name": "Lightning Energy",
+    "set_id": "hgss1",
+    "number": "118",
+    "price": 10.0,
+    "chance": 0.74
+   },
+   {
+    "product_id": "sv03-205",
+    "name": "Scizor",
+    "set_id": "sv03",
+    "number": "205",
+    "price": 5.0,
+    "chance": 0.738
+   },
+   {
+    "product_id": "xyp-XY199",
+    "name": "Camerupt Spirit Link",
+    "set_id": "xyp",
+    "number": "XY199",
+    "price": 4.5,
+    "chance": 0.736
+   },
+   {
+    "product_id": "swsh12.5gg-GG26",
+    "name": "Riolu",
+    "set_id": "swsh12.5gg",
+    "number": "GG26",
+    "price": 7.0,
+    "chance": 0.735
+   },
+   {
+    "product_id": "neo3-6",
+    "name": "Entei",
+    "set_id": "neo3",
+    "number": "6",
+    "price": 80.0,
+    "chance": 0.734
+   },
+   {
+    "product_id": "sm9-183",
+    "name": "Magikarp & Wailord GX",
+    "set_id": "sm9",
+    "number": "183",
+    "price": 70.0,
+    "chance": 0.734
+   },
+   {
+    "product_id": "basep-9",
+    "name": "Mew",
+    "set_id": "basep",
+    "number": "9",
+    "price": 90.0,
+    "chance": 0.728
+   },
+   {
+    "product_id": "smp-SM193",
+    "name": "Garchomp & Giratina GX",
+    "set_id": "smp",
+    "number": "SM193",
+    "price": 98.31,
+    "chance": 0.726
+   },
+   {
+    "product_id": "swsh12.5-147",
+    "name": "Elesa's Sparkle",
+    "set_id": "swsh12.5",
+    "number": "147",
+    "price": 13.0,
+    "chance": 0.726
+   },
+   {
+    "product_id": "svp-074",
+    "name": "Charizard ex",
+    "set_id": "svp",
+    "number": "074",
+    "price": 9.99,
+    "chance": 0.722
+   },
+   {
+    "product_id": "ex12-5",
+    "name": "Gengar",
+    "set_id": "ex12",
+    "number": "5",
+    "price": 65.0,
+    "chance": 0.722
+   },
+   {
+    "product_id": "sv06-210",
+    "name": "Sinistcha ex",
+    "set_id": "sv06",
+    "number": "210",
+    "price": 14.0,
+    "chance": 0.721
+   },
+   {
+    "product_id": "sv01-205",
+    "name": "Clauncher",
+    "set_id": "sv01",
+    "number": "205",
+    "price": 3.99,
+    "chance": 0.721
+   },
+   {
+    "product_id": "xy9-18",
+    "name": "Golduck BREAK",
+    "set_id": "xy9",
+    "number": "18",
+    "price": 8.08,
+    "chance": 0.719
+   },
+   {
+    "product_id": "ex1-9",
+    "name": "Manectric",
+    "set_id": "ex1",
+    "number": "9",
+    "price": 9.0,
+    "chance": 0.718
+   },
+   {
+    "product_id": "dpp-DP38",
+    "name": "Giratina",
+    "set_id": "dpp",
+    "number": "DP38",
+    "price": 29.99,
+    "chance": 0.716
+   },
+   {
+    "product_id": "ex5-1",
+    "name": "Banette",
+    "set_id": "ex5",
+    "number": "1",
+    "price": 15.0,
+    "chance": 0.714
+   },
+   {
+    "product_id": "dp2-121",
+    "name": "Electivire",
+    "set_id": "dp2",
+    "number": "121",
+    "price": 61.45,
+    "chance": 0.71
+   },
+   {
+    "product_id": "xy7-7",
+    "name": "Sceptile EX",
+    "set_id": "xy7",
+    "number": "7",
+    "price": 3.45,
+    "chance": 0.709
+   },
+   {
+    "product_id": "dp7-19",
+    "name": "Gyarados",
+    "set_id": "dp7",
+    "number": "19",
+    "price": 10.0,
+    "chance": 0.706
+   },
+   {
+    "product_id": "dp5-6",
+    "name": "Kabutops",
+    "set_id": "dp5",
+    "number": "6",
+    "price": 11.0,
+    "chance": 0.696
+   },
+   {
+    "product_id": "sv10.5b-103",
+    "name": "Tympole",
+    "set_id": "sv10.5b",
+    "number": "103",
+    "price": 5.0,
+    "chance": 0.696
+   },
+   {
+    "product_id": "dp3-1",
+    "name": "Ampharos",
+    "set_id": "dp3",
+    "number": "1",
+    "price": 3.99,
+    "chance": 0.695
+   },
+   {
+    "product_id": "swsh5-172",
+    "name": "Bruno",
+    "set_id": "swsh5",
+    "number": "172",
+    "price": 4.0,
+    "chance": 0.694
+   },
+   {
+    "product_id": "ex2-95",
+    "name": "Aggron ex",
+    "set_id": "ex2",
+    "number": "95",
+    "price": 125.0,
+    "chance": 0.693
+   },
+   {
+    "product_id": "swshp-SWSH285",
+    "name": "Pikachu V",
+    "set_id": "swshp",
+    "number": "SWSH285",
+    "price": 3.0,
+    "chance": 0.686
+   },
+   {
+    "product_id": "gym2-19",
+    "name": "Koga",
+    "set_id": "gym2",
+    "number": "19",
+    "price": 50.0,
+    "chance": 0.685
+   },
+   {
+    "product_id": "swsh4.5-72",
+    "name": "Skyla",
+    "set_id": "swsh4.5",
+    "number": "72",
+    "price": 6.0,
+    "chance": 0.684
+   },
+   {
+    "product_id": "mep-057",
+    "name": "Mudkip",
+    "set_id": "mep",
+    "number": "057",
+    "price": 9.99,
+    "chance": 0.679
+   },
+   {
+    "product_id": "swsh12.5gg-GG63",
+    "name": "Irida",
+    "set_id": "swsh12.5gg",
+    "number": "GG63",
+    "price": 5.0,
+    "chance": 0.679
+   },
+   {
+    "product_id": "sm6-74",
+    "name": "Diancie \u25c7",
+    "set_id": "sm6",
+    "number": "74",
+    "price": 4.94,
+    "chance": 0.678
+   },
+   {
+    "product_id": "ecard2-10",
+    "name": "Entei",
+    "set_id": "ecard2",
+    "number": "10",
+    "price": 25.0,
+    "chance": 0.677
+   },
+   {
+    "product_id": "ex2-2",
+    "name": "Cacturne",
+    "set_id": "ex2",
+    "number": "2",
+    "price": 25.0,
+    "chance": 0.675
+   },
+   {
+    "product_id": "me01-186",
+    "name": "Wally's Compassion",
+    "set_id": "me01",
+    "number": "186",
+    "price": 13.5,
+    "chance": 0.674
+   },
+   {
+    "product_id": "bw7-94",
+    "name": "Scizor",
+    "set_id": "bw7",
+    "number": "94",
+    "price": 4.0,
+    "chance": 0.672
+   },
+   {
+    "product_id": "hgss3-81",
+    "name": "Espeon",
+    "set_id": "hgss3",
+    "number": "81",
+    "price": 380.0,
+    "chance": 0.67
+   }
+  ],
+  "sets": [
+   {
+    "set_id": "hgss1",
+    "cards": 16,
+    "avg_chance": 0.559
+   },
+   {
+    "set_id": "ecard3",
+    "cards": 15,
+    "avg_chance": 0.536
+   },
+   {
+    "set_id": "pl4",
+    "cards": 15,
+    "avg_chance": 0.517
+   },
+   {
+    "set_id": "pl3",
+    "cards": 13,
+    "avg_chance": 0.51
+   },
+   {
+    "set_id": "xyp",
+    "cards": 12,
+    "avg_chance": 0.574
+   },
+   {
+    "set_id": "ex2",
+    "cards": 12,
+    "avg_chance": 0.553
+   },
+   {
+    "set_id": "ex7",
+    "cards": 12,
+    "avg_chance": 0.524
+   },
+   {
+    "set_id": "ecard1",
+    "cards": 11,
+    "avg_chance": 0.488
+   },
+   {
+    "set_id": "swshp",
+    "cards": 10,
+    "avg_chance": 0.557
+   },
+   {
+    "set_id": "ex6",
+    "cards": 10,
+    "avg_chance": 0.538
+   },
+   {
+    "set_id": "ecard2",
+    "cards": 10,
+    "avg_chance": 0.516
+   },
+   {
+    "set_id": "mep",
+    "cards": 9,
+    "avg_chance": 0.604
+   },
+   {
+    "set_id": "dp3",
+    "cards": 9,
+    "avg_chance": 0.59
+   },
+   {
+    "set_id": "ex5",
+    "cards": 9,
+    "avg_chance": 0.541
+   },
+   {
+    "set_id": "ex11",
+    "cards": 9,
+    "avg_chance": 0.515
+   },
+   {
+    "set_id": "smp",
+    "cards": 8,
+    "avg_chance": 0.573
+   },
+   {
+    "set_id": "ex3",
+    "cards": 8,
+    "avg_chance": 0.562
+   },
+   {
+    "set_id": "pl2",
+    "cards": 8,
+    "avg_chance": 0.517
+   },
+   {
+    "set_id": "dp6",
+    "cards": 8,
+    "avg_chance": 0.51
+   },
+   {
+    "set_id": "dpp",
+    "cards": 7,
+    "avg_chance": 0.568
+   }
+  ]
+ },
+ "up20": {
+  "winner": "boom",
+  "proof": {
+   "n": 11182,
+   "brier": 0.10707976463591681,
+   "base": 0.1444285458773028,
+   "top_n": 559,
+   "top_hit": 0.48300536672629696,
+   "top_p": 0.5152454588936913,
+   "top_ret": 0.19402985074626855,
+   "skill": 0.13376760910599295
+  },
+  "top": [
+   {
+    "product_id": "dp3-16",
+    "name": "Raikou",
+    "set_id": "dp3",
+    "number": "16",
+    "price": 15.0,
+    "chance": 0.718
+   },
+   {
+    "product_id": "xyp-XY199",
+    "name": "Camerupt Spirit Link",
+    "set_id": "xyp",
+    "number": "XY199",
+    "price": 4.5,
+    "chance": 0.71
+   },
+   {
+    "product_id": "sv03-205",
+    "name": "Scizor",
+    "set_id": "sv03",
+    "number": "205",
+    "price": 5.0,
+    "chance": 0.703
+   },
+   {
+    "product_id": "sv03-204",
+    "name": "Houndour",
+    "set_id": "sv03",
+    "number": "204",
+    "price": 3.0,
+    "chance": 0.691
+   },
+   {
+    "product_id": "sv06.5-079",
+    "name": "Bewear",
+    "set_id": "sv06.5",
+    "number": "079",
+    "price": 11.29,
+    "chance": 0.669
+   },
+   {
+    "product_id": "sv10.5b-103",
+    "name": "Tympole",
+    "set_id": "sv10.5b",
+    "number": "103",
+    "price": 5.0,
+    "chance": 0.663
+   },
+   {
+    "product_id": "svp-173",
+    "name": "Eevee",
+    "set_id": "svp",
+    "number": "173",
+    "price": 10.0,
+    "chance": 0.647
+   },
+   {
+    "product_id": "sm9-183",
+    "name": "Magikarp & Wailord GX",
+    "set_id": "sm9",
+    "number": "183",
+    "price": 70.0,
+    "chance": 0.644
+   },
+   {
+    "product_id": "dp2-121",
+    "name": "Electivire",
+    "set_id": "dp2",
+    "number": "121",
+    "price": 61.45,
+    "chance": 0.64
+   },
+   {
+    "product_id": "ex6-10",
+    "name": "Pidgeot",
+    "set_id": "ex6",
+    "number": "10",
+    "price": 15.0,
+    "chance": 0.625
+   },
+   {
+    "product_id": "svp-074",
+    "name": "Charizard ex",
+    "set_id": "svp",
+    "number": "074",
+    "price": 9.99,
+    "chance": 0.625
+   },
+   {
+    "product_id": "xy2-11",
+    "name": "Charizard EX",
+    "set_id": "xy2",
+    "number": "11",
+    "price": 10.0,
+    "chance": 0.619
+   },
+   {
+    "product_id": "pop9-9",
+    "name": "Lopunny",
+    "set_id": "pop9",
+    "number": "9",
+    "price": 3.29,
+    "chance": 0.61
+   },
+   {
+    "product_id": "hgss1-114",
+    "name": "Lugia LEGEND",
+    "set_id": "hgss1",
+    "number": "114",
+    "price": 100.0,
+    "chance": 0.61
+   },
+   {
+    "product_id": "dp5-6",
+    "name": "Kabutops",
+    "set_id": "dp5",
+    "number": "6",
+    "price": 11.0,
+    "chance": 0.609
+   },
+   {
+    "product_id": "mep-066",
+    "name": "Tyrantrum",
+    "set_id": "mep",
+    "number": "066",
+    "price": 6.0,
+    "chance": 0.607
+   },
+   {
+    "product_id": "neo3-6",
+    "name": "Entei",
+    "set_id": "neo3",
+    "number": "6",
+    "price": 80.0,
+    "chance": 0.606
+   },
+   {
+    "product_id": "dp3-1",
+    "name": "Ampharos",
+    "set_id": "dp3",
+    "number": "1",
+    "price": 3.99,
+    "chance": 0.604
+   },
+   {
+    "product_id": "ex3-89",
+    "name": "Ampharos ex",
+    "set_id": "ex3",
+    "number": "89",
+    "price": 150.0,
+    "chance": 0.602
+   },
+   {
+    "product_id": "sm5-140",
+    "name": "Pheromosa GX",
+    "set_id": "sm5",
+    "number": "140",
+    "price": 8.11,
+    "chance": 0.602
+   },
+   {
+    "product_id": "hgss3-81",
+    "name": "Espeon",
+    "set_id": "hgss3",
+    "number": "81",
+    "price": 380.0,
+    "chance": 0.599
+   },
+   {
+    "product_id": "ex13-5",
+    "name": "Deoxys \u03b4",
+    "set_id": "ex13",
+    "number": "5",
+    "price": 50.0,
+    "chance": 0.593
+   },
+   {
+    "product_id": "sm6-74",
+    "name": "Diancie \u25c7",
+    "set_id": "sm6",
+    "number": "74",
+    "price": 4.94,
+    "chance": 0.592
+   },
+   {
+    "product_id": "basep-9",
+    "name": "Mew",
+    "set_id": "basep",
+    "number": "9",
+    "price": 90.0,
+    "chance": 0.59
+   },
+   {
+    "product_id": "xy7-7",
+    "name": "Sceptile EX",
+    "set_id": "xy7",
+    "number": "7",
+    "price": 3.45,
+    "chance": 0.588
+   },
+   {
+    "product_id": "ru1-11",
+    "name": "Diglett",
+    "set_id": "ru1",
+    "number": "11",
+    "price": 89.99,
+    "chance": 0.588
+   },
+   {
+    "product_id": "ex12-5",
+    "name": "Gengar",
+    "set_id": "ex12",
+    "number": "5",
+    "price": 65.0,
+    "chance": 0.587
+   },
+   {
+    "product_id": "xy9-18",
+    "name": "Golduck BREAK",
+    "set_id": "xy9",
+    "number": "18",
+    "price": 8.08,
+    "chance": 0.586
+   },
+   {
+    "product_id": "smp-SM81",
+    "name": "Pikachu",
+    "set_id": "smp",
+    "number": "SM81",
+    "price": 30.65,
+    "chance": 0.585
+   },
+   {
+    "product_id": "smp-SM17",
+    "name": "Lunala GX",
+    "set_id": "smp",
+    "number": "SM17",
+    "price": 4.07,
+    "chance": 0.582
+   },
+   {
+    "product_id": "dp3-14",
+    "name": "Lugia",
+    "set_id": "dp3",
+    "number": "14",
+    "price": 350.0,
+    "chance": 0.58
+   },
+   {
+    "product_id": "pl2-105",
+    "name": "Flygon LV.X",
+    "set_id": "pl2",
+    "number": "105",
+    "price": 200.0,
+    "chance": 0.58
+   },
+   {
+    "product_id": "ecard2-10",
+    "name": "Entei",
+    "set_id": "ecard2",
+    "number": "10",
+    "price": 25.0,
+    "chance": 0.579
+   },
+   {
+    "product_id": "dp2-3",
+    "name": "Ambipom",
+    "set_id": "dp2",
+    "number": "3",
+    "price": 3.27,
+    "chance": 0.576
+   },
+   {
+    "product_id": "dpp-DP16",
+    "name": "Pikachu",
+    "set_id": "dpp",
+    "number": "DP16",
+    "price": 40.0,
+    "chance": 0.576
+   },
+   {
+    "product_id": "pl3-1",
+    "name": "Absol G",
+    "set_id": "pl3",
+    "number": "1",
+    "price": 30.0,
+    "chance": 0.574
+   },
+   {
+    "product_id": "pop5-7",
+    "name": "Rare Candy",
+    "set_id": "pop5",
+    "number": "7",
+    "price": 14.99,
+    "chance": 0.573
+   },
+   {
+    "product_id": "mep-067",
+    "name": "Doublade",
+    "set_id": "mep",
+    "number": "067",
+    "price": 5.5,
+    "chance": 0.572
+   },
+   {
+    "product_id": "ex4-24",
+    "name": "Team Aqua's Cacnea",
+    "set_id": "ex4",
+    "number": "24",
+    "price": 80.0,
+    "chance": 0.572
+   },
+   {
+    "product_id": "hgss1-112",
+    "name": "Ho-Oh LEGEND",
+    "set_id": "hgss1",
+    "number": "112",
+    "price": 196.62,
+    "chance": 0.569
+   },
+   {
+    "product_id": "ex7-110",
+    "name": "Charmeleon",
+    "set_id": "ex7",
+    "number": "110",
+    "price": 35.0,
+    "chance": 0.568
+   },
+   {
+    "product_id": "np-2",
+    "name": "Groudon ex",
+    "set_id": "np",
+    "number": "2",
+    "price": 60.0,
+    "chance": 0.567
+   },
+   {
+    "product_id": "pl3-9",
+    "name": "Regigigas FB",
+    "set_id": "pl3",
+    "number": "9",
+    "price": 5.25,
+    "chance": 0.563
+   },
+   {
+    "product_id": "pl1-125",
+    "name": "Palkia G LV.X",
+    "set_id": "pl1",
+    "number": "125",
+    "price": 200.0,
+    "chance": 0.563
+   },
+   {
+    "product_id": "tk-xy-p-30",
+    "name": "Pikachu Libre",
+    "set_id": "tk-xy-p",
+    "number": "30",
+    "price": 50.0,
+    "chance": 0.563
+   },
+   {
+    "product_id": "dpp-DP38",
+    "name": "Giratina",
+    "set_id": "dpp",
+    "number": "DP38",
+    "price": 29.99,
+    "chance": 0.562
+   },
+   {
+    "product_id": "bw7-94",
+    "name": "Scizor",
+    "set_id": "bw7",
+    "number": "94",
+    "price": 4.0,
+    "chance": 0.561
+   },
+   {
+    "product_id": "sm2-92",
+    "name": "Sylveon GX",
+    "set_id": "sm2",
+    "number": "92",
+    "price": 5.0,
+    "chance": 0.559
+   },
+   {
+    "product_id": "ru1-2",
+    "name": "Cherrim",
+    "set_id": "ru1",
+    "number": "2",
+    "price": 49.99,
+    "chance": 0.558
+   },
+   {
+    "product_id": "pl4-AR3",
+    "name": "Arceus",
+    "set_id": "pl4",
+    "number": "AR3",
+    "price": 34.99,
+    "chance": 0.554
    }
   ],
   "sets": [
    {
     "set_id": "ex6",
-    "cards": 19,
-    "avg_chance": 0.406
+    "cards": 21,
+    "avg_chance": 0.417
    },
    {
     "set_id": "pl3",
     "cards": 17,
-    "avg_chance": 0.435
+    "avg_chance": 0.436
+   },
+   {
+    "set_id": "hgss1",
+    "cards": 16,
+    "avg_chance": 0.432
    },
    {
     "set_id": "xyp",
     "cards": 15,
-    "avg_chance": 0.479
-   },
-   {
-    "set_id": "pl4",
-    "cards": 15,
-    "avg_chance": 0.458
-   },
-   {
-    "set_id": "hgss1",
-    "cards": 15,
-    "avg_chance": 0.429
+    "avg_chance": 0.452
    },
    {
     "set_id": "ecard3",
     "cards": 15,
-    "avg_chance": 0.423
+    "avg_chance": 0.421
+   },
+   {
+    "set_id": "pl4",
+    "cards": 14,
+    "avg_chance": 0.456
    },
    {
     "set_id": "ex2",
     "cards": 13,
-    "avg_chance": 0.423
-   },
-   {
-    "set_id": "pl2",
-    "cards": 13,
-    "avg_chance": 0.413
+    "avg_chance": 0.421
    },
    {
     "set_id": "ex4",
     "cards": 12,
-    "avg_chance": 0.438
+    "avg_chance": 0.424
    },
    {
-    "set_id": "dp3",
-    "cards": 11,
-    "avg_chance": 0.485
+    "set_id": "pl2",
+    "cards": 12,
+    "avg_chance": 0.413
    },
    {
     "set_id": "ex5",
-    "cards": 11,
-    "avg_chance": 0.434
-   },
-   {
-    "set_id": "ex7",
-    "cards": 11,
-    "avg_chance": 0.419
-   },
-   {
-    "set_id": "ex3",
-    "cards": 10,
-    "avg_chance": 0.446
-   },
-   {
-    "set_id": "ecard2",
-    "cards": 10,
-    "avg_chance": 0.44
+    "cards": 12,
+    "avg_chance": 0.407
    },
    {
     "set_id": "ex11",
+    "cards": 12,
+    "avg_chance": 0.39
+   },
+   {
+    "set_id": "dp3",
     "cards": 10,
-    "avg_chance": 0.418
+    "avg_chance": 0.509
    },
    {
     "set_id": "smp",
     "cards": 9,
-    "avg_chance": 0.477
+    "avg_chance": 0.466
    },
    {
-    "set_id": "dp6",
+    "set_id": "ex3",
     "cards": 9,
-    "avg_chance": 0.419
+    "avg_chance": 0.447
+   },
+   {
+    "set_id": "dp5",
+    "cards": 9,
+    "avg_chance": 0.445
+   },
+   {
+    "set_id": "ex13",
+    "cards": 9,
+    "avg_chance": 0.413
    },
    {
     "set_id": "dpp",
     "cards": 8,
-    "avg_chance": 0.473
+    "avg_chance": 0.458
    },
    {
-    "set_id": "ex13",
+    "set_id": "pl1",
     "cards": 8,
-    "avg_chance": 0.44
+    "avg_chance": 0.425
    },
    {
-    "set_id": "sm10",
+    "set_id": "ex7",
     "cards": 8,
-    "avg_chance": 0.435
+    "avg_chance": 0.419
+   },
+   {
+    "set_id": "ecard2",
+    "cards": 8,
+    "avg_chance": 0.409
    }
   ]
  }
