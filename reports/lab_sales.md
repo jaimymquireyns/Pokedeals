@@ -1,6 +1,6 @@
-# Testlab op echte verkopen (2026-11-27)
+# Testlab op echte verkopen (2026-11-28)
 
-Cardmarket-verkoopgemiddelden van 20525 kaarten, van 2026-09-21 t/m 2026-11-26. Testmomenten met een uitkomst na 30 dagen: 102858 (6032 kaarten, 37 data, 2026-09-21 t/m 2026-10-27). Vandaag te beoordelen: 5951 kaarten.
+Cardmarket-verkoopgemiddelden van 20525 kaarten, van 2026-09-21 t/m 2026-11-27. Testmomenten met een uitkomst na 30 dagen: 102859 (6032 kaarten, 38 data, 2026-09-21 t/m 2026-10-28). Vandaag te beoordelen: 59 kaarten.
 
 Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te sturen met een vraagprijs). Handel = kopen tegen de goedkoopste aanbieding plus verzending, na 30 dagen verkopen tegen het verkoopgemiddelde min commissie en verpakking.
 
@@ -14,7 +14,7 @@ Uitkomst: steeg het verkoopgemiddelde van 30 dagen (echte verkopen, niet te stur
 | verkopen | +5.9% | 47% | 56% (2571) | +13.8% | +377.4% | 98% |
 | aanbod | +4.7% | 36% | 36% (2571) | +5.5% | +54.7% | 76% |
 | logistisch | +14.9% | 67% | 61% (2571) | +18.3% | +412.4% | 94% |
-| boom | +20.8% | 72% | 77% (2571) | +28.2% | +337.2% | 98% |
+| boom | +20.9% | 73% | 77% (2571) | +28.1% | +355.0% | 98% |
 
 Ter vergelijking, alle testkaarten: handel mediaan +44.1%, met winst 73%.
 
@@ -36,36 +36,31 @@ Toplijst van vandaag (eerste 15):
 
 | kaart | verkoopgemiddelde 30d | goedkoopste | kans |
 |---|---|---|---|
-| Togepi (Southern Islands 4) | EUR 164.86 | EUR 69.88 | 82% |
-| Espeon (Undaunted 81) | EUR 151.25 | EUR 18.99 | 78% |
-| Butterfree (Southern Islands 9) | EUR 61.10 | EUR 19.90 | 78% |
-| Hitmonlee (Legendary Collection 13) | EUR 19.35 | EUR 7.06 | 77% |
-| Unown [H] (Neo Destiny 28) | EUR 16.35 | EUR 7.00 | 77% |
-| Vileplume (Southern Islands 17) | EUR 72.93 | EUR 100.00 | 76% |
-| Snorlax (Jungle 27) | EUR 15.53 | EUR 1.45 | 76% |
-| Steelix ex (Unseen Forces 109) | EUR 98.01 | EUR 20.00 | 75% |
-| Dark Crobat (Neo Destiny 2) | EUR 79.07 | EUR 18.92 | 74% |
-| Raticate (Southern Islands 6) | EUR 30.42 | EUR 17.89 | 74% |
-| Gengar (Legendary Collection 11) | EUR 116.10 | EUR 79.12 | 74% |
-| Lickitung (Southern Islands 16) | EUR 37.44 | EUR 27.50 | 74% |
-| Primeape (Southern Islands 18) | EUR 37.98 | EUR 25.00 | 74% |
-| Arcanine (HeartGold SoulSilver 1) | EUR 11.29 | EUR 1.99 | 73% |
-| Kingdra (Neo Revelation 19) | EUR 8.10 | EUR 1.44 | 73% |
+| Kingdra (Astral Radiance Trainer Gallery TG03) | EUR 9.02 | EUR 2.99 | 59% |
+| Raichu (Team Magma vs Team Aqua 13) | EUR 17.70 | EUR 1.50 | 46% |
+| Mawile GX (Unified Minds 141) | EUR 3.24 | EUR 0.50 | 43% |
+| Solrock (Sandstorm 13) | EUR 17.70 | EUR 1.50 | 42% |
+| Toedscruel (Paradox Rift 185) | EUR 4.23 | EUR 2.00 | 32% |
+| Lugia V (SWSH Black Star Promos SWSH301) | EUR 7.88 | EUR 0.69 | 31% |
+| Light Toxtricity (SWSH Black Star Promos SWSH137) | EUR 3.32 | EUR 1.00 | 29% |
+| Steelix (Paradox Rift 208) | EUR 22.36 | EUR 9.00 | 29% |
+| Reshiram & Charizard GX (SM Black Star Promos SM247) | EUR 119.85 | EUR 20.00 | 29% |
+| Moltres & Zapdos & Articuno GX (Hidden Fates 66) | EUR 33.00 | EUR 13.99 | 28% |
+| Greninja ☆ (SWSH Black Star Promos SWSH144) | EUR 26.32 | EUR 13.50 | 27% |
+| Leafeon VMAX (Evolving Skies 8) | EUR 6.65 | EUR 2.55 | 23% |
+| Umbreon ☆ (Celebrations Classic Collection CC015) | EUR 142.25 | EUR 75.00 | 23% |
+| Mega Venusaur ex (Mega Evolution 155) | EUR 10.22 | EUR 4.96 | 23% |
+| Blissey (Mysterious Treasures 5) | EUR 9.99 | EUR 0.50 | 22% |
 
 Sets met de meeste kansrijke kaarten:
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| Skyridge | 34 | 55% |
-| Expedition Base Set | 24 | 57% |
-| Aquapolis | 22 | 54% |
-| Legendary Collection | 20 | 61% |
-| Arceus | 16 | 62% |
-| Unseen Forces | 16 | 58% |
-| XY Black Star Promos | 16 | 56% |
-| FireRed & LeafGreen | 16 | 55% |
-| Southern Islands | 15 | 68% |
-| Neo Destiny | 15 | 60% |
+| Astral Radiance Trainer Gallery | 1 | 59% |
+| Team Magma vs Team Aqua | 1 | 46% |
+| Unified Minds | 1 | 43% |
+| Sandstorm | 1 | 42% |
+| Paradox Rift | 1 | 32% |
 
 ## Kans dat de verkoopprijs +20% stijgt in 30 dagen
 
@@ -77,7 +72,7 @@ Sets met de meeste kansrijke kaarten:
 | verkopen | +4.4% | 32% | 40% (2571) | +13.8% | +377.4% | 98% |
 | aanbod | +2.9% | 22% | 20% (2571) | +5.4% | +54.4% | 75% |
 | logistisch | +12.3% | 49% | 47% (2571) | +17.7% | +455.7% | 97% |
-| boom | +19.4% | 56% | 64% (2571) | +31.1% | +390.7% | 99% |
+| boom | +19.4% | 56% | 64% (2571) | +31.1% | +393.0% | 99% |
 
 Ter vergelijking, alle testkaarten: handel mediaan +44.1%, met winst 73%.
 
@@ -99,34 +94,29 @@ Toplijst van vandaag (eerste 15):
 
 | kaart | verkoopgemiddelde 30d | goedkoopste | kans |
 |---|---|---|---|
-| Butterfree (Southern Islands 9) | EUR 61.10 | EUR 19.90 | 64% |
-| Espeon (Undaunted 81) | EUR 151.25 | EUR 18.99 | 61% |
-| Snorlax (Jungle 27) | EUR 15.53 | EUR 1.45 | 58% |
-| Togepi (Southern Islands 4) | EUR 164.86 | EUR 69.88 | 57% |
-| Vileplume (Southern Islands 17) | EUR 72.93 | EUR 100.00 | 56% |
-| Steelix ex (Unseen Forces 109) | EUR 98.01 | EUR 20.00 | 55% |
-| Poliwrath (Neo Discovery 9) | EUR 28.26 | EUR 3.48 | 55% |
-| Hitmonlee (Legendary Collection 13) | EUR 19.35 | EUR 7.06 | 54% |
-| Arcanine (HeartGold SoulSilver 1) | EUR 11.29 | EUR 1.99 | 53% |
-| Honchkrow (Secret Wonders 132) | EUR 34.79 | EUR 2.00 | 53% |
-| Scizor (Undaunted 7) | EUR 32.77 | EUR 2.00 | 52% |
-| Aerodactyl δ (Holon Phantoms 35) | EUR 6.53 | EUR 1.00 | 51% |
-| Claydol (Deoxys 5) | EUR 18.23 | EUR 1.00 | 51% |
-| Kingdra (Legends Awakened 7) | EUR 22.25 | EUR 1.00 | 51% |
-| Deoxys δ (Holon Phantoms 3) | EUR 41.20 | EUR 6.80 | 51% |
+| Kingdra (Astral Radiance Trainer Gallery TG03) | EUR 9.02 | EUR 2.99 | 31% |
+| Raichu (Team Magma vs Team Aqua 13) | EUR 17.70 | EUR 1.50 | 26% |
+| Solrock (Sandstorm 13) | EUR 17.70 | EUR 1.50 | 21% |
+| Mawile GX (Unified Minds 141) | EUR 3.24 | EUR 0.50 | 20% |
+| Skarmory (Neo Genesis 13) | EUR 20.65 | EUR 3.00 | 20% |
+| Blissey (Mysterious Treasures 5) | EUR 9.99 | EUR 0.50 | 17% |
+| Pikachu (Crown Zenith 160) | EUR 44.65 | EUR 27.80 | 17% |
+| Greninja ☆ (SWSH Black Star Promos SWSH144) | EUR 26.32 | EUR 13.50 | 16% |
+| Reshiram & Charizard GX (SM Black Star Promos SM247) | EUR 119.85 | EUR 20.00 | 14% |
+| Moltres & Zapdos & Articuno GX (Hidden Fates 66) | EUR 33.00 | EUR 13.99 | 14% |
+| Light Toxtricity (SWSH Black Star Promos SWSH137) | EUR 3.32 | EUR 1.00 | 12% |
+| Lugia V (SWSH Black Star Promos SWSH301) | EUR 7.88 | EUR 0.69 | 12% |
+| Charizard V (SWSH Black Star Promos SWSH260) | EUR 49.55 | EUR 29.99 | 12% |
+| Leafeon VMAX (Evolving Skies 8) | EUR 6.65 | EUR 2.55 | 10% |
+| Lapras GX (Sun & Moon 35) | EUR 3.81 | EUR 0.98 | 10% |
 
 Sets met de meeste kansrijke kaarten:
 
 | set | kaarten | gemiddelde kans |
 |---|---|---|
-| Expedition Base Set | 28 | 37% |
-| Legendary Collection | 25 | 37% |
-| Skyridge | 23 | 35% |
-| Aquapolis | 23 | 33% |
-| Neo Discovery | 21 | 39% |
-| Holon Phantoms | 20 | 41% |
-| Delta Species | 20 | 32% |
-| Arceus | 17 | 36% |
-| Southern Islands | 16 | 42% |
-| XY Black Star Promos | 15 | 36% |
+| Astral Radiance Trainer Gallery | 1 | 31% |
+| Team Magma vs Team Aqua | 1 | 26% |
+| Sandstorm | 1 | 21% |
+| Unified Minds | 1 | 20% |
+| Neo Genesis | 1 | 20% |
 
